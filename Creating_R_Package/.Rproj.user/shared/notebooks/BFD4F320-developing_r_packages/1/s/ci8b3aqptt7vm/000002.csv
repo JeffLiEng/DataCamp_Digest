@@ -1,0 +1,22 @@
+"0","# Generate package documentation"
+"0","document(""datasummary"")"
+"2","Updating datasummary documentation
+"
+"2","Loading datasummary
+"
+"0","# Examine the contents of the man directory"
+"0","dir(""datasummary/man"")"
+"1","character(0)
+"
+"0","# View the documentation for the data_summary function"
+"0","help(""data_summary"")"
+"1","No documentation for ‘data_summary’ in specified packages and libraries:
+"
+"1","you could try ‘??data_summary’
+"
+"0","# View the documentation for the weather dataset"
+"0","help(""weather"")"
+"1","No documentation for ‘weather’ in specified packages and libraries:
+"
+"1","you could try ‘??weather’
+"

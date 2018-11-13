@@ -1,0 +1,4 @@
+"0","expect_warning(data_summary(airquality, na.rm = FALSE))
+"
+"2","Error: `data_summary(airquality, na.rm = FALSE)` did not produce any warnings.
+"

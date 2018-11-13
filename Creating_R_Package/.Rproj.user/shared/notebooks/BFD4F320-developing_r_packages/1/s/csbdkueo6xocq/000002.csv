@@ -1,0 +1,29 @@
+"0","# Save all tests in the *tests/testthat/*."
+"0","# Create a summary of the iris dataset using your data_summary() function"
+"0","library(testthat)"
+"2","
+Attaching package: ‘testthat’
+
+"
+"2","The following object is masked from ‘package:dplyr’:
+
+    matches
+
+"
+"2","The following object is masked from ‘package:purrr’:
+
+    is_null
+
+"
+"2","The following object is masked from ‘package:devtools’:
+
+    setup
+
+"
+"0","iris_summary <- data_summary(iris)"
+"0",""
+"0","# Count how many rows are returned"
+"0","summary_rows <- nrow(iris_summary) "
+"0",""
+"0","# Use expect_equal to test that calling data_summary() on iris returns 4 rows"
+"0","expect_equal(summary_rows, 4)"

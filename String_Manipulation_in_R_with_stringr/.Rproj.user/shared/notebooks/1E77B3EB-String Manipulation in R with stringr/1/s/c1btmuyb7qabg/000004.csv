@@ -1,0 +1,8 @@
+"0","# Combine the first letter "". "" and last name
+str_c(abb_first, "". "", names_split[, 2])
+"
+"1","[1]"
+"1"," ""D. Prince"""
+"1"," ""C. Kent""  "
+"1","
+"

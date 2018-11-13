@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1541372455898.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4054419821",
+    "id" : "D2F387E4",
+    "lastKnownWriteTime" : 1541386456,
+    "last_content_update" : 1541386456479,
+    "path" : "C:/Users/qfli/DataCamp/Introduction to the Tidyverse/Introduction to the Tidyverse.Rmd",
+    "project_path" : "Introduction to the Tidyverse.Rmd",
+    "properties" : {
+        "cursorPosition" : "329,92",
+        "docOutlineVisible" : "1",
+        "last_setup_crc32" : "A89A8C14bb338d19",
+        "scrollLine" : "319"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

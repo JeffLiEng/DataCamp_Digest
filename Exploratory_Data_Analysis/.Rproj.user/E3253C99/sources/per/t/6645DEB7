@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1540742890649.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2951979203",
+    "id" : "6645DEB7",
+    "lastKnownWriteTime" : 1540784336,
+    "last_content_update" : 1540784336617,
+    "path" : "C:/Users/qfli/DataCamp/Exploratory Data Analysis/Exploratory Data Analysis.Rmd",
+    "project_path" : "Exploratory Data Analysis.Rmd",
+    "properties" : {
+        "cursorPosition" : "599,21",
+        "docOutlineVisible" : "1",
+        "last_setup_crc32" : "263BDC8Fbb338d19",
+        "scrollLine" : "595"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

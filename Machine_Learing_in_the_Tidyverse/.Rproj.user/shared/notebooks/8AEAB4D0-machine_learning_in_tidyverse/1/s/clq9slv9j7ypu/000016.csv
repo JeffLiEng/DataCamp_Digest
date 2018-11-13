@@ -1,0 +1,7 @@
+"0","# Percentage of the 77 countries had a decrease of life expectancy
+mean(df_coef$estimate < 0)
+"
+"1","[1]"
+"1"," 0.05194805"
+"1","
+"

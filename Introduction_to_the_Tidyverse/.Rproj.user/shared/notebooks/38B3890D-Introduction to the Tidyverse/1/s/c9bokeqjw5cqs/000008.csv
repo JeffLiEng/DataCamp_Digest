@@ -1,0 +1,6 @@
+"0","# Create a boxplot comparing gdpPercap among continents"
+"0",""
+"0","ggplot(gapminder_1952, aes(x = continent, y = gdpPercap)) + "
+"0","  geom_boxplot() + "
+"0","  scale_y_log10() + "
+"0","  labs(title = ""Comparing GDP per capita across continents"", y = ""GDP per capita (log scale)"")"

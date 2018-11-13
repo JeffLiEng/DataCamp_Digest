@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1538770258944.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2944191756",
+    "id" : "F30BA6A2",
+    "lastKnownWriteTime" : 1539397904,
+    "last_content_update" : 1539397904660,
+    "path" : "C:/Users/qfli/DataCamp/creating_R_package/developing_r_packages.Rmd",
+    "project_path" : "developing_r_packages.Rmd",
+    "properties" : {
+        "cursorPosition" : "752,14",
+        "docOutlineVisible" : "1",
+        "last_setup_crc32" : "",
+        "scrollLine" : "741"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

@@ -1,0 +1,113 @@
+     vore,                          name,sleep,time
+     omni,                    Owl monkey,total,17
+    herbi,               Mountain beaver,total,14.4
+     omni,    Greater short-tailed shrew,total,14.9
+    herbi,                           Cow,total,4
+    herbi,              Three-toed sloth,total,14.4
+    carni,             Northern fur seal,total,8.7
+    carni,                           Dog,total,10.1
+    herbi,                          Goat,total,5.3
+    herbi,                    Guinea pig,total,9.4
+     omni,                        Grivet,total,10
+    herbi,                    Chinchilla,total,12.5
+     omni,               Star-nosed mole,total,10.3
+     omni,     African giant pouched rat,total,8.3
+     omni,     Lesser short-tailed shrew,total,9.1
+    carni,          Long-nosed armadillo,total,17.4
+    herbi,                    Tree hyrax,total,5.3
+     omni,        North American Opossum,total,18
+  insecti,                 Big brown bat,total,19.7
+    herbi,                         Horse,total,2.9
+    herbi,                        Donkey,total,3.1
+     omni,             European hedgehog,total,10.1
+     omni,                  Patas monkey,total,10.9
+    carni,                  Domestic cat,total,12.5
+     omni,                        Galago,total,9.8
+    herbi,                       Giraffe,total,1.9
+    carni,                   Pilot whale,total,2.7
+    carni,                     Gray seal,total,6.2
+    herbi,                    Gray hyrax,total,6.3
+     omni,                         Human,total,8
+    herbi,                Mongoose lemur,total,9.5
+    carni,          Thick-tailed opposum,total,19.4
+     omni,                       Macaque,total,10.1
+    herbi,              Mongolian gerbil,total,14.2
+    herbi,                Golden hamster,total,14.3
+    herbi,                   House mouse,total,12.5
+  insecti,              Little brown bat,total,19.9
+    herbi,                          Degu,total,7.7
+    herbi,                        Rabbit,total,8.4
+    herbi,                         Sheep,total,3.8
+     omni,                    Chimpanzee,total,9.7
+     omni,                        Baboon,total,9.4
+    carni,                  Caspian seal,total,3.5
+    herbi,                       Potoroo,total,11.1
+  insecti,               Giant armadillo,total,18.1
+    herbi,                Laboratory rat,total,13
+     omni,               Squirrel monkey,total,9.6
+  insecti,         Eastern american mole,total,8.4
+    herbi,                    Cotton rat,total,11.3
+    herbi,Thirteen-lined ground squirrel,total,13.8
+    herbi,Golden-mantled ground squirrel,total,15.9
+     omni,                           Pig,total,9.1
+    herbi,               Brazilian tapir,total,4.4
+     omni,                        Tenrec,total,15.6
+     omni,                    Tree shrew,total,8.9
+    carni,                         Genet,total,6.3
+    carni,                       Red fox,total,9.8
+     omni,                    Owl monkey,  rem,1.8
+    herbi,               Mountain beaver,  rem,2.4
+     omni,    Greater short-tailed shrew,  rem,2.3
+    herbi,                           Cow,  rem,0.7
+    herbi,              Three-toed sloth,  rem,2.2
+    carni,             Northern fur seal,  rem,1.4
+    carni,                           Dog,  rem,2.9
+    herbi,                          Goat,  rem,0.6
+    herbi,                    Guinea pig,  rem,0.8
+     omni,                        Grivet,  rem,0.7
+    herbi,                    Chinchilla,  rem,1.5
+     omni,               Star-nosed mole,  rem,2.2
+     omni,     African giant pouched rat,  rem,2
+     omni,     Lesser short-tailed shrew,  rem,1.4
+    carni,          Long-nosed armadillo,  rem,3.1
+    herbi,                    Tree hyrax,  rem,0.5
+     omni,        North American Opossum,  rem,4.9
+  insecti,                 Big brown bat,  rem,3.9
+    herbi,                         Horse,  rem,0.6
+    herbi,                        Donkey,  rem,0.4
+     omni,             European hedgehog,  rem,3.5
+     omni,                  Patas monkey,  rem,1.1
+    carni,                  Domestic cat,  rem,3.2
+     omni,                        Galago,  rem,1.1
+    herbi,                       Giraffe,  rem,0.4
+    carni,                   Pilot whale,  rem,0.1
+    carni,                     Gray seal,  rem,1.5
+    herbi,                    Gray hyrax,  rem,0.6
+     omni,                         Human,  rem,1.9
+    herbi,                Mongoose lemur,  rem,0.9
+    carni,          Thick-tailed opposum,  rem,6.6
+     omni,                       Macaque,  rem,1.2
+    herbi,              Mongolian gerbil,  rem,1.9
+    herbi,                Golden hamster,  rem,3.1
+    herbi,                   House mouse,  rem,1.4
+  insecti,              Little brown bat,  rem,2
+    herbi,                          Degu,  rem,0.9
+    herbi,                        Rabbit,  rem,0.9
+    herbi,                         Sheep,  rem,0.6
+     omni,                    Chimpanzee,  rem,1.4
+     omni,                        Baboon,  rem,1
+    carni,                  Caspian seal,  rem,0.4
+    herbi,                       Potoroo,  rem,1.5
+0 insecti,               Giant armadillo,  rem,6.1
+1   herbi,                Laboratory rat,  rem,2.4
+2    omni,               Squirrel monkey,  rem,1.4
+3 insecti,         Eastern american mole,  rem,2.1
+4   herbi,                    Cotton rat,  rem,1.1
+5   herbi,Thirteen-lined ground squirrel,  rem,3.4
+6   herbi,Golden-mantled ground squirrel,  rem,3
+7    omni,                           Pig,  rem,2.4
+8   herbi,               Brazilian tapir,  rem,1
+9    omni,                        Tenrec,  rem,2.3
+0    omni,                    Tree shrew,  rem,2.6
+1   carni,                         Genet,  rem,1.3
+2   carni,                       Red fox,  rem,2.4

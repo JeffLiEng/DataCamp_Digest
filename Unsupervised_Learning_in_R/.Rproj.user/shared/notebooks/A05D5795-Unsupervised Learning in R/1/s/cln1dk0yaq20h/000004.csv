@@ -1,0 +1,7 @@
+"0","str_detect(var_names, pattern = ""_mean"" %R% END ) %>%
+  sum
+"
+"1","[1]"
+"1"," 10"
+"1","
+"

@@ -1,0 +1,412 @@
+---
+title: "Data Manipulating in R with dplyr"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(dplyr)
+# install.packages("hflights")
+library(hflights)
+```
+
+
+# 1. Introduction to **dplyr** and **tbls**
+
+## 1.1 Convert a data.frame to a tibble 
+
+a **tbl** (pronounced *tibble*) is a special kind of data.frame.  We can derive a *tbl* from a data.frame structure using `as_tibble()`. 
+
+```{r}
+# Convert a data.frame into a  tbl
+hflights <- as_tibble(hflights)
+
+# Display the hflights tbl
+hflights
+
+# Create the object carriers
+carriers <- hflights$UniqueCarrier
+```
+
+
+## 1.2 Changing  labels of features using a lookup table
+
+```{r}
+lut <- c("AA" = "American", "AS" = "Alaska", "B6" = "JetBlue", "CO" = "Continental", 
+         "DL" = "Delta", "OO" = "SkyWest", "UA" = "United", "US" = "US_Airways", 
+         "WN" = "Southwest", "EV" = "Atlantic_Southeast", "F9" = "Frontier", 
+         "FL" = "AirTran", "MQ" = "American_Eagle", "XE" = "ExpressJet", "YV" = "Mesa")
+
+# Add the Carrier column to hflights
+hflights$Carrier <- lut[hflights$UniqueCarrier]
+
+# glimplse at flights 
+glimpse(hflights)
+
+# try more
+male_female <- c("M" = "Male", "F" = "Female")
+
+df <- tibble(sex = c("M", "F", "F", "M"), age = c(10, 30, 20, 40))
+
+df$sex2 <- male_female[df$sex]
+
+df
+
+# change the labels in the CancellationCode 
+unique(hflights$CancellationCode)  
+message("need a lookup table to find out what these codes mean")
+
+# The lookup table
+lut <- c("A" = "carrier", "B" = "weather", "C" = "FFA", "D" = "security", "E" = "not cancelled")
+
+# Add the code column
+hflights$Code <- lut[hflights$CancellationCode]
+
+
+# Glimpse at hflights
+unique(hflights$Code)
+
+```
+
+# 2. Select and Mutate
+
+There are five key data manipulation function in the *dplyr* package: 
+
+* `select()`
+
+* `filter()`
+
+* `arrange()`
+
+* `mutate()`
+
+* `summarize()`
+
+## 2.1 Select() and helper functions 
+
+`select` returns a new, modified copy. I we want to be able to use it later, we need to save the results to a new variable
+
+```{r}
+# Print out a tbl with the four columns of hflights related to delay
+select(hflights, ActualElapsedTime, AirTime, ArrDelay, DepDelay)
+
+# Print out the columns Origin up to Cancelled of hflights
+select(hflights, Origin:Cancelled)
+
+# Answer to last question: be concise!
+select(hflights, Year:DayOfWeek, ArrDelay:Diverted)
+```
+
+**dplyr** has a set of helper functions that can help us to select groups of variables inside a  `select()` call: 
+
+* `starts_with("X")`
+
+*  `ends_with("x")`
+
+* `contains("X")`
+
+* `matches("X")`: "X" can be a regular expression
+
+*  `num_range("x", 1:5)`: the variables named x01, x02, x03, x04, and x05. 
+
+* `one_of(x)`: every name that appears in x, which should be a character vector. 
+
+
+```{r}
+# Print out a tbl containing just ArrDelay and DepDelay
+select(hflights, ends_with("Delay"))
+
+# Print out a tbl as described in the second instruction, using both helper functions and variable names
+select(hflights, UniqueCarrier, ends_with("Num"), starts_with("Cancel"))
+
+# Print out a tbl as described in the third instruction, using only helper functions.
+select(hflights, ends_with("Time"), ends_with("Delay"))
+
+#  Compare dplyr with basic: 
+
+# Finish select call so that ex1d matches ex1r
+ex1r <- hflights[c("TaxiIn", "TaxiOut", "Distance")]
+ex1d <- select(hflights, starts_with("Taxi"), "Distance")
+
+# Finish select call so that ex2d matches ex2r
+ex2r <- hflights[c("Year", "Month", "DayOfWeek", "DepTime", "ArrTime")]
+ex2d <- select(hflights, Year:ArrTime, -DayofMonth)
+
+# Finish select call so that ex3d matches ex3r
+ex3r <- hflights[c("TailNum", "TaxiIn", "TaxiOut")]
+ex3d <- select(hflights, starts_with("T"))
+
+```
+
+These helper functions are really powerful, and they can limit the amount of coding drastically. 
+
+## 2.2 `mutate`()`
+
+```{r}
+# hflights and dplyr are loaded and ready to serve you.
+
+# Add the new variable ActualGroundTime to a copy of hflights and save the result as g1.
+g1 <- mutate(hflights, ActualGroundTime = ActualElapsedTime - AirTime)
+
+# Add the new variable GroundTime to g1. Save the result as g2.
+g2 <- mutate(g1, GroundTime = TaxiIn + TaxiOut)
+
+# Add the new variable AverageSpeed to g2. Save the result as g3.
+g3 <- mutate(g2, AverageSpeed = 60 * Distance/AirTime)
+
+# Print out g3
+g3
+```
+
+# 3. Filter and arrange
+
+```{r}
+
+
+# All flights that traveled 3000 miles or more
+filter(hflights, Distance >= 3000)
+
+# All flights flown by one of JetBlue, Southwest, or Delta
+filter(hflights, UniqueCarrier %in% c("JetBlue", "Southwest", "Delta"))
+
+# All flights where taxiing took longer than flying
+filter(hflights, TaxiIn + TaxiOut > AirTime) 
+
+
+
+```
+
+
+# 4. **Summaries()**
+
+```{r}
+# Print out a summary with variables min_dist and max_dist
+summarize(hflights, min_dist = min(Distance), 
+max_dist = max(Distance))
+
+# Print out a summary with variable max_div
+summarize(filter(hflights, Diverted == 1), max_div = max(Distance))
+
+```
+
+We can use any function in `summarize()`. So long as the function can take a vector of data and return a single number. 
+such as: 
+
+* min, max, mean, median, sd
+
+* quantile(x, p) - p the qunatile of vector x. 
+
+* var(x) - variance of vector x
+
+* IQR(x) - Inter Quartile Range (IQR) of vector x
+
+* diff(range(x)) - total range of vector x
+
+```{r}
+# hflights is available
+
+# Remove rows that have NA ArrDelay: temp1
+temp1 <- filter(hflights, !is.na(ArrDelay))
+
+# Generate summary about ArrDelay column of temp1
+summarize(temp1, earliest = min(ArrDelay),
+average = mean(ArrDelay), 
+latest = max(ArrDelay), 
+sd = sd(ArrDelay)) 
+
+# Keep rows that have no NA TaxiIn and no NA TaxiOut: temp2
+temp2 <- filter(hflights, !is.na(TaxiIn) & !is.na(TaxiOut))
+
+# Print the maximum taxiing difference of temp2 with summarize()
+summarize(temp2, max_taxi_diff= max(TaxiOut - TaxiIn))
+```
+
+## 4.2 *dplyr* aggregate funcitons
+
+* `first(x)`
+
+* `last(x)`
+
+* `nth(x, n)`
+
+* `n()`
+
+* `n_distinct(x)`
+
+```{r}
+# hflights is available with full names for the carriers
+
+# Generate summarizing statistics for hflights
+summarize(hflights,
+          n_obs = n(),
+          n_carrier = n_distinct(UniqueCarrier),
+          n_dest = n_distinct(Dest))
+
+# All American Airline flights
+aa <- filter(hflights, Carrier == "American")
+
+# Generate summarizing statistics for aa 
+summarize(aa, 
+          n_flights = n(), 
+          n_canc = sum(Cancelled == 1),
+          avg_delay = mean(ArrDelay, na.rm = TRUE))
+```
+
+In all above examples, we saved intermediate results to some temporary variables or nesting function calls. Do you like these ideas? No, not me. All these temporary variables or nesting function calls are prone to errors. 
+
+## 4.3 The *pipe* operator
+
+```{r}
+# Write the 'piped' version of the English sentences.
+hflights %>%
+  mutate(diff = TaxiOut - TaxiIn) %>%
+  filter(!is.na(diff)) %>%
+  summarize(avg = mean(diff))
+```
+
+Do I need to drive or fly? 
+
+
+```{r}
+# Chain together mutate(), filter() and summarize()
+hflights %>%
+  mutate(RealTime = ActualElapsedTime + 100, 
+         mph = 60 * Distance/RealTime) %>%
+  filter(!is.na(mph) & mph < 70) %>%
+  summarize(n_less = n(), 
+            n_dest = n_distinct(Dest), 
+            min_dist = min(Distance), 
+            max_dist = max(Distance))
+```
+
+Wow, 13 destinations that I are flown to have average flight speed less than 70 mph (my car). The United States has a very bad train system, we normally drive and fly to our destinations. Some flights are less efficient than driving in terms of speed. More important, airplant tickest are very expensive (especially for family with several kids) + we can bring limited luggages (extra charge: $25/luggage) + we need to arrange to pick up and drop off. For sure, you call UBer, but you need to pay money! 
+
+```{r}
+n_total <- hflights %>%
+  summarize(n_total = n())
+
+# Finish the command with a filter() and summarize() call
+hflights %>%
+  mutate(
+    RealTime = ActualElapsedTime + 100, 
+    mph = 60 * Distance / RealTime) %>%
+  filter(mph < 105 | Cancelled == 1 | Diverted == 1) %>%
+  summarize(n_non = n(), 
+            less_desirable = n_non/n_total$n_total,
+            n_dest = n_distinct(Dest),
+            min_dist = min(Distance), 
+            max_dist = max(Distance))
+
+```
+
+It is ratehr surprising that almot 19% of flights appear less desirable than simply driving to the destination.
+
+
+```{r}
+# Count the number of overnight flights
+hflights %>%
+  filter(!is.na(DepTime) & !is.na(ArrTime) & DepTime > ArrTime) %>%
+  summarize(num = n())
+```
+
+# 5. Group_by and Working with databases
+
+## 5.1 Group_by
+```{r}
+# Make an ordered per-carrier summary of hflights
+hflights %>%
+  group_by(Carrier) %>%
+  summarize(
+    p_canc = 100 * mean(Cancelled == 1),
+    avg_delay = mean(ArrDelay, na.rm = TRUE)) %>%
+  arrange(avg_delay, p_canc)
+```
+
+
+```{r}
+# Ordered overview of average arrival delays per carrier
+hflights %>%
+  filter(!is.na(ArrDelay) & ArrDelay > 0) %>%
+  group_by(Carrier) %>%
+  summarize(avg = mean(ArrDelay)) %>%
+  mutate(rank = rank(avg)) %>%
+  arrange(rank)
+```
+
+```{r}
+# dplyr and hflights (with translated carrier names) are pre-loaded
+
+# How many airplanes only flew to one destination?
+hflights %>%
+  group_by(TailNum) %>%
+  summarize(ndest = n_distinct(Dest)) %>%
+  filter(ndest == 1) %>%
+  summarize(nplanes = n())
+
+# Find the most visited destination for each carrier
+hflights %>%
+  group_by(Carrier, Dest) %>%
+  summarize(n = n()) %>%
+  mutate(rank = rank(desc(n))) %>%
+  filter(rank == 1)
+
+
+hflights %>%
+  group_by(Carrier, Dest) %>%
+  summarize(n = n()) %>%
+  mutate(rank = rank(n)) %>%
+  arrange(Carrier, rank) %>%
+  filter(rank == last(rank))
+
+```
+
+
+## 5.2 Working with Database
+
+```{r}
+library(data.table)
+
+# Save as a data table 
+hflights2 <- as.data.table(hflights)
+
+str(hflights2)
+
+# Use summarize to calculate n_carrier
+hflights2 %>%
+  summarize(n_carrier = n_distinct(UniqueCarrier))
+```
+
+```{r}
+# Set up a connection to the mysql database
+my_db <- src_mysql(dbname = "dplyr", 
+                   host = "courses.csrrinzqubik.us-east-1.rds.amazonaws.com", 
+                   port = 3306, 
+                   user = "student",
+                   password = "datacamp")
+
+# Reference a table within that source: nycflights
+nycflights <- tbl(my_db, "dplyr")
+
+# glimpse at nycflights
+glimpse(nycflights)
+
+# Ordered, grouped summary of nycflights
+nycflights %>%
+  group_by(carrier) %>%
+  summarize(n_flights = n(), 
+            avg_delay = mean(arr_delay, na.rm = TRUE)) %>%
+  arrange(avg_delay)
+   
+```
+
+

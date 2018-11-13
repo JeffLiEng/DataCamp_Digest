@@ -1,0 +1,6 @@
+"0",""
+"0","# Transform catcidents to upper case"
+"0","catcidents_upper <- str_to_upper(catcidents)"
+"0",""
+"0","# View matches to word ""DOG"" again"
+"0","str_view(catcidents_upper, whole_dog_pattern, match = TRUE)"

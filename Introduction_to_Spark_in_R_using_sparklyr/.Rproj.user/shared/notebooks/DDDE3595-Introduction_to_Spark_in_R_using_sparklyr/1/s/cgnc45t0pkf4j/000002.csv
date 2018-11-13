@@ -1,0 +1,15 @@
+"0","ls(""package:sparklyr"", pattern = ""^ml"") %>% 
+  head()
+"
+"1","[1]"
+"1"," ""ml_aft_survival_regression"" "
+"1"," ""ml_als""                     "
+"1"," ""ml_als_factorization""       "
+"1"," ""ml_approx_nearest_neighbors"""
+"1","
+"
+"1","[5]"
+"1"," ""ml_approx_similarity_join""  "
+"1"," ""ml_association_rules""       "
+"1","
+"

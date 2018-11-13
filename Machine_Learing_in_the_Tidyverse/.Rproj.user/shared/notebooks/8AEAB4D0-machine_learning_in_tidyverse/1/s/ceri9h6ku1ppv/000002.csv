@@ -1,0 +1,6 @@
+"0","# Build a model using the train data for each fold of the cross validation"
+"0","cv_models_lr <- cv_data %>% "
+"0","  mutate(model = map(.x = train, ~glm(formula = Attrition ~ ., "
+"0","                               data = .x, family = ""binomial"")))"
+"0",""
+"0","head(cv_models_lr)"

@@ -1,0 +1,8 @@
+"0","# Run data_summary on the airquality dataset with na.rm set to FALSE"
+"0","#data_summary(airquality, na.rm = FALSE)"
+"0",""
+"0","# Use expect_warning to formally test this"
+"0","# airquality[3:4, ] <- NA"
+"0",""
+"0","#expect_warning(data_summary(airquality, na.rm = FALSE))"
+"0",""

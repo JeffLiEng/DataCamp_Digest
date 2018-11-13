@@ -1,0 +1,286 @@
+"0","devtools::check(""datasummary"")"
+"2","Updating datasummary documentation
+"
+"2","Loading datasummary
+"
+"2","Setting env vars -----------------------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","CFLAGS  : -Wall -pedantic
+CXXFLAGS: -Wall -pedantic
+"
+"2","Building datasummary -------------------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","""C:/PROGRA~1/R/R-35~1.1/bin/x64/R"" --no-site-file --no-environ --no-save --no-restore --quiet CMD build ""C:\Users\qfli\DataCamp\creating_R_package\datasummary""  \
+  --no-resave-data --no-manual 
+"
+"2","
+"
+"1","* checking for file 'C:\Users\qfli\DataCamp\creating_R_package\datasummary/DESCRIPTION' ... OK
+"
+"1","* preparing 'datasummary':
+"
+"1","* checking DESCRIPTION meta-information ... OK
+"
+"1","* installing the package to build vignettes
+"
+"1","* creating vignettes ... OK
+"
+"1","* checking for LF line-endings in source and make files and shell scripts
+"
+"1","* checking for empty or unneeded directories
+"
+"1","Removed empty directory 'datasummary/man'
+"
+"1","* looking to see if a 'data/datalist' file should be added
+"
+"1","* building 'datasummary_0.0.0.9000.tar.gz'
+"
+"1","
+"
+"2","Setting env vars -----------------------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","_R_CHECK_CRAN_INCOMING_ : FALSE
+_R_CHECK_FORCE_SUGGESTS_: FALSE
+"
+"2","Checking datasummary -------------------------------------------------------------------------------------------------------------------------------------------------------
+"
+"2","""C:/PROGRA~1/R/R-35~1.1/bin/x64/R"" --no-site-file --no-environ --no-save --no-restore --quiet CMD check  \
+  ""C:\Users\qfli\AppData\Local\Temp\RtmpKKSnRX/datasummary_0.0.0.9000.tar.gz"" --as-cran --timings --no-manual 
+"
+"2","
+"
+"1","* using log directory 'C:/Users/qfli/AppData/Local/Temp/RtmpKKSnRX/datasummary.Rcheck'
+"
+"1","* using R version 3.5.1 (2018-07-02)
+"
+"1","* using platform: x86_64-w64-mingw32 (64-bit)
+"
+"1","* using session charset: ISO8859-1
+"
+"1","* using options '--no-manual --as-cran'
+"
+"1","* checking for file 'datasummary/DESCRIPTION' ... OK
+"
+"1","* this is package 'datasummary' version '0.0.0.9000'
+"
+"1","* package encoding: UTF-8
+"
+"1","* checking package namespace information ... OK
+"
+"1","* checking package dependencies ... OK
+"
+"1","* checking if this is a source package ... OK
+"
+"1","* checking if there is a namespace ... OK
+"
+"1","* checking for .dll and .exe files ... OK
+"
+"1","* checking for hidden files and directories ... OK
+"
+"1","* checking for portable file names ... OK
+"
+"1","* checking whether package 'datasummary' can be installed ... OK
+"
+"1","* checking package directory ... OK
+"
+"1","* checking 'build' directory ... OK
+"
+"1","* checking DESCRIPTION meta-information ... WARNING
+"
+"1","Dependence on R version '3.5.1' not with patchlevel 0
+"
+"1","* checking top-level files ... OK
+"
+"1","* checking for left-over files ... OK
+"
+"1","* checking index information ... OK
+"
+"1","* checking package subdirectories ... OK
+"
+"1","* checking R files for non-ASCII characters ... OK
+"
+"1","* checking R files for syntax errors ... OK
+"
+"1","* checking whether the package can be loaded ... OK
+"
+"1","* checking whether the package can be loaded with stated dependencies ... OK
+"
+"1","* checking whether the package can be unloaded cleanly ... OK
+"
+"1","* checking whether the namespace can be loaded with stated dependencies ... OK
+"
+"1","* checking whether the namespace can be unloaded cleanly ... OK
+"
+"1","* checking loading without being on the library search path ... OK
+"
+"1","* checking dependencies in R code ... OK
+"
+"1","* checking S3 generic/method consistency ... OK
+"
+"1","* checking replacement functions ... OK
+"
+"1","* checking foreign function calls ... OK
+"
+"1","* checking R code for possible problems ... NOTE
+"
+"1","data_summary: no visible global function definition for 'select_if'
+"
+"1","data_summary: no visible global function definition for 'map_df'
+"
+"1","numeric_summary: no visible global function definition for 'median'
+"
+"1","numeric_summary: no visible global function definition for 'sd'
+"
+"1","Undefined global functions or variables:
+"
+"1","  map_df median sd select_if
+"
+"1","Consider adding
+"
+"1","  importFrom(""stats"", ""median"", ""sd"")
+"
+"1","to your NAMESPACE file.
+"
+"1","* checking for missing documentation entries ... WARNING
+"
+"1","Undocumented code objects:
+"
+"1","  'weather'
+"
+"1","Undocumented data sets:
+"
+"1","  'weather'
+"
+"1","All user-level objects in a package should have documentation entries.
+"
+"1","See chapter 'Writing R documentation files' in the 'Writing R
+"
+"1","Extensions' manual.
+"
+"1","* checking contents of 'data' directory ... OK
+"
+"1","* checking data for non-ASCII characters ... OK
+"
+"1","* checking data for ASCII and uncompressed saves ... OK
+"
+"1"," WARNING
+"
+"1","'qpdf' is needed for checks on size reduction of PDFs
+"
+"1","* checking installed files from 'inst/doc' ... OK
+"
+"1","* checking files in 'vignettes' ... OK
+"
+"1","* checking examples ... NONE
+"
+"1","* checking for unstated dependencies in 'tests' ... OK
+"
+"1","* checking tests ...
+"
+"1","  Running 'testthat.R'
+"
+"1"," ERROR
+"
+"1","Running the tests in 'tests/testthat.R' failed.
+"
+"1","Last 13 lines of output:
+"
+"1","  [31m--[39m [31m1. Error: (unknown) (@test-data_summary_equivalent.R#1) [39m [31m-----------------------------------------------------------------------------------------------------------------[39m
+"
+"1","  could not find function ""select_if""
+"
+"1","  1: data_summary(weather) at testthat/test-data_summary_equivalent.R:1
+"
+"1","  
+"
+"1","  [31m--[39m [31m2. Error: (unknown) (@test-data_summary_nrow.R#2) [39m [31m-----------------------------------------------------------------------------------------------------------------------[39m
+"
+"1","  could not find function ""select_if""
+"
+"1","  1: data_summary(iris) at testthat/test-data_summary_nrow.R:2
+"
+"1","  
+"
+"1","  == testthat results  ========================================================================================================================================================
+"
+"1","  OK: 0 SKIPPED: 0 FAILED: 2
+"
+"1","  1. Error: (unknown) (@test-data_summary_equivalent.R#1) 
+"
+"1","  2. Error: (unknown) (@test-data_summary_nrow.R#2) 
+"
+"1","  
+"
+"1","  Error: testthat unit tests failed
+"
+"1","  Execution halted
+"
+"1","* checking for unstated dependencies in vignettes ... OK
+"
+"1","* checking package vignettes in 'inst/doc' ... OK
+"
+"1","* checking re-building of vignette outputs ... OK
+"
+"1","* DONE
+"
+"1","
+"
+"1","Status: 1 ERROR, 3 WARNINGs, 1 NOTE
+"
+"1","See
+"
+"1","  'C:/Users/qfli/AppData/Local/Temp/RtmpKKSnRX/datasummary.Rcheck/00check.log'
+"
+"1","for details.
+"
+"1","
+"
+"2","R CMD check results
+"
+"2","1 error  | 2 warnings | 1 note 
+"
+"1","checking tests ... ERROR
+  Running 'testthat.R'
+Running the tests in 'tests/testthat.R' failed.
+Last 13 lines of output:
+  [31m--[39m [31m1. Error: (unknown) (@test-data_summary_equivalent.R#1) [39m [31m-----------------------------------------------------------------------------------------------------------------[39m
+  could not find function ""select_if""
+  1: data_summary(weather) at testthat/test-data_summary_equivalent.R:1
+  
+  [31m--[39m [31m2. Error: (unknown) (@test-data_summary_nrow.R#2) [39m [31m-----------------------------------------------------------------------------------------------------------------------[39m
+  could not find function ""select_if""
+  1: data_summary(iris) at testthat/test-data_summary_nrow.R:2
+  
+  == testthat results  ========================================================================================================================================================
+  OK: 0 SKIPPED: 0 FAILED: 2
+  1. Error: (unknown) (@test-data_summary_equivalent.R#1) 
+  2. Error: (unknown) (@test-data_summary_nrow.R#2) 
+  
+  Error: testthat unit tests failed
+  Execution halted
+
+checking DESCRIPTION meta-information ... WARNING
+Dependence on R version '3.5.1' not with patchlevel 0
+
+checking for missing documentation entries ... WARNING
+Undocumented code objects:
+  'weather'
+Undocumented data sets:
+  'weather'
+All user-level objects in a package should have documentation entries.
+See chapter 'Writing R documentation files' in the 'Writing R
+Extensions' manual.
+
+checking R code for possible problems ... NOTE
+data_summary: no visible global function definition for 'select_if'
+data_summary: no visible global function definition for 'map_df'
+numeric_summary: no visible global function definition for 'median'
+numeric_summary: no visible global function definition for 'sd'
+Undefined global functions or variables:
+  map_df median sd select_if
+Consider adding
+  importFrom(""stats"", ""median"", ""sd"")
+to your NAMESPACE file."
+"1",""
+"1","
+"

@@ -1,0 +1,6 @@
+"0","# (a) these packages make creating packages so easy (but not a piece of cake!)"
+"0","library(devtools)"
+"0","library(roxygen2)"
+"0",""
+"0","# (b) I like to have the package of ""tidyverse"""
+"0","library(tidyverse)"

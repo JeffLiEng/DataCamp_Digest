@@ -1,0 +1,5 @@
+"0","# (d) Import the data into Spark
+timbre_tbl <- spark_read_parquet(spark_conn, ""timbre"", parquet_dir)
+"
+"2","Error in src_tbls(sc) : object 'spark_conn' not found
+"

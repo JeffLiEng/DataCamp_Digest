@@ -1,0 +1,51 @@
+---
+title: "rpart package"
+author: "Jeff Li"
+date: "10/10/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Load libraries
+```{r}
+library(rpart)
+library(tidyverse)
+```
+
+
+# 2. Example: Stage C prostate cancer 
+## 2.1 Model and Plot 
+```{r}
+
+# (a) the 146 stage C prostate cancer data
+head(stagec)
+
+
+# (b) build the model 
+progstat <- factor(stagec$pgstat, levels = 0:1, labels = c("No", "Prog"))
+table(progstat)
+
+cfit <- rpart(progstat ~ age + eet + g2 + grade + gleason + ploidy, data = stagec, method =  'class')
+
+# (c) 
+print(cfit)
+
+# (d) plot 
+par(mar = rep(0.1, 4))
+plot(cfit)
+text(cfit)
+
+message("The tree is arranged so that the brances with the largest \"average class\" to the right")
+```
+
+
+## 2.2 Variable Importance
+```{r}
+# (a) The first surrogate 
+summary(stagec$grade)
+summary(stagec$gleason)
+```
+

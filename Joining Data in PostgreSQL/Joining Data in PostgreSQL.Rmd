@@ -1,0 +1,52 @@
+---
+title: "xxx"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"In this course you'll learn all about the power of joining tables while exploring interesting features of countries and their cities throughout the world. You will master inner and outer joins, as well as self-joins, semi-joins, anti-joins and cross joins - fundamental tools in any PostgreSQL wizard's toolbox. You'll fear set theory no more, after learning all about unions, intersections, and except clauses through easy-to-understand diagrams and examples. Lastly, you'll be introduced to the challenging topic of subqueries. You will see a visual perspective to grasp the ideas throughout the course using the mediums of Venn diagrams and other linking illustrations." 
+
+
+Ref: Ismay, Chester. https://www.datacamp.com/courses/joining-data-in-postgresql. 2018.
+
+
+Some materials and data have been adapted for internal group R training. 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+# 1. Introduction to Joins
+
+Objectives: 
+
+* Understand the concept of joining tables
+
+* Explore the different ways to join table 
+
+* Develop skills to use the case statement to split up a field into different categories
+
+## 1.1 Inner Join
+
+
+```{r}
+
+```
+
+

@@ -1,0 +1,8 @@
+"0","str_replace(x, capture(ANY_CHAR), str_c(REF1, REF1))
+"
+"1","[1]"
+"1"," ""hhello"" "
+"1"," ""ssweet"" "
+"1"," ""kkitten"""
+"1","
+"

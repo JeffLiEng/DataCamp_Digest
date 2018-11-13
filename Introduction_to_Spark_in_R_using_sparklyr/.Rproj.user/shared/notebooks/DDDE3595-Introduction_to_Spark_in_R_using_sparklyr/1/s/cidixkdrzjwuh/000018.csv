@@ -1,0 +1,5 @@
+"0","sparklyr::ml_classification_eval(spark_conn, fit_random_forest)
+"
+"2","Error in stop(simpleError(sprintf(fmt, ...), if (call.) sys.call(sys.parent()))) : 
+  bad error message
+"

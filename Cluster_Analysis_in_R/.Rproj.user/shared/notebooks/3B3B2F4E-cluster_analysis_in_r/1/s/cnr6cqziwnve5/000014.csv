@@ -1,0 +1,5 @@
+"0",""
+"0","# Plot the positions of the players and color them using their cluster"
+"0","ggplot(lineup_k2_complete, aes(x = x, y = y, color = factor(cluster))) +"
+"0","  geom_point(size = 4, alpha = 0.7) +"
+"0","  labs(title = ""Complete linkage"")"

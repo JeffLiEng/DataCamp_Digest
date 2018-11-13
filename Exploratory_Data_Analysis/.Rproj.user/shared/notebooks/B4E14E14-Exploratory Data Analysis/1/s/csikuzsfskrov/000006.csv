@@ -1,0 +1,5 @@
+"0","# Create hist of horsepwr"
+"0","cars %>%"
+"0","  ggplot(aes(x = horsepwr)) +"
+"0","  geom_histogram() +"
+"0","  ggtitle(""Distribution of Horsepower"")"

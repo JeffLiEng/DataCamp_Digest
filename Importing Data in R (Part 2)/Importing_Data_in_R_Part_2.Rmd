@@ -1,0 +1,520 @@
+---
+title: "Importing Data in R Part 2"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(DBI)
+library(tidyverse)
+library(purrr)
+library(jsonlite)
+library(httr)
+library(haven)
+```
+
+
+# 1. Importing data from databases-1
+
+DBMS: Database management system.  SQL = Structured Query Language
+
+Open source: MySQL, PostgreSQL, SQLite
+Proprietary: Oracle Database, Microsoft SQL Server  
+
+R has different package for different databases: RMySQL, RPostgresSQL, ROracle, 
+
+## 1.1 Establish a connection 
+We can *DBI* in a uniform way to create a connection to a SQL database. The first argument is a *DBIdriver* object, which specifies how connections are made and how data are mapped between R and the database 
+
+```{r}
+# creat dbConnect call 
+con <- dbConnect(RMySQL::MySQL(), 
+                 dbname = "tweater",  
+                 host = "courses.csrrinzqubik.us-east-1.rds.amazonaws.com", 
+                 port = 3306, 
+                 user = "student",
+                 password = "datacamp")
+
+class(con)  
+str(con)
+con
+message("con is an MySQLConnection object")
+
+```
+
+## 1.2 Import table data
+
+Using *dbListTables()*, we can list all tables in the connected database. 
+
+```{r}
+# (a) list all tables
+table_names <- dbListTables(con)
+table_names
+
+# (b) import one table
+users <- dbReadTable(con, "users")
+users
+
+# (d) import all tables
+tables <- lapply(table_names, dbReadTable,  conn = con)
+
+# Print out tables
+tables
+
+# (c) disconnect from database
+dbDisconnect(con)
+
+```
+
+
+# 2. Importing data from databases-2
+
+## 2.1 dbGetQuery 
+Using *dbGetQuery()* can get a fraction of the data that you need. 
+
+```{r}
+# Import tweat_id column of comments where user_id is 1: elisabeth
+elisabeth <- dbGetQuery(con, "SELECT tweat_id FROM comments WHERE user_id = 1")
+
+# Print elisabeth
+elisabeth
+
+
+# Import post column of tweats where date is higher than '2015-09-21': latest
+latest <- dbGetQuery(con, "SELECT post FROM tweats WHERE date > \"2015-09-21\"")
+
+# Print latest
+latest
+
+# Create data frame specific
+specific <- dbGetQuery(con, "SELECT message FROM comments WHERE tweat_id = 77 AND user_id > 4")
+
+# Print specific
+specific
+
+
+# Create data frame short
+short <- dbGetQuery(con, "SELECT id, name FROM users WHERE CHAR_LENGTH(name) < 5")
+short
+
+# (c) disconnect from database
+dbDisconnect(con)
+```
+
+## 2.2 Join the query 
+
+```{r}
+# Join - method 1 
+dbGetQuery(con, "SELECT name, post FROM users, tweats WHERE users.id = user_id AND date > \"2015-09-19\" ")
+
+# join - method 2
+dbGetQuery(con, "SELECT name, post FROM users INNER JOIN tweats on users.id = tweats.user_id WHERE date > \"2015-09-19\"")
+
+dbGetQuery(con, "SELECT post, message FROM tweats INNER JOIN comments on tweats.id = tweat_id WHERE tweat_id = 77")
+
+```
+
+## 2.3 Send-Fetch-Clear
+
+*dbSendQuery()* and *dbFetch()* give us the ability to fetch the query's result in chunks (with **n** argument) rather than all at once. 
+```{r}
+# Send query to the database
+res <- dbSendQuery(con, "SELECT * FROM comments WHERE user_id > 4")
+
+# Use dbFetch() twice
+dbFetch(res, n = 2)
+
+dbFetch(res)
+
+# Clear res
+dbClearResult(res)
+
+
+```
+Another example: 
+```{r}
+# Create the data frame  long_tweats
+res <- dbSendQuery(con, "SELECT post, date FROM tweats WHERE CHAR_LENGTH(post) > 40")
+
+long_tweats <- dbFetch(res)
+
+dbClearResult(res)
+
+# Print long_tweats
+print(long_tweats)
+
+# Disconnect from the database
+dbDisconnect(con)
+```
+
+
+
+# 3. Importing data from the web-1
+## 3.1 Import flat files from the web
+
+```{r}
+# Load the readr package
+library(readr)
+
+# Import the csv file: pools
+url_csv <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/swimming_pools.csv"
+
+pools <- read_csv(url_csv)
+
+# Import the txt file: potatoes
+url_delim <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/potatoes.txt"
+
+potatoes <- read_tsv(url_delim)
+
+# Print pools and potatoes
+head(pools)
+head(potatoes)
+```
+
+Another example from EPA website, Spreadsheet of Available RINS to Date from the Renewable Fuel Standard
+
+```{r}
+
+# (a) url for available rins posted on 201809 on EPA website
+url_available_rins_201808 <-  "https://www.epa.gov/sites/production/files/2018-09/availablerins.csv"
+
+url_available_rins_201712 <- "https://www.epa.gov/sites/production/files/2018-02/availablerins_dec2017.csv"
+
+# (b) read the data 
+available_rins_201809 <- read_csv(url_available_rins_201809 ) %>%
+  mutate_if(is.character, factor)
+
+available_rins_201712 <- read_csv(url_available_rins_201712 ) %>%
+  mutate_if(is.character, factor)
+
+# (c) 
+head(available_rins_201712)
+head(available_rins_201712)
+
+summary(available_rins_201712)
+
+summary(available_rins_201809)
+
+```
+
+## 3.2 Import Excel files form the web
+To *read_excel* to read excel files on the web, we need to use *download.file()* to have a local copy
+
+```{r}
+message("something is wrong here")
+# Load the readxl and gdata package
+# library(readxl)
+# 
+# # Specification of url: url_xls
+# url_xls <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/latitude.xls"
+# 
+# 
+# # Download file behind URL, name it local_latitude.xls
+# 
+# download.file(url_xls, destfile = "local_latitude.xls" )
+# 
+# 
+# # Import the local .xls file with readxl: excel_readxl
+# excel_readxl <- read_excel(path = "local_latitude.xls", sheet )
+
+
+```
+
+
+## 3.3 Downloading any file
+With *download.file()*, we can download any kind of files from the web. One special kind of data: .RData, which is very efficient format to store *R* data. 
+
+
+```{r}
+# https URL to the wine RData file.
+url_rdata <- "https://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/wine.RData"
+
+# Download the wine file to your working directory
+download.file(url_rdata, destfile = "data/wine.RData")
+
+# Load the wine data into your workspace using load()
+load("data/wine.RData")
+
+# use url() inside load() without save the RData to local 
+load(url("https://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/wine.RData"))
+
+      
+# Print out the summary of the wine data
+summary(wine)
+
+```
+
+## 3.4 Package of *httr* and *get()*
+
+the *httr* package provides a *get()* to download files from internet
+
+```{r}
+# Load the httr package
+library(httr)
+
+# Get the url, save response to resp
+url <- "http://www.example.com/"
+resp <- GET(url)
+
+# Print resp
+resp
+
+# Get the raw content of resp: raw_content
+raw_content <- content(resp, as = "raw")
+
+# Print the head of raw_content
+head(raw_content)
+```
+
+
+**JSON**: a format is often used by so-called Web APIs, interfaces to web servers with which you as a client can communicate to get or store information in more complicated ways.
+
+```{r}
+
+# Get the url
+url <- "http://www.omdbapi.com/?apikey=ff21610b&t=Annie+Hall&y=&plot=short&r=json"
+
+
+# Print resp
+resp <- GET(url)
+
+# Print content of resp as text
+content(resp, as = "text")
+
+# Print content of resp
+content(resp)
+```
+
+
+
+# 4. Importing data from the web-2
+
+## 4.1 APIs and JSON
+
+**JSON**: Simple, concise, well-structured, human-readable, easy to parse and generate for computers, and for communication with Web APIs
+
+**API**: Application programming interface; Set of routines and protocols for building software; 
+
+**Web API**:  Interface to get or add data to server; HTTP verbs (GET adn others)
+
+Package *jsonlite*: Improvement of earlier packages, consistent, robust, support all use-cases; 
+
+
+## 4.2 From JSON to R
+
+```{r}
+# load the jsonlite package
+library(jsonlite)
+
+# wine_json is a JSON
+wine_json <- ' {"name": "Chateau Migraine", "year": 1997, "alcohol_pct":12.4, "color":"red", "awarded":false}'
+
+# convert wind_json into a list: wine
+wine <- fromJSON(wine_json)
+wine
+unlist(wine)
+```
+
+Quandl API: all sorts of financial and economical data
+
+```{r}
+# jsonlite is preloaded
+
+# Definition of quandl_url
+quandl_url <- "https://www.quandl.com/api/v3/datasets/WIKI/FB/data.json?auth_token=i83asDsiWUUyfoypkgMz"
+
+# Import Quandl data: quandl_data
+quandl_data <- fromJSON(quandl_url)
+
+# Print structure of quandl_data
+str(quandl_data)
+```
+
+## 4.3 OMDb API
+
+```{r}
+# Definition of the URLs
+url_sw4 <- "http://www.omdbapi.com/?apikey=ff21610b&i=tt0076759&r=json"
+url_sw3 <- "http://www.omdbapi.com/?apikey=ff21610b&i=tt0121766&r=json"
+
+# Import two URLs with fromJSON(): sw4 and sw3
+sw4 <- fromJSON(url_sw4)
+sw3 <- fromJSON(url_sw3)
+
+
+# Print out the Title element of both lists
+sw4$Title
+sw3$Title
+
+
+# Is the release year of sw4 later than sw3?
+sw4$Year > sw3$Year
+```
+
+
+## 4.4 JSON Practice:  *fromJSON* and *toJSON*
+JSON is built on two structure: objects and arrays. 
+
+As shown in the following, different JSON data structures will lead to different data structures in **R**. 
+
+```{r}
+# Challenge 1
+json1 <- '[1, 2, 3, 4, 5, 6]'
+fromJSON(json1)
+
+# Challenge 2
+json2 <- '{"a": [1, 2, 3], "b": [4, 5, 6]}'
+fromJSON(json2)
+
+# create a matrix from JSON
+json1 <- '[[1, 2], [3, 4]]'
+fromJSON(json1)
+
+# Create a data frame
+json2 <- '[{"a": 1, "b": 2},  {"a": 3, "b": 4},   {"a": 5, "b": 6}]'
+            
+fromJSON(json2)
+
+
+
+
+# URL pointing to the .csv file, and it continformation on the amount of desalinated water that is produced around the world.  
+url_csv <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/water.csv"
+
+# Import the .csv file located at url_csv
+water <- read.csv(url_csv, stringsAsFactors = FALSE)
+water <- read_csv(url_csv)
+head(water)
+
+# Convert the data file according to the requirements
+water_json <- toJSON(water)
+
+# Print out water_json
+# water_json
+
+
+# already have a JSON string, we can use prettify()
+# prettify(water_json)
+
+# or 
+# toJSON(water, pretty = TRUE)
+```
+
+More examples
+```{r}
+# Convert mtcars to a pretty JSON: pretty_json
+pretty_json <- toJSON(mtcars, pretty = TRUE)
+
+# Print pretty_json
+pretty_json
+
+# Minify pretty_json: mini_json
+mini_json <- minify(pretty_json)
+
+# Print mini_json
+mini_json
+```
+
+
+# 5. Importing data from statistical software packages
+
+## 5.1 Imprt SAS data with *haven*
+```{r}
+dir("data/")
+
+# Load the haven package
+library(haven)
+
+# Import sales.sas7bdat: sales
+sales <- read_sas("data/sales.sas7bdat")
+
+# Display the structure of sales
+str(sales)
+```
+
+## 5.2 Import **STATA** data with **haven**
+
+```{r}
+# haven is already loaded
+
+# Import the data from the URL: sugar
+sugar <- read_dta("http://assets.datacamp.com/production/course_1478/datasets/trade.dta")
+
+# Structure of sugar
+str(sugar)
+
+# Convert values in Date column to dates
+sugar$Date <- as.Date(as_factor(sugar$Date))
+
+# Structure of sugar again
+str(sugar)
+
+plot(sugar$Import, sugar$Weight_I)
+```
+
+## 5.3 Import SPSS data with **haven**
+```{r}
+# haven is already loaded
+
+# Import person.sav: traits
+traits <- read_sav("data/person.sav")
+
+# Summarize traits
+summary(traits)
+
+# Print out a subset
+subset(traits, Extroversion > 40 & Agreeableness > 40)
+
+
+# Import SPSS data from the URL: work
+work <- read_sav("http://s3.amazonaws.com/assets.datacamp.com/production/course_1478/datasets/employee.sav")
+
+# Display summary of work$GENDER
+summary(work$GENDER)
+
+
+# Convert work$GENDER to a factor
+work$GENDER <- as_factor(work$GENDER)
+
+
+# Display summary of work$GENDER again
+summary(work$GENDER)
+
+
+
+```
+
+
+## 5.4 **foreign** package
+```{r}
+# Load the foreign package
+library(foreign)
+
+
+# Import florida.dta and name the resulting data frame florida
+florida <- read.dta("data/florida.dta")
+
+# Check tail() of florida
+tail(florida)
+
+
+
+
+# Import international.sav as a data frame: demo
+demo <- read.spss("data/international.sav", to.data.frame = TRUE)
+head(demo)
+# Create boxplot of gdp variable of demo
+boxplot(demo$gdp)
+
+```
+

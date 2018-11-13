@@ -1,0 +1,728 @@
+---
+title: "Data Visualization with ggplot2 (Part2)"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+Ref: Scavetta, R. Data Visualization with ggplot2 (Part2). https://www.datacamp.com/courses/data-visualization-with-ggplot2-2, 2018.
+
+
+**Course Description**
+
+* Statistics
+
+* Coordinates and Facets
+
+* Best Practices
+
+* Case Study 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(tidyverse)
+```
+
+# 1. Statistics with Geoms
+
+**Objectives:**
+
+* Learn how to use ggplot2 for graphic data analysis
+
+
+Statistics Layer:
+
+* Call from within a geom_
+
+* call independently: stat_
+
+stat_bin(): related with geom_histogram(), geom_bar(), and geom_freqpoly(). 
+
+
+stat_smooth(): realted with  geom_smooth()
+
+
+
+## 1.1 Smoothing 
+
+
+```{r}
+dim(mtcars)
+
+# ggplot2 is already loaded
+
+# Explore the mtcars data frame with str()
+str(mtcars)
+
+# A scatter plot with LOESS smooth
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point() + 
+  geom_smooth(method = "loess")
+
+
+# A scatter plot with an ordinary Least Squares linear model
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+
+# The previous plot, without CI ribbon
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+
+# The previous plot, without points
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+geom_smooth(method = "lm", se = FALSE)
+
+```
+
+
+```{r}
+
+# 1 - Define cyl as a factor variable
+ggplot(mtcars, aes(x = wt, y = mpg, col = factor(cyl))) +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+
+# 2 - Plot 1, plus another stat_smooth() containing a nested aes()
+ggplot(mtcars, aes(x = wt, y = mpg, col = factor(cyl))) +
+  geom_point() + 
+  stat_smooth(method = "lm", se = FALSE) +
+  stat_smooth(aes(group = 1), method = "lm", se = FALSE) 
+
+```
+
+
+## 1.2 Modifying stat_smooth (1)
+
+```{r}
+# Plot 1: change the LOESS span
+ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point() +
+  # Add span below
+  geom_smooth(se = FALSE, span = 0.7)
+
+# Plot 2: Set the second stat_smooth() to use LOESS with a span of 0.7
+ggplot(mtcars, aes(x = wt, y = mpg, col = factor(cyl))) +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE) +
+  # Change method and add span below
+  stat_smooth(method = "loess", aes(group = 1),
+              se = FALSE, col = "black", span = 0.7)
+
+# Plot 3: Set col to "All", inside the aes layer of stat_smooth()
+ggplot(mtcars, aes(x = wt, y = mpg, col = factor(cyl))) +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE) +
+  stat_smooth(method = "loess",
+              # Add col inside aes()
+              aes(group = 1, col = "All"),
+              # Remove the col argument below
+              se = FALSE, span = 0.7)
+
+# Plot 4: Add scale_color_manual to change the colors
+myColors <- c(RColorBrewer::brewer.pal(3, "Dark2"), "black")
+
+ggplot(mtcars, aes(x = wt, y = mpg, col = factor(cyl))) +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE, span = 0.7) +
+  stat_smooth(method = "loess", 
+              aes(group = 1, col="All"), 
+              se = FALSE, span = 0.7) +
+  # Add correct arguments to scale_color_manual
+  scale_color_manual("Cylinders", values = myColors)
+```
+
+The default span for LOESS is 0.9. A lower span will result in a better fit with more detail. 
+
+
+## 1.3 Modifying stat_smooth (2)
+
+```{r}
+Vocab <- read.table("data/Vocab.txt") %>%  as.tibble()
+
+# Plot 1: Jittered scatter plot, add a linear model (lm) smooth
+ggplot(Vocab, aes(x = education, y = vocabulary)) +
+  geom_jitter(alpha = 0.2) +
+  stat_smooth(method = "lm", se = FALSE) # smooth
+
+# Plot 2: points, colored by year
+ggplot(Vocab, aes(x = education, y = vocabulary, col = year)) +
+  geom_jitter(alpha = 0.2) 
+
+# Plot 3: lm, colored by year
+ggplot(Vocab, aes(x = education, y = vocabulary, col = factor(year))) +
+  stat_smooth(method = "lm", se = FALSE) # smooth
+  
+# Plot 4: Set a color brewer palette
+ggplot(Vocab, aes(x = education, y = vocabulary, col = factor(year))) +
+  stat_smooth(method = "lm", se = FALSE) +  # smooth
+  scale_color_brewer()  # colors
+
+# Plot 5: Add the group aes, specify alpha and size
+ggplot(Vocab, aes(x = education, y = vocabulary, col = year, group = factor(year))) +
+  stat_smooth(method = "lm", se = FALSE, alpha = 0.6, size = 2) +
+  scale_color_gradientn(colors = RColorBrewer::brewer.pal(9, "YlOrRd"))
+```
+
+
+## 1.4 Quantiles 
+
+```{r}
+# Use stat_quantile instead of stat_smooth
+ggplot(Vocab, aes(x = education, y = vocabulary, col = year, group = factor(year))) +
+  stat_quantile(alpha = 0.6, size = 2) +
+  scale_color_gradientn(colors = RColorBrewer::brewer.pal(9,"YlOrRd"))
+
+# Set quantile to 0.5
+ggplot(Vocab, aes(x = education, y = vocabulary, col = year, group = factor(year))) +
+  stat_quantile(alpha = 0.6, size = 2, quantiles = 0.5) +
+  scale_color_gradientn(colors = RColorBrewer::brewer.pal(9,"YlOrRd"))
+
+
+```
+
+
+Quantile regression is a great tool for getting a more detailed overview of a large dataset.
+
+
+## 1.5 stat_sum()
+
+```{r}
+# Plot 1: Jittering only
+p <- ggplot(Vocab, aes(x = education, y = vocabulary)) +
+  geom_jitter(alpha = 0.2)
+
+# Plot 2: Add stat_sum
+p +
+  stat_sum() # sum statistic
+
+# Plot 3: Set size range
+p +
+  stat_sum() + # sum statistic
+  scale_size(range = c(1, 10)) # set size scale
+
+```
+
+## 1.6 stat_summary()
+
+### 1.6.1 Preparations
+
+Preparations: In this exercise we'll consider the preparations. That means we'll make sure the data is in the right format and that all the positions that we might use in our plots are defined. Lastly, we'll set the base layer for our plot. ggplot2 is already loaded, so you can get started straight away!
+
+```{r}
+# Display structure of mtcars
+str(mtcars)
+
+# Convert cyl and am to factors
+mtcars$cyl <- as.factor(mtcars$cyl)
+mtcars$am <-as.factor(mtcars$am)
+
+# Define positions
+posn.d <- position_dodge(width = 0.1)
+posn.jd <-position_jitterdodge(jitter.width = 0.1, dodge.width = 0.2)
+posn.j <- position_jitter(width = 0.2)
+
+# Base layers
+wt.cyl.am <- ggplot(data = mtcars, aes( x = cyl, y = wt, col = am, fill = am, group = am)) 
+```
+
+### 1.6.2 Plotting variations 
+
+
+```{r}
+# wt.cyl.am, posn.d, posn.jd and posn.j are available
+
+# Plot 1: Jittered, dodged scatter plot with transparent points
+wt.cyl.am +
+  geom_point(position = posn.jd, alpha = 0.6)
+
+# Plot 2: Mean and SD - the easy way
+
+# Calculating statistics in Hmisc 
+Hmisc::smean.sdl(mtcars$wt, mult = 1)
+# Calculating statistics in ggplot2 
+mean_sdl(mtcars$wt, mult = 1) 
+
+# plot 
+wt.cyl.am +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), position = posn.d)
+
+
+
+# Plot 3: Mean and 95% CI - the easy way
+ERR <- qt(p = 0.975, df = length(mtcars$wt)-1 ) * sd(mtcars$wt/sqrt(length(mtcars$wt)))
+ERR
+
+mean(mtcars$wt) + ERR * c(-1, 1) # very cool to -/+
+
+# 95% ci calculation in Hmisc
+Hmisc::smean.cl.normal(mtcars$wt)
+
+# 95% ci calculatin in ggplot2
+mean_cl_normal(mtcars$wt)
+
+# plot
+wt.cyl.am +
+  stat_summary(fun.data = mean_cl_normal, position = posn.d)
+
+
+# Plot 4: Mean and SD - with T-tipped error bars - fill in ___
+wt.cyl.am +
+  stat_summary(geom = "point", fun.y = mean,
+               position = posn.d) +
+  stat_summary(geom = "errorbar", fun.data = mean_sdl,
+               position = posn.d, fun.args = list(mult = 1), width = 0.1)
+```
+
+ We can always specify our own function to the **fun.data** argument as long as the variable names match the aesthetics that you will need for the geom layer.
+
+
+### 1.6.3 Custom Functions
+
+In the video we saw that the only difference between ggplot2::mean_sdl() and Hmisc::smean.sdl() is the naming convention. In order to use the results of a function directly in ggplot2 we need to ensure that the names of the variables match the aesthetics needed for our respective geoms.
+
+Here we'll create two new functions in order to create the plot shown in the viewer. One function will measure the full range of the dataset and the other will measure the interquartile range.
+
+
+
+```{r}
+## (a) generate xx 
+
+xx <- seq(1, 100, 1)
+
+
+# Function to save range for use in ggplot
+gg_range <- function(x) {
+  # Change x below to return the instructed values
+  data.frame(ymin = min(x), # Min
+             ymax = max(x)) # Max
+}
+
+gg_range(xx)
+# Required output
+#   ymin ymax
+# 1    1  100
+
+# Function to Custom function
+med_IQR <- function(x) {
+  # Change x below to return the instructed values
+  data.frame(y = median(x), # Median
+             ymin = quantile(x)[2], # 1st quartile
+             ymax = quantile(x)[4])  # 3rd quartile
+}
+
+med_IQR(xx)
+# Required output
+#        y  ymin  ymax
+# 25% 50.5 25.75 75.25
+
+
+# The base ggplot command; 
+wt.cyl.am <- ggplot(mtcars, aes(x = cyl, y = wt, col = am, fill = am, group = am))
+
+# Add three stat_summary calls to wt.cyl.am
+wt.cyl.am +
+  stat_summary(geom = "linerange", fun.data = med_IQR,  
+               position = posn.d, size = 3) +
+  stat_summary(geom = "linerange", fun.data = gg_range,
+               position = posn.d, size = 3,
+               alpha = 0.4) +
+  stat_summary(geom = "point", fun.y = median,
+               position = posn.d, size = 3,
+               col = "black", shape = "X")
+
+
+
+```
+
+
+# 2. Coordinates and Facets
+
+## 2.1 Zooming in 
+
+
+```{r}
+# Basic ggplot() command, coded for you
+p <- ggplot(mtcars, aes(x = wt, y = hp, col = am)) + geom_point() + geom_smooth()
+p
+
+# Add scale_x_continuous()
+p + scale_x_continuous(limits = c(3, 6), expand = c(0, 0))
+
+# Add coord_cartesian(): the proper way to zoom in
+p + coord_cartesian(xlim = c(3, 6))
+
+```
+
+## 2.2 Aspect Ratio
+
+
+```{r}
+# Complete basic scatter plot function
+base.plot <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, col = Species)) +
+               geom_jitter() +
+               geom_smooth(method = "lm", se = FALSE)
+
+# Plot base.plot: default aspect ratio
+base.plot 
+
+# Fix aspect ratio (1:1) of base.plot
+base.plot + coord_equal()
+```
+
+## 2.3 Pie Charts
+
+```{r}
+# Create a stacked bar plot: wide.bar
+wide.bar <- ggplot(mtcars, aes(x = 1, fill = cyl)) +
+              geom_bar()
+wide.bar 
+
+# Convert wide.bar to pie chart
+wide.bar +
+  coord_polar(theta = "y")
+
+
+# Create stacked bar plot: thin.bar
+thin.bar <- ggplot(mtcars, aes(x = 1, fill = cyl)) +
+              geom_bar(width = 0.1) +
+              scale_x_continuous(limits = c(0.5, 1.5))
+thin.bar
+
+# Convert thin.bar to "ring" type pie chart
+thin.bar + 
+  coord_polar(theta = "y")
+```
+
+
+
+## 3.4 Facet
+
+```{r}
+# Basic scatter plot
+p <- ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point()
+
+p
+
+# 1 - Separate rows according to transmission type, am
+p +
+  facet_grid(am ~ .)
+
+# 2 - Separate columns according to cylinders, cyl
+p +
+  facet_grid(. ~ cyl)
+
+# 3 - Separate by both columns and rows 
+p +
+  facet_grid(am ~ cyl)
+
+```
+
+
+## 3.5 Handle many variables
+
+```{r}
+# Code to create the cyl_am col and myCol vector
+mtcars$cyl_am <- paste(mtcars$cyl, mtcars$am, sep = "_")
+
+library(RColorBrewer)
+
+myCol <- rbind(brewer.pal(9, "Blues")[c(3,6,8)],
+               brewer.pal(9, "Reds")[c(3,6,8)])
+
+# Map cyl_am onto col
+ggplot(mtcars, aes(x = wt, y = mpg, col = cyl_am)) +
+  geom_point() +
+  # Add a manual colour scale
+  scale_color_manual(values = myCol)
+
+  
+# Grid facet on gear vs. vs
+
+ggplot(mtcars, aes(x = wt, y = mpg, col = cyl_am)) +
+  geom_point() +
+  # Add a manual colour scale
+  scale_color_manual(values = myCol) +
+  facet_grid(gear ~ vs)
+
+
+
+# Also map disp to size
+ggplot(mtcars, aes(x = wt, y = mpg, col = cyl_am, size = disp)) +
+  geom_point() +
+  # Add a manual colour scale
+  scale_color_manual(values = myCol) +
+  facet_grid(gear ~ vs)
+
+
+
+```
+
+
+## 3.6 Dropping levels
+
+```{r}
+
+# Mammalian sleep dataset 
+
+mamsleep <- read_csv("data/mamsleep.csv")
+
+head(mamsleep)
+
+# Basic scatter plot
+p <- ggplot(mamsleep, aes(x = time, y = name, col = sleep)) +
+  geom_point()
+  
+# Execute to display plot
+p
+
+# Facet rows accoding to vore
+p +
+  facet_grid(vore ~ .)
+
+# Specify scale and space arguments to free up rows
+p +
+  facet_grid(vore ~ ., scale = "free_y", space = "free_y")
+
+
+```
+
+
+
+# 3. Themes 
+
+**Objectives:**
+
+* Learn to make theme pretty
+
+* Enable us to make publication quality plots in R
+
+
+What is **Themes Layer**?
+
+* All the non-data ink
+
+* Visual elements not part of data
+
+* Three types: text element_text(), line element_line(), and rectangel element_rect(). 
+
+
+## 3.1 Starting point: 
+
+```{r}
+z <- mtcars %>% 
+  mutate(cyl = factor(cyl)) %>%
+  ggplot(aes(x = wt, y = mpg, color = cyl)) +
+  geom_point(alpha = 0.6) + 
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ cyl, scales = "free") +
+  scale_x_continuous(limits = c(0, 6)) + 
+  scale_y_continuous(limits = c(10, 35)) +
+  labs(x = "Weight (lb/1000)", y = "Miles/(US) gallon") +
+  scale_color_manual(values = c("light blue", "blue", "dark blue")) 
+
+# starting piont
+z
+```
+
+
+## 3.2 Rectangles 
+
+```{r}
+# Plot 1: Change the plot background fill to myPink
+myPink <- "#FEE0D2"
+
+z +
+  theme(plot.background = element_rect((fill = myPink)))
+
+# Plot 2: Adjust the border to be a black line of size 3
+z +
+    theme(plot.background = element_rect(fill = myPink, color = "black", size = 3))
+
+# Theme to remove all rectangles
+no_panels <- theme(rect = element_blank())
+
+# Plot 3: Combine custom themes
+z2 <- z +
+  no_panels +
+  theme(plot.background = element_rect(fill = myPink, color = "black", size = 3))
+
+z2
+  
+```
+
+Background color has dramatically impact on plot's visual. 
+
+
+## 3.3 Lines: 
+
+To change the appearance of lines use the `element_line()` function. 
+
+```{r}
+z3 <- z2 +
+  theme(panel.grid = element_blank(),   # removing excess lines to reduce non-data ink. 
+        axis.line = element_line(color = "red"),
+        axis.ticks = element_line(color = "red")) 
+
+z3
+ 
+```
+
+## 3.4 Text
+
+```{r}
+myRed <- "#99000D"
+
+z4 <- z3 +
+  theme(strip.text = element_text(size = 16, color = myRed), 
+        axis.title = element_text(color = myRed, hjust = 0, face = "italic"), 
+        axis.text = element_text(color = "black"))
+
+z4  
+```
+
+
+## 3.5 Legends 
+
+```{r}
+
+# Move legend by position
+z4 +
+  theme(legend.position = c(0.85, 0.85))
+
+
+# Change direction
+z4 +
+  theme(legend.direction= "horizontal")
+
+
+# Change location by name
+z4 +
+  theme(legend.position = "bottom")
+
+# Remove legend entirely
+z5 <- z4 +
+  theme(legend.position = "none")
+
+z5
+
+```
+
+## 3.6 Positions
+
+```{r}
+library(grid)
+
+# Increase spacing between facets
+z5 + 
+  theme(panel.spacing.x = unit(2, "cm"))
+
+
+# Adjust the plot margin
+z5 + 
+  theme(
+    # add more spacing between the different facets
+    panel.spacing.x = unit(2, "cm"), 
+    # add space for top, right, bottom, and left
+    plot.margin = unit(c(1, 2, 1, 1), "cm")) 
+
+```
+
+
+## 3.7 Recyling Themes 
+
+* theme_set()
+
+*theme_update()
+
+
+## 3.8 ggthemes
+
+ggplot2 has many themes: 
+
+* theme_bw()
+
+* theme_classic()
+
+* theme_gray()
+
+
+**How to use:** 
+
+* theme_set(theme_bw())  - apply to all following plots
+
+* + theme_bw() - apply on an individual plot
+
+
+```{r}
+
+library(ggthemes)
+
+# Original plot
+z5
+
+# Load ggthemes
+library(ggthemes)
+
+# Apply theme_tufte(), plot additional modifications
+custom_theme <- theme_tufte() +
+  theme(legend.position = c(0.9, 0.9),
+        legend.title = element_text(face = "italic",
+        size = 12), 
+        axis.title = element_text(face = "bold", size = 14))
+
+# Draw the customized plot
+z5 + custom_theme
+ 
+# Use theme set to set custom theme as default
+theme_set(custom_theme)
+
+# Plot z2 again
+z5
+
+
+```
+
+
+# 4. Best Practices
+
+Three mostly discouraged plots in the data viz community: 
+
+* heat maps
+
+* pie charts
+
+* dynamite plots - bar plots with error bars 
+
+
+
+```{r}
+
+# Base layers
+m <- ggplot(mtcars, aes(x = cyl, y = wt))
+
+# Draw dynamite plot
+m +
+  # any function can be specified in fun.data or fun.y. We can also specify any geom. 
+  stat_summary(fun.y = mean, geom = "bar", fill = "skyblue") +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), geom = "errorbar", width = 0.1)
+
+
+```
+

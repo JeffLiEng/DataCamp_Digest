@@ -1,0 +1,706 @@
+---
+title: "Machine Learning in the Tidyverse"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+Instructor: Dmitriy (Dima) Gorenshteyn  (Sr. Data scientist, Memorial Sloan Kettering Cancer Center)
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(tidyverse)
+library(purrr)
+library(broom)
+library(rsample)
+library(Metrics)
+library(ranger)
+```
+
+# 1. Foundations of Tidy Machine Learning 
+
+* The Core of Tidy Machine Learning: *Tibble* + *tidyr* + *purrr*. 
+
+* List column workflow: Firstly, make a list column (*nest()*); Secondly, work with list columns (*map()*); Thirdly, simplify the list of columns (*unnest*,  *map_()* 
+
+* The Dataset used in this course: related with **dslabs** package; Observations: 77 countries for 52 years per country (1960 - 2011); Features: year, infant_mortality, life_expectancy, fertility, population, gdpPercap. 
+
+## 1.1 Nesting and Unnesting Data 
+```{r nest_unnest}
+# I already downloaded data to the data folder
+dir("data/")
+
+# To restore a data R object 
+gapminder <- readRDS("data/gapminder.rds")
+
+head(gapminder)
+
+# Create teh nested dataframe gap_nested
+gap_nested <- gapminder %>%
+  group_by(country) %>%
+  nest()
+
+# Explore gap_nested
+head(gap_nested)
+
+# Create the unnested dataframe called gap_unnnested
+gap_unnested <- gap_nested %>% 
+  unnest()
+  
+# Confirm that your data was not modified  
+identical(gapminder, gap_unnested)
+
+```
+
+We're off to a great start! Notice that the first column is the *group_by*, and the second column contains a *<tibble>*.   It is a simple way to re-shape the data.  The nest_unnest does not modify our data. 
+
+
+## 1.2 Explore a nested cell
+
+Yes, working with a single chunk in a nested dataframe is identical to working with regular dataframes.  
+
+```{r}
+# Extract the data of Algeria
+algeria_df <- gap_nested$data[[1]]
+
+# Calculate the minimum of the population vector
+min(algeria_df$population)
+
+# Calculate the maximum of the population vector
+max(algeria_df$population)
+
+# Calculate the mean of the population vector
+mean(algeria_df$population)
+```
+
+
+## 1.3 The *map* Function (very nice!)
+
+Using the *map* family of functions is cool if we want to work on a vector of nested datafarmes. 
+
+`map(.x = , .f = )` : .x can be a vector or a list, and .f can be function() or ~formula
+
+```{r}
+knitr::kable(
+  data.frame(map_functions = c("map()", "map_dbl()", "map_lgl()", "map_chr()", "map_int()"), 
+             returns       = c("list",   "double",    "logical",  "character", "integer")), 
+  caption = "Table 1: Map_* family and related returns"
+)
+```
+
+Mapping our data: 
+
+```{r}
+# Calculated the mean population for each country
+pop_mean1 <- gap_nested %>%
+  mutate(mean_pop = map(.x = data, ~mean(.x$population))) %>%
+  unnest(mean_pop)
+
+head(pop_mean1)
+
+
+# a better way to achieve 
+pop_mean2 <- gap_nested %>%
+  mutate(mean_pop = map_dbl(.x = data, ~mean(.x$population)))
+
+
+# we get the sample results
+if(identical(pop_mean1, pop_mean2)) print("We get the sample results!")
+```
+
+Mapping many models: 
+
+We are going to build a linear model for each country to predict *life expectancy* using the *year* feature. (Note: for practicing only, in real modeling life, we just need to use the "country" as an additional feature and build only one more powerful model. )
+
+
+```{r}
+# Build a linear model for each country
+gap_models <- gap_nested %>%
+    mutate(model = map(data, ~lm(formula = life_expectancy~year, data = .x)))
+  
+class(gap_models)  
+
+# Extract the model for Algeria    
+algeria_model <- gap_models$model[[1]]
+
+# View the summary for the Algeria model
+summary(algeria_model)
+```
+
+We've just built 77 models for 77 countries. The *gap_models* includes three columns: country <fctr>, data <list>, and model <list>. 
+
+
+## 1.4 The **broom** package
+
+Three core functions in the **broom** package to tidy the output of models (These will make even your thesis appendix professionally :) ): 
+
+* **tidy()**: returns the statistical finding of the models 
+
+* **glance()**: returns a concise one-row summary of the model
+
+* **augment()**: adds predictions columns to the data being modeled
+
+```{r}
+# Extract the coefficients of the algeria_model as a dataframe
+tidy(algeria_model)
+
+# Extract the statistics of the algeria_model as a dataframe
+glance(algeria_model)
+
+
+# Build the augmented dataframe
+algeria_fitted <- augment(algeria_model)
+
+# Compare the predicted values with the actual values of life expectancy
+algeria_fitted %>% 
+  ggplot(aes(x = year)) +
+  geom_point(aes(y = life_expectancy)) + 
+  geom_line(aes(y = .fitted), color = "red")
+
+algeria_fitted %>% 
+  gather(key = `Fitted vs Monitored`, value = "values",  life_expectancy, .fitted) %>%
+  ggplot(aes(x = year, y = values, color =`Fitted vs Monitored` )) +
+  geom_point()
+  
+
+```
+
+
+
+# 2. Multiple Models With **broom**
+
+## 2.1 Model coef comparison 
+```{r}
+# Extract the coefficient statistics of each model into nested dataframes
+model_coef_nested <- gap_models %>% 
+    mutate(coef = map(model, ~tidy(.x)))
+    
+# Simplify the coef dataframes for each model    
+model_coef <- model_coef_nested %>%
+    unnest(coef)
+
+# Plot a histogram of the coefficient estimates for year         
+model_coef %>% 
+  filter(term == "year") %>% 
+  ggplot(aes(x = estimate)) +
+  geom_histogram()
+
+# coef 
+df_coef <- model_coef %>% 
+  filter(term == "year") 
+
+# Percentage of the 77 countries had a decrease of life expectancy
+mean(df_coef$estimate < 0)
+
+# find the fastest growth in life expectancy
+df_coef %>%
+  arrange(desc(estimate) )
+```
+
+## 2.2 Model R^2^ Comparison 
+```{r}
+# Extract the fit statistics of each model into dataframes
+model_perf <- gap_models %>%
+  mutate(fit = map(model, ~ glance(.x))) %>%
+  unnest(fit)
+  
+head(model_perf)
+
+
+# Plot a histogram of rsquared for the 77 models    
+model_perf %>% 
+  ggplot(aes(x = r.squared)) + 
+  geom_histogram()  
+  
+# Extract the 4 best fitting models
+best_fit <- model_perf %>% 
+  top_n(n = 4, wt = r.squared)
+
+# Extract the 4 models with the worst fit
+worst_fit <- model_perf %>% 
+  top_n(n = 4, wt = -r.squared)
+
+```
+
+## 2.3 Augment the fitted values of each model
+
+```{r}
+best_augmented <- best_fit %>% 
+  # Build the augmented dataframe for each country model
+  mutate(augmented = map(model, ~augment(.x))) %>% 
+  # Expand the augmented dataframes
+  unnest(augmented)
+
+worst_augmented <- worst_fit %>% 
+  # Build the augmented dataframe for each country model
+  mutate(augmented = map(model, ~augment(.x))) %>% 
+  # Expand the augmented dataframes
+  unnest(augmented)
+
+
+# Compare the predicted values with the actual values of life expectancy 
+# for the top 4 best fitting models
+best_augmented %>% 
+  ggplot(aes(x = year)) +
+  geom_point(aes(y = life_expectancy)) + 
+  geom_line(aes(y = .fitted), color = "red") +
+  facet_wrap(~country, scales = "free_y")
+
+# Compare the predicted values with the actual values of life expectancy 
+# for the top 4 worst fitting models
+worst_augmented %>%
+  ggplot(aes(x = year)) + 
+  geom_point(aes(y = life_expectancy)) + 
+  geom_line(aes(y = .fitted), color = "red") +
+  facet_wrap(~country, scales = "free_y")
+
+
+```
+
+The worst 4 fitting models do not seem to have a linear relationship. Incorporating additional features might improve these fits. 
+
+## 2.4 Building better models
+
+```{r}
+# Build a linear model for each country using all features
+gap_fullmodel <- gap_nested %>% 
+  mutate(model = map(data, ~lm(formula = life_expectancy ~ ., data = .x)))
+
+fullmodel_perf <- gap_fullmodel %>% 
+  # Extract the fit statistics of each model into dataframes
+  mutate(fit = map(model, ~glance(.x))) %>% 
+  # Simplify the fit dataframes for each model
+  unnest(fit)
+  
+# View the performance for the four countries with the worst fitting 
+# four simple models you looked at before
+fullmodel_perf %>% 
+  filter(country %in% worst_fit$country) %>% 
+  select(country, adj.r.squared)
+```
+
+The performance of each of the four worst performing models improved drastically based on their adjusted R2 once other features were added to the model. 
+
+While the adjusted R^2^ indicate how well the model fit the data, it does not give any indication on how it would perform on new data. Training, validation, and test are needed to build, tune, and compare different models.  
+
+
+
+
+# 3. Regression Models: Build, Tune & Evaluate
+
+## 3.1 Training and test splits
+
+**Training** data are used to build and select the best model. In a disciplined machine learning workflow, **testing** data are crucial to independently assess the performance of the model when it is finalized. 
+
+The *resample* package can be used to split the data to train-test. 
+
+
+```{r}
+set.seed(42)
+
+# Prepare the initial split object
+gap_split <- initial_split(gapminder, prop = 0.75)
+
+# Extract the training dataframe
+training_data <- training(gap_split)
+
+# Extract the testing dataframe
+testing_data <- testing(gap_split)
+
+# Calculate the dimensions of both training_data and testing_data
+dim(training_data)
+dim(testing_data)
+```
+
+## 3.2 Cross-validation dataframes and build cross-validated models
+
+Create cross-validation dataframes
+
+```{r}
+set.seed(42)
+# prepare the dataframe containing the cross validation partitions
+cv_split <- vfold_cv(training_data, v = 5)
+head(cv_split)
+
+# Prepare the dataframe containing the cross validation partitions
+cv_data <- cv_split %>%
+  mutate(
+    # Extract the training dataframe for each split
+    train = map(splits, ~training(.x)), 
+    validate  = map(splits, ~testing(.x))
+  )
+
+# preview cv_data
+head(cv_data)
+
+```
+
+Build cross-validated models and Evaluate model performance
+
+```{r}
+# Build a model using the train data for each fold of the cross validation
+cv_models_lm <- cv_data %>%
+  mutate(model = map(.x = train,  ~lm(formula = life_expectancy ~ ., data = .x)))
+
+head(cv_models_lm)
+
+
+# preparing for evaluation
+cv_prep_lm <- cv_models_lm %>% 
+  mutate(
+    # Extract the recorded life expectancy for the records in the validate dataframes
+    validate_actual = map(validate, ~.x$life_expectancy),
+    # Predict life expectancy for each validate set using its corresponding model
+    validate_predicted = map2(.x = model, .y = validate, ~predict(.x, .y))
+  )
+
+head(cv_prep_lm)
+
+
+# Calculate the mean absolute error for each validate fold       
+cv_eval_lm <- cv_prep_lm %>% 
+  mutate(validate_mae = map2_dbl(.x = validate_actual, .y = validate_predicted, ~mae(actual = .x, predicted = .y)))
+
+# Print the validate_mae column
+cv_eval_lm$validate_mae
+
+# Calculate the mean of validate_mae column
+mean(cv_eval_lm$validate_mae)
+
+```
+
+Based on 5 train-validate splits, the predictions of the models are on average off by 1.47 years. Some more complex models can improve the performance. Let's find out -----> 
+
+
+## 3.3 Build a random forest model 
+
+```{r}
+head(cv_data)
+head(cv_data$train[[1]])
+
+# Build a random forest model for each fold
+cv_models_rf <- cv_data %>% 
+  mutate(model = map(.x = train, ~ranger(formula = life_expectancy ~ ., 
+                                         data = .x,
+                                         num.trees = 500, seed = 42)))
+
+# Generate predictions using the random forest model
+cv_prep_rf <- cv_models_rf %>% 
+  mutate(validate_actual = map(.x = validate, ~.x$life_expectancy), 
+         validate_predicted = map2(.x = model, .y = validate, ~predict(.x, .y)$predictions))
+
+head(cv_prep_rf)
+
+# Calculate validate MAE for each fold
+cv_eval_rf <- cv_prep_rf %>% 
+  mutate(validate_mae = map2_dbl(.x = validate_actual, .y = validate_predicted, ~mae(actual = .x, predicted = .y)))
+
+# Print the validate_mae column
+cv_eval_rf$validate_mae
+
+# Calculate the mean of validate_mae column
+data.frame(rf_model_validate_mae = mean(cv_eval_rf$validate_mae),
+           lm_model_validate_mae = mean(cv_eval_lm$validate_mae))
+```
+
+Wow, we've dropped the average error of predictions from 1.47 to 0.79. We can improve more performance by tuning a parameter of the random forest model. 
+
+## 3.4 Fine tune the random forest model 
+
+```{r}
+knitr::kable(
+  data.frame(name = c("mtry", "num.trees"), 
+            range = c("1:number of features",   "1:inf"),
+            default = c("sqrt(number of feature)", "500")), 
+  caption = "Table 2: random forest Hyper-Parameters"
+)
+```
+
+Build a model for each fold/mtry combination: 
+
+```{r}
+# Prepare for tuning your cross validation folds by varying mtry
+cv_tune <- cv_data %>% 
+  crossing(mtry = 1:6) 
+
+# Build a model for each fold & mtry combination
+cv_model_tunerf <- cv_tune %>% 
+  mutate(model = map2(.x = train, .y = mtry, ~ranger(formula = life_expectancy~., 
+                                           data = .x, mtry = .y, 
+                                           num.trees = 500, seed = 42)))
+```
+
+Find the best performing parameter: 
+
+```{r}
+# Generate validate predictions for each model
+cv_prep_tunerf <- cv_model_tunerf %>% 
+  mutate(validate_actual = map(.x = validate, ~.x$life_expectancy), 
+         validate_predicted = map2(.x = model, .y = validate, ~predict(.x, .y)$predictions))
+
+# Calculate validate MAE for each fold and mtry combination
+cv_eval_tunerf <- cv_prep_tunerf %>% 
+  mutate(validate_mae = map2_dbl(.x = validate_actual, .y = validate_predicted, ~mae(actual = .x, predicted = .y)))
+
+# Calculate the mean validate_mae for each mtry used  
+cv_eval_tunerf %>% 
+  group_by(mtry) %>% 
+  summarise(mean_mae = mean(validate_mae)) %>%
+  ggplot(aes(x = mtry, y = mean_mae)) +
+  geom_point() + 
+  geom_step()
+```
+
+The best performing model based on *mae* will be the random forest model built using *ranger* with an *mtry=3* and *num.trees=100*. 
+
+
+```{r}
+# Build the model using all training data and the best performing parameter
+best_model <- ranger(formula = life_expectancy ~ ., data = training_data,
+                     mtry = 3, num.trees = 500, seed = 42)
+
+# Prepare the test_actual vector
+test_actual <- testing_data$life_expectancy
+
+# Predict life_expectancy for the testing_data
+test_predicted <- predict(best_model, testing_data)$predictions
+
+# Calculate the test MAE
+mae(test_actual, test_predicted)
+```
+
+We expect that the model predictions on new data will only be off by a magnitude of 0.679 years. 
+
+
+# 4. Classfication Models: Build, Tune & Evaluate
+
+## 4.1 Prepare train-test-validate data 
+
+We will work with the attrition dataset, which contains 30 features about employees which you will use to predict if they have left the company.
+
+We will first prepare the training & testing data sets, then you will further split the training data using cross-validation so that you can search for the best performing model for this task.
+
+```{r}
+# (a) read *attrition* data
+attrition <- readRDS("data/attrition.rds")
+names(attrition)
+
+# Prepare the initial split object
+set.seed(42)
+data_split <- initial_split(attrition, prop = 0.75)
+
+# Extract the training dataframe
+training_data <- training(data_split)
+
+# Extract the testing dataframe
+testing_data <- testing(data_split)
+
+
+# Prepare train-test
+cv_split <- vfold_cv(training_data, v = 5)
+
+cv_data <- cv_split %>% 
+  mutate(
+    # Extract the train dataframe for each split
+    train = map(splits, ~training(.x)),
+    # Extract the validate dataframe for each split
+    validate = map(splits, ~testing(.x))
+  )
+
+```
+
+
+
+## 4.2 Logistic Regression Models
+```{r}
+# Build a model using the train data for each fold of the cross validation
+cv_models_lr <- cv_data %>% 
+  mutate(model = map(.x = train, ~glm(formula = Attrition ~ ., 
+                               data = .x, family = "binomial")))
+
+head(cv_models_lr)
+
+```
+
+
+Calculate performance of asingle model 
+
+```{r}
+# Extract the first model and validate 
+model <- cv_models_lr$model[[1]]
+validate <- cv_models_lr$validate[[1]]
+
+# Prepare binary vector of actual Attrition values in validate
+validate_actual <- validate$Attrition == "Yes"
+
+# Predict the probabilities for the observations in validate
+validate_prob <- predict(model, validate, type = "response")
+
+# Prepare binary vector of predicted Attrition values for validate
+validate_predicted <- validate_prob > 0.5
+
+
+# Compare the actual & predicted performance visually using a table
+table(validate_actual, validate_predicted)
+
+# Calculate the accuracy
+accuracy(validate_actual,validate_predicted)
+
+# Calculate the precision
+precision(validate_actual,validate_predicted)
+
+# Calculate the recall
+recall(validate_actual,validate_predicted)
+```
+
+
+The above code shows how to calculate the performance metrics for a single model. Now, let's expand this for all the folds in the cross-validation dataframe. 
+
+```{r}
+cv_prep_lr <- cv_models_lr %>% 
+  mutate(
+    # Prepare binary vector of actual Attrition values in validate
+    validate_actual = map(validate, ~.x$Attrition == "Yes"),
+    # Prepare binary vector of predicted Attrition values for validate
+    validate_predicted = map2(.x = model, .y = validate, ~predict(.x, .y, type = "response") > 0.5)
+  )
+
+
+
+
+```
+
+**Calculate cross-validated performance**
+
+It is crucial to optimize models using a carefully selected metric aimed at achieving the goal of the model.
+
+Imagine that in this case you want to use this model to identify employees that are predicted to leave the company. Ideally, you want a model that can capture as many of the ready-to-leave employees as possible so that you can intervene. The corresponding metric that captures this is the recall metric. As such, you will exclusively use recall to optimize and select your models.
+
+
+```{r}
+# Calculate the validate recall for each cross validation fold
+cv_perf_recall <- cv_prep_lr %>% 
+  mutate(validate_recall = map2_dbl(validate_actual, validate_predicted, 
+                                    ~recall(actual = .x, predicted = .y)))
+
+# Print the validate_recall column
+cv_perf_recall$validate_recall
+
+# Calculate the average of the validate_recall column
+mean(cv_perf_recall$validate_recall)
+```
+
+The validate recall of the model is 0.43 using logistic model. 
+
+
+## 4.3 AUC 
+```{r}
+
+cv_prep_lr <- cv_models_lr %>% 
+  crossing(threshold = c(0:70)/100 ) %>% 
+  mutate(
+    # Prepare binary vector of actual Attrition values in validate
+    validate_actual = map(validate, ~.x$Attrition == "Yes"),
+    # Prepare binary vector of predicted Attrition values for validate
+    validate_predicted1 = map2(.x = model, .y = validate, ~predict(.x, .y, type = "response") ), 
+    validate_predicted = map2(.x = validate_predicted1, .y = threshold, ~.x > .y)
+  ) 
+
+
+# Calculate the validate recall for each cross validation fold
+cv_perf_auc <- cv_prep_lr %>% 
+  mutate(validate_auc = map2_dbl(validate_actual, validate_predicted, 
+                                    ~auc(actual = .x, predicted = .y)))
+
+# Print the validate_recall column
+cv_perf_auc %>%
+  group_by(threshold) %>%
+  summarise(validate_auc_mean = mean(validate_auc)) %>%
+  ggplot(aes(x = threshold, y = validate_auc_mean)) +
+  geom_point()
+
+
+```
+
+
+## 4.2 Build random forest models
+
+```{r}
+# Prepare for tuning your cross validation folds by varying mtry
+cv_tune <- cv_data %>%
+  crossing(mtry = c(2:20)) 
+
+# Build a cross validation model for each fold & mtry combination
+cv_models_rf <- cv_tune %>% 
+  mutate(model = map2(.x = train, .y = mtry, ~ranger(formula = Attrition~., 
+                                           data = .x, mtry = .y,
+                                           num.trees = 500, seed = 42)))
+
+# Evaluate the validation performance 
+cv_prep_rf <- cv_models_rf %>% 
+  mutate(
+    # Prepare binary vector of actual Attrition values in validate
+    validate_actual = map(validate, ~.x$Attrition == "Yes"),
+    # Prepare binary vector of predicted Attrition values for validate
+    validate_predicted = map2(.x = model, .y = validate, ~predict(.x, .y, type = "response")$predictions == "Yes")
+  )
+
+# Calculate the validate recall for each cross validation fold
+cv_perf_recall <- cv_prep_rf %>% 
+  mutate(recall = map2_dbl(.x = validate_actual, .y = validate_predicted, ~recall(actual = .x, predicted = .y)))
+
+# Calculate the mean recall for each mtry used  
+df <- cv_perf_recall %>% 
+  group_by(mtry) %>% 
+  summarise(mean_recall = mean(recall)) 
+df
+
+df %>%
+  ggplot(aes(x = mtry, y = mean_recall)) +
+  geom_point()
+
+```
+
+Wow, none of the random forest models weree able to outperform the logistic regression model with respect to recall. 
+
+
+## 4.3 build final classification model
+
+```{r}
+# Build the logistic regression model using all training data
+best_model <- glm(formula = Attrition ~ ., 
+                  data = training_data, family = "binomial")
+
+
+# Prepare binary vector of actual Attrition values for testing_data
+test_actual <- testing_data$Attrition == "Yes"
+
+# Prepare binary vector of predicted Attrition values for testing_data
+test_predicted <- predict(best_model, testing_data, type = "response") > 0.2
+
+
+# Compare the actual & predicted performance visually using a table
+table(test_actual, test_predicted)
+
+# Calculate the test accuracy
+accuracy(test_actual, test_predicted)
+
+# Calculate the test precision
+precision(test_actual, test_predicted)
+
+# Calculate the test recall
+recall(test_actual, test_predicted)
+
+auc(test_actual, test_predicted)
+```
+
+We now have a model that we can expect to identify 36% of employees that are at risk to leave the organization. 

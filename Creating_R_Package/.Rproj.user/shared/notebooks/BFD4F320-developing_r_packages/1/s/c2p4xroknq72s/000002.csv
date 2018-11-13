@@ -1,0 +1,97 @@
+"0","# Build the package"
+"0","build(""datasummary"")"
+"2","""C:/PROGRA~1/R/R-35~1.1/bin/x64/R"" --no-site-file --no-environ --no-save --no-restore --quiet CMD build ""C:\Users\qfli\DataCamp\creating_R_package\datasummary""  \
+  --no-resave-data --no-manual 
+"
+"2","
+"
+"1","* checking for file 'C:\Users\qfli\DataCamp\creating_R_package\datasummary/DESCRIPTION' ... OK
+"
+"1","* preparing 'datasummary':
+"
+"1","* checking DESCRIPTION meta-information ... OK
+"
+"1","* installing the package to build vignettes
+"
+"1","* creating vignettes ... OK
+"
+"1","* checking for LF line-endings in source and make files and shell scripts
+"
+"1","* checking for empty or unneeded directories
+"
+"1","Removed empty directory 'datasummary/man'
+"
+"1","* looking to see if a 'data/datalist' file should be added
+"
+"1","* building 'datasummary_0.0.0.9000.tar.gz'
+"
+"1","
+"
+"1","[1]"
+"1"," ""C:/Users/qfli/DataCamp/creating_R_package/datasummary_0.0.0.9000.tar.gz"""
+"1","
+"
+"0","build(""datasummary"", binary = TRUE)"
+"2","""C:/PROGRA~1/R/R-35~1.1/bin/x64/R"" --no-site-file --no-environ --no-save --no-restore --quiet CMD INSTALL ""C:\Users\qfli\DataCamp\creating_R_package\datasummary"" --build 
+"
+"2","
+"
+"1","* installing to library 'C:/Users/qfli/AppData/Local/Temp/RtmpKKSnRX/temp_libpath64f4782f9'
+"
+"1","* installing *source* package 'datasummary' ...
+"
+"1","** R
+"
+"1","** data
+"
+"1","*** moving datasets to lazyload DB
+"
+"1","** byte-compile and prepare package for lazy loading
+"
+"1","** help
+"
+"1","No man pages found in package  'datasummary' 
+"
+"1","*** installing help indices
+"
+"1","  converting help for package 'datasummary'
+"
+"1","    finding HTML links ... done
+"
+"1","** building package indices
+"
+"1","** installing vignettes
+"
+"1","** testing if installed package can be loaded
+"
+"1","*** arch - i386
+"
+"1","*** arch - x64
+"
+"1","* MD5 sums
+"
+"1","packaged installation of 'datasummary' as datasummary_0.0.0.9000.zip
+"
+"1","* DONE (datasummary)
+"
+"1","In R CMD INSTALL
+"
+"1","[1]"
+"1"," ""C:/Users/qfli/DataCamp/creating_R_package/datasummary_0.0.0.9000.zip"""
+"1","
+"
+"0","# Examine the contents of the current directory"
+"0","dir()"
+"1","[1]"
+"1"," ""creating_R_package.Rproj""     "
+"1"," ""datasummary""                  "
+"1"," ""datasummary_0.0.0.9000.tar.gz"""
+"1"," ""datasummary_0.0.0.9000.zip""   "
+"1"," ""developing_r_packages.html""   "
+"1","
+"
+"1","[6]"
+"1"," ""developing_r_packages.Rmd""    "
+"1"," ""ppt""                          "
+"1","
+"

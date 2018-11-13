@@ -1,0 +1,807 @@
+---
+title: "Developing R package - DataCamp Courses"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load Required Libraries
+```{r, message = FALSE}
+# (a) these packages make creating packages so easy (but not a piece of cake!)
+library(devtools)
+library(roxygen2)
+
+# (b) I like to have the package of "tidyverse"
+library(tidyverse)
+```
+
+# 1. Chapter 1: The R Package Structure  
+
+It is very cool to have several packages for your own projects, so you can share easy with others and reuse codes. 
+
+An R package can include: 
+
+* Functions
+
+* Data
+
+* Documentation
+
+* Vignettes
+
+* Tests
+
+Minimum files and folders in a package include: R directory, man directory, NAMESPACE file, and DESCRIPTION file.  
+
+Core devtools functions: create(), document(), check(), build(), and test(). We will see how there cool functions used in the following sections.  *You raise me up, so I can stand on mountains!* 
+
+## 1.1  Use the function of create() to set up your first package
+```{r}
+
+# (a) create a package named as "datasummary"
+message("please don't use names already taken on CRAN by your brothers and sisters.")
+
+if(!file.exists(path = "datasummary")) {
+create(path = "datasummary", check = TRUE, rstudio = TRUE)
+} else {"Ah, I already did this cool thing before! Very smart, checking before doing."}
+
+# (b) Check at the files adn folders in the package
+dir("datasummary") 
+```
+
+## 1.2. Create a function 
+
+A function will be created in the following section, and it will be used later. 
+
+```{r}
+# Create numeric_summary() function
+numeric_summary <- function(x, na.rm) {
+
+    # Include an error if x is not numeric
+    if(!is.numeric(x)){
+        stop("Data must be numeric")
+    }
+    
+    # Create data frame
+    data.frame( min = min(x, na.rm = na.rm),
+                median = median(x, na.rm = na.rm),
+                sd = sd(x, na.rm = na.rm),
+                max = max(x, na.rm = na.rm))
+}
+
+# Test numeric_summary() function
+numeric_summary(airquality$Ozone, na.rm = TRUE)
+```
+
+## 1.3 Including functions in a package
+
+Once you write the function into the R folder, it is not empty anymore! 
+
+```{r}
+# What is in the R directory before adding a function?
+dir("datasummary/R")
+
+# Use the dump() function to write the numeric_summary function
+dump("numeric_summary", file = "datasummary/R/numeric_summary.R")
+
+# Verify that the file is in the correct directory
+dir("datasummary/R")
+```
+
+## 1.4 The use_* functions
+
+"use_* functions" add useful infrastructure to a package. They include use_testthat(pkg = "."), use_test(name, pkg ="."), use_vignette(name, pkg = "."), etc. 
+
+```{r}
+# What is in the package at the moment?
+dir("datasummary")
+
+# Add the weather data
+weather <- tibble(Day = 1:7, Temp = c(22, 19, 18, 24, 15, 21, 14), Weather = c("Snow", "Snow", "Sun", "Rain", "Rain", "Snow", "Rain"))
+
+use_data(weather, pkg = "datasummary", overwrite = TRUE)
+
+# Add a vignette called "Generating Summaries with Data Summary"
+file_v <- "datasummary/vignettes/Generating_Summaries_with_Data_Summary.Rmd"
+
+if(!file.exists(path = file_v)) {
+  use_vignette("Generating_Summaries_with_Data_Summary", pkg = "datasummary")
+} else {"Already created before"}
+
+# What directories do you now have in your package now?
+dir("datasummary")
+```
+
+## 1.5 Best practice for structuring code
+In your R directory of your package:
+
+* No sub-directories (you might not like this idea, Neither do I. )
+
+* Don't have everything in one script (just too hard to find information you need)
+
+* Don't have a large number of small files (too small to stand along)
+
+* Group similar function functions together (do this manually, I don't we can use cluster analysis or kNN)
+
+In the following function, a small function is used. 
+
+```{r}
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+  
+  map_df(num_data, .f = numeric_summary, na.rm = TRUE, .id = "ID")
+  
+}
+
+# Write the function to the R directory
+dump("data_summary", file = "datasummary/R/data_summary.R")
+dir("datasummary/R")
+```
+
+
+
+# 2. Developing R Packages
+Use roxygen2, it can rescue most of times. We need help files for data, functions, and others. 
+
+## 2.1 Instruction to roxygen2
+roxygen headers:  #', #'@param, #'@author, #'import, #'return, #'export, #'examples
+
+### 2.1.1 A simple function header
+
+Several roxygen headers are shown in the following: 
+
+```{r}
+#' Numeric Summaries
+#'
+#'Summarises numeric data and returns a data frame containing the minimum value, median, standard deviation, and maximum value.
+
+numeric_summary <- function(x, na.rm){
+
+    if(!is.numeric(x)){
+        stop("Data must be numeric")
+    }
+    
+    data.frame( min = min(x, na.rm = na.rm),
+                median = median(x, na.rm = na.rm),
+                sd = sd(x, na.rm = na.rm),
+                max = max(x, na.rm = na.rm))
+}
+```
+
+
+### 2.1.2 Documenting function arguments
+```{r}
+#' Numeric Summaries
+#'
+#' Summarises numeric data and returns a data frame containing the minimum value, median, standard deviation, and maximum value.
+#'
+# Add appropriate tag and details to document the first argument
+#' @param x a numeric vector containing the values to summarize.
+
+numeric_summary <- function(x, na.rm){
+
+    if(!is.numeric(x)){
+        stop("data must be numeric")
+    }
+    
+    data.frame( min = min(x, na.rm = na.rm),
+                median = median(x, na.rm = na.rm),
+                sd = sd(x, na.rm = na.rm),
+                max = max(x, na.rm = na.rm))
+}
+```
+
+### 2.1.3 Importing other packages
+```{r}
+#' Summary of Numeric Columns
+#'
+#' Generate specific summaries of numeric columns in a data frame
+#' 
+#' @param x A data frame. Non-numeric columns will be removed
+#' @param na.rm A logical indicating whether missing values should be removed
+#' @import purrr
+#' @import dplyr
+
+#' @importFrom tidyr gather
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+  
+  map_df(num_data, .f = numeric_summary, na.rm = na.rm, .id = "ID")
+  
+}
+```
+
+### 2.1.4 How to export functions
+Exported functions vs Non-exported functions.  Calling Non-Exported functions: ":::"
+
+### 2.1.5 Export best practice
+
+Only export things that are ready and necessary. Keep something in your package, and they are your secret codes. 
+
+Exported functions are visible to end user, and they must be key package functionality. 
+
+Non-exported functions are not visible to end user (sure, I know), and they are utility functions. No, they are utility functions, and they are just help functions, not important for end users. 
+
+*In economics, utility function is an important concept that measures preferences over a set of goods and services. *
+
+### 2.1.6 Exporting functions
+```{r}
+#' Summary of Numeric Columns
+#'
+#' Generate specific summaries of numeric columns in a data frame
+#' 
+#' @param x A data frame. Non-numeric columns will be removed
+#' @param na.rm A logical indicating whether missing values should be removed
+#' @import dplyr
+#' @import purrr
+#' @importFrom tidyr gather
+#' @export
+
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+  
+  map_df(num_data, .f = numeric_summary, na.rm = na.rm, .id = "ID")
+  
+}
+```
+
+
+## 2.2 Documenting other elements
+### 2.2.1 Adding Example 
+It is important to have examples to demo how to use. 
+
+```{r}
+#' Data Summary for Numeric Columns
+#'
+#' Custom summaries of numeric data in a provided data frame
+#'
+#' @param x A data.frame containing at least one numeric column
+#' @param na.rm A logical indicating whether missing values should be removed
+#' @import dplyr
+#' @import purrr
+#' @importFrom tidyr gather
+#' @export
+#' @examples
+#' data_summary(iris)
+#' data_summary(airquality, na.rm = FALSE)
+
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+  
+  map_df(num_data, .f = numeric_summary, na.rm = na.rm, .id = "ID")
+  
+}
+```
+
+### 2.2.2 Documenting function return values
+
+```{r}
+#' Data Summary for Numeric Columns
+#'
+#' Custom summaries of numeric data in a provided data frame
+#'
+#' @param x A data.frame containing at least one numeric column
+#' @param na.rm A logical indicating whether missing values should be removed
+#' @import dplyr
+#' @import purrr
+#' @importFrom tidyr gather
+#' @export
+#' @examples
+#' data_summary(iris)
+#' data_summary(airquality, na.rm = FALSE)
+#'
+## Update the details for the return value
+#' @return This function returns a \code{data.frame} including columns: 
+#' \itemize{
+#'  \item ID
+#'  \item min
+#'  \item median
+#'  \item sd
+#'  \item max
+#' }
+#'
+#' @export
+
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+  
+  map_df(num_data, .f = numeric_summary, na.rm = na.rm, .id = "ID")
+  
+}
+```
+
+### 2.2.3 Additional documentation
+```{r}
+#' Summary of Numeric Columns
+#' Generate specific summaries of numeric columns in a data frame
+#'
+#' @param x A data frame. Non-numeric columns will be removed
+#' @param na.rm A logical indicating whether missing values should be removed
+#' @import dplyr
+#' @import purrr
+#' @importFrom tidyr gather
+#' @export
+#' @examples
+#' data_summary(iris)
+#' data_summary(airquality, na.rm = FALSE)
+#' 
+#' @return This function returns a \code{data.frame} including columns: 
+#' \itemize{
+#'  \item ID
+#'  \item min
+#'  \item median
+#'  \item sd
+#'  \item max
+#' }
+#'
+## Add in the author of the `data_summary()` function
+#' @author My Name <myemail@example.com>"
+## List the `summary()` function (from the `base` package)
+#' @seealso \link[base]{summary}
+
+data_summary <- function(x, na.rm = TRUE){
+  
+  num_data <- select_if(x, .predicate = is.numeric) 
+
+  map_df(num_data, .f = numeric_summary, na.rm = na.rm, .id = "ID")
+  
+}
+```
+
+
+## 2.3 Documenting a package 
+### 2.3.1 Adding package documentation
+```{r}
+#' datasummary: Custom Data Summaries
+#'
+#' Easily generate custom data frame summaries
+#'
+#' @author My Name \email{myemail@example.com}
+#' @docType package
+#' @name datasummary
+"_PACKAGE"
+
+```
+
+### 2.3.2 Documenting data objects
+```{r}
+#' Random Weather Data
+#'
+#' A dataset containing randomly generated weather data.
+#'
+#' @format A data frame of 7 rows and 3 columns
+#' \describe{
+#'  \item{Day}{Numeric values giving day of the week, 1 = Monday, 7 = Sunday}
+#'  \item{Temp}{Numeric values giving Temperature}
+#'  \item{Weather}{Character vaues Different weather}
+#' }
+#' @source Randomly generated data
+#'
+"weather"
+```
+
+### 2.3.3 Creating man files
+```{r}
+# Generate package documentation
+document("datasummary")
+
+# Examine the contents of the man directory
+dir("datasummary/man")
+
+# View the documentation for the data_summary function
+help("data_summary")
+
+# View the documentation for the weather dataset
+help("weather")
+```
+
+# 3. Checking and Building R Packages  
+By Aimee Gott (Education Practice Lead, Mango solutions)
+
+## 3.1 Why check an R package? 
+An R package check includes: 
+
+* If the package can be installed
+
+* Description information is correct
+
+* Dependencies
+
+* Code syntax errors
+
+* Documentation is complete
+
+* Tests run
+
+* vignettes build
+
+In R, it is very easy to run a check: 
+
+*check("simutils")*
+ 
+  
+## 3.2 What does a "check" check?
+
+ * Any vignettes can be built
+  
+  * Any unit tests in the package pass
+   
+  * <s>  Code runs as expected  </s>
+  
+  * You  have documented all your function arguments 
+  
+Running a check makes sure your unit tests pass, but doesn't have any way of knowing if your code is running as expected. You need to run your code test by yourself. 
+
+
+## 3.3 Running a check
+
+To publish a package on CRAN, you need to get a "pass" for your package. The devtools has a function of *check()*, which runs a series of check from the command line using R CMD. 
+
+```{r}
+devtools::check("datasummary")
+```
+All you can see, some of the checks didn't pass. Let's fix them. 
+
+## 3.4 Errors, warning and notes
+By Nic Crane (Data Science Consultant, Mango Solutions)
+
+## 3.5 Undocumented 
+
+If you've forgotten to document any of the parameters, when you run the check() function, you'll get a WARNING message that looks a bit like this:
+
+*Undocumented arguments in documentation object 'numeric_summary'   'na.rm'*
+
+To remove this warning, you'll need to update the documentation for the parameter in the function's .R file, and then run check() again. You might think you need to run the document() function again. However, there's no need to do this, as check() automatically runs document() for you before completing its checks.
+
+```{r}
+#' Numeric Summaries
+#' Summarises numeric data and returns a data frame containing the minimum value, median, standard deviation, and maximum value.
+#'
+#' @param x a numeric vector containing the values to summarize.
+#' @param na.rm a logical value indicating whether NA values should be stripped before the computation proceeds
+
+numeric_summary <- function(x, na.rm){
+
+  if(!is.numeric(x)){
+    stop("data must be numeric")
+  }
+
+  data.frame( min = min(x, na.rm = na.rm),
+              median = median(x, na.rm = na.rm),
+              sd = sd(x, na.rm = na.rm),
+              max = max(x, na.rm = na.rm))
+}
+```
+
+
+## 3.6 Undefined global variables
+The way in which you define variables in tidyverse package functions can cause confusion for the R CMD check, which sees column names and the name of your dataset, and flags them as "undefined global variables".
+
+To get around this, you can manually specify the data and its columns as a vector to utils::globalVariables(), by including a line of code similar to the following in your package-level documentation:
+
+utils::globalVariables(c("dataset_name", "col_name_1", "col_name_2"))
+This defines dataset_name, col_name_1, and col_name_2 as global variables, and now you shouldn't get the undefined global variables error.
+
+```{r}
+#' Temp function 
+#'
+#' temp function for the following test 
+#'
+
+#' @examples
+#' get_mean_temp()
+
+
+get_mean_temp <- function(){
+  
+  summarize(weather, meanTemp = mean(Temp))
+}
+
+```
+
+
+```{r}
+#' datasummary: Custom Data Summaries
+#'
+#' Easily generate custom data frame summaries
+#'
+#' @docType package
+#' @name datasummary
+"_PACKAGE"
+
+# Update this function call
+utils::globalVariables(c("weather", "Temp"))
+```
+
+
+## 3.7 Differences in package dependencies
+By Aimee Gott. 
+
+The Depends field
+search(), library(tidyverse) search()
+
+Depends: 
+  R (> = 3.4.2)
+
+Import: dplyr, 
+        purrr
+        
+Suggests: testthat
+  knitr,
+  rmarkdown
+  
+Adding a Dependency
+
+use_package("dplyr") ## add to import
+
+use_package("ggplot2", "suggests") ## adds to suggests
+  
+
+## 3.8 Depends or imports
+
+The Depends and Imports fields in the DESCRIPTION file can cause a lot of confusion to those new to package building! Both of these fields contain package dependencies which are installed when you install the package. However, the difference between them is that the packages listed in depends are attached when the package is loaded, whereas the packages listed in imports are not.
+
+This distinction is important because if two different packages have an identically named function, the version of the function from the package which has been loaded most recently will be used. Therefore, to make sure you are using the correct function, it is best practice to use imports to list your dependencies and then in your code explicitly name the package and function it's from in the form package::function(), e.g. dplyr::select().
+
+In the majority of cases, you should only list the version of R required in the Depends field and the package in the Imports field.
+
+Which of the following should you add to the Imports field in your description file for the datasummary package?
+
+Put the R version in the depends fields, and packages which are dependencies in the imports fields! 
+
+## 3.9 Adding a dependency
+
+It's now very common practice to list all of your dependencies as an import. 
+
+
+## 3.10 Adding the import to the description
+
+If your package imports functions from other packages, they must be listed in the DESCRIPTION file. You don't need to manually add these - you can use the use_package() function to automatically add packages to your DESCRIPTION file. By default, they are added as imports, but if you alter the type parameter, you can change whether the package is listed as depends, imports, suggests, or a different option.
+
+```{r}
+# Add dplyr as an imported dependency to the DESCRIPTION file
+use_package("dplyr", pkg = "datasummary")
+
+# Add purrr as an imported dependency to the DESCRIPTION file
+use_package("purrr", pkg = "datasummary")
+
+# Add tidyr as an imported dependency to the DESCRIPTION file
+use_package("tidyr", pkg = "datasummary")
+```
+
+
+## 3.11 Building packages with continuous inegration
+By Nic Crane 
+
+Building with devtools. (I) Build the source: *build("simutils")*; (2) Build the binary: *build("simutils", binary = TRUE)*. 
+
+continuous integration: 
+
+* Automatically runs checks when code changed. 
+
+* Used with version control
+
+* Runs every time you make an update. 
+
+How to add continuous integration for a package, it is easy as following; 
+*use_travis("simutils")*
+
+## 3.12 Building an R 
+Once you have created the correct structure, included all of your functions, created the package documentation and ensured that the checks pass you can then build your package so that it is in a sharable format.
+
+You can build your package using the *build()* function from devtools. You can use this function to build either a source version of the package, or a Windows/Mac specific binary version. The source version of the package will have a file ending of ".tar.gz" and the binary will take the ending ".zip" (Windows) or ".tgz" (Mac). 
+
+```{r}
+# Build the package
+build("datasummary")
+
+build("datasummary", binary = TRUE)
+
+# Examine the contents of the current directory
+dir()
+
+```
+
+
+## 3.13 Setting a package up for using Travis
+We can run *use_github()* and *use_travis()* to set up the package for use with GitHub and Travis CI.  GitHub is a popular website used for storing code and version control, and Travis CI is used for continuous integration. 
+
+Travis CI can be set up to run checks every time you update your code. 
+
+# 4. Adding Unit Tests to R Packages
+
+source: dataCamp (By Aimee Gott, she is a good instructor)
+
+Why write unit tests? 
+My function worked perfect yesterday, but it did not work today. Why? 
+
+Let me figure out: 
+
+* Did you add or modify  any supporting or connected code? 
+
+* Did you install a new version of R? Or did you use another version of packages? 
+
+* Did you run your code on new data? 
+
+* Did you run your code on a different operating system? 
+
+Setting up the test structure: 
+
+Call use_testthat to set up the test framework. This creates a test directory in the package root directory. Within the test directory, there is a script testhat.R, which contains code to run the tests. Within the test directory is a directory testthat where you save all of your test scripts. 
+ 
+ 
+ Some of the most common expects statements: 
+ 
+ * expect_identical - Checks for exact equality. Strictest numerical comparison: Values, attributes, and type. 
+ Example: 
+ `library(testthat)`
+ `my_vector <- c(First = 1, Second = 2)`
+ `expect_identical(my_vector, c(First = 1, Second = 2))`
+ 
+ * expect_equal - Checks for equality with numerical tolerance. Compares **Values** and **attributes**, not **type**.  Can set tolerance parameter to allow for small differences. 
+ Example: 
+ `expect_equal(my_vector, c(First = 1L, Second = 2L))`
+ `expect_equal(my_vector, c(First = 1.1, Second = 2.1), tolerance = 0.1)`
+ 
+ * expect_equivalent - More relaxed version of equals. compares **values** only, not **attributes** or **type**
+ 
+ * expect_error - check that an expression gives an error
+ 
+ * expect_warning - checks that an expression gives a warning 
+ 
+ * expect_output - Checks that output matches a specified value
+ 
+ 
+## 4.1 What are unit tests and why write them?
+## 4.2 Setting up the test structure
+Set up a test framework using *use_testthat()*.  
+
+Save all tests in the *tests/testthat/*. A good way to name files:  *test-na_count.R*, *test-sample_from_data.R*. 
+
+```{r}
+# Set up the test framework
+use_testthat("datasummary")
+
+# Look at the contents of the package root directory
+dir("datasummary")
+
+# Look at the contents of the new folder which has been created 
+dir("datasummary/tests")
+```
+
+With above code, we created the test structure, and now some tests can be added. 
+
+## 4.3 Writing an individual test
+```{r}
+# Save all tests in the *tests/testthat/*.
+# Create a summary of the iris dataset using your data_summary() function
+library(testthat)
+iris_summary <- data_summary(iris)
+
+# Count how many rows are returned
+summary_rows <- nrow(iris_summary) 
+
+# Use expect_equal to test that calling data_summary() on iris returns 4 rows
+expect_equal(summary_rows, 4)
+```
+
+
+## 4.4 Testing for equality
+
+```{r}
+result <- data_summary(weather)
+
+# Update this test so it passes
+expect_equal(result$sd, c(2.1, 3.6), tolerance = 0.10)
+
+expected_result <- list(
+    ID = c("Day", "Temp"),
+    min = c(1L, 14L),
+    median = c(4L, 19L),
+    sd = c(2.16024689946929, 3.65148371670111),
+    max = c(7L, 24L)
+)
+
+# Write a passing test that compares expected_result to result
+expect_equivalent(result, expected_result)
+```
+
+
+## 4.5 Testing errors and warnings
+## 4.6 Testing errors
+```{r}
+# Create a vector containing the numbers 1 through 10
+my_vector <- 1:10
+
+# Look at what happens when we apply this vector as an argument to data_summary()
+#data_summary(my_vector)
+
+# Test if running data_summary() on this vector returns an error
+expect_error(data_summary(my_vector))
+
+```
+Most times, when something goes wrong, we want to have errors are returned. 
+
+## 4.7 Testing warnings
+
+```{r}
+# Run data_summary on the airquality dataset with na.rm set to FALSE
+#data_summary(airquality, na.rm = FALSE)
+
+# Use expect_warning to formally test this
+# airquality[3:4, ] <- NA
+
+#expect_warning(data_summary(airquality, na.rm = FALSE))
+
+```
+
+Note: the code that is used to test the code during the development process can sometimes be copied straight into a test. 
+
+## 4.8 Testing specific output and non-exported functions
+
+*expect_output*
+
+*expect_output_file*
+
+
+## 4.9 Testing non-exported functions
+```{r}
+# Expected result
+expected <- data.frame(min = 14L, median = 19L, sd = 3.65148371670111, max = 24L)
+
+# Create variable result by calling numeric summary on the temp column of the weather dataset
+result <- datasummary:::numeric_summary(weather$Temp, na.rm = TRUE)
+
+# Test that the value returned matches the expected value
+expect_equal(result, expected)
+```
+
+
+## 4.10 Testing specific output
+
+`expect_output_file()` can be used when you want to store the expected output in a file. 
+
+
+## 4.11 Grouping and running tests and Grouping tests
+```{r}
+
+# Use context() and test_that() to group the tests below together
+context("Test data_summary()")
+
+test_that("data_summary() handles errors correctly", {
+
+  # Create a vector
+  my_vector <- 1:10
+
+  # Use expect_error()
+  expect_error(data_summary(my_vector))
+
+  # Use expect_warning()
+  expect_warning(data_summary(airquality, na.rm = FALSE))
+
+})
+
+
+```
+
+## 4.13 Executing unit tests and Understanding a test failure
+
+```{r}
+test("datasummary")
+```
+
+## 4.15 Wrap-up 
+

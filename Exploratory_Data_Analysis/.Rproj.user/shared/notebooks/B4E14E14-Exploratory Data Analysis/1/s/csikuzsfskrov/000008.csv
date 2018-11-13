@@ -1,0 +1,8 @@
+"0",""
+"0","# Create hist of horsepwr for affordable cars"
+"0","cars %>% "
+"0","  filter(msrp < 25000) %>%"
+"0","  ggplot(aes(x = horsepwr)) +"
+"0","  geom_histogram() +"
+"0","  xlim(c(90, 550)) +"
+"0","  ggtitle(""Distribution of Horsepower for cars under $25,000"")"

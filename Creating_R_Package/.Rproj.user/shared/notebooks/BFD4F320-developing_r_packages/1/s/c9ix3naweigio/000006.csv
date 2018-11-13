@@ -1,0 +1,8 @@
+"0","# Expected result"
+"0","expected <- data.frame(min = 14L, median = 19L, sd = 3.65148371670111, max = 24L)"
+"0",""
+"0","# Create variable result by calling numeric summary on the temp column of the weather dataset"
+"0","result <- datasummary:::numeric_summary(weather$Temp, na.rm = TRUE)"
+"0",""
+"0","# Test that the value returned matches the expected value"
+"0","expect_equal(result, expected)"

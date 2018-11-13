@@ -1,0 +1,24 @@
+"0","# Add dplyr as an imported dependency to the DESCRIPTION file"
+"0","use_package(""dplyr"", pkg = ""datasummary"")"
+"2","* Adding dplyr to Imports
+"
+"2","Next: 
+"
+"2","Refer to functions with dplyr::fun()
+"
+"0","# Add purrr as an imported dependency to the DESCRIPTION file"
+"0","use_package(""purrr"", pkg = ""datasummary"")"
+"2","* Adding purrr to Imports
+"
+"2","Next: 
+"
+"2","Refer to functions with purrr::fun()
+"
+"0","# Add tidyr as an imported dependency to the DESCRIPTION file"
+"0","use_package(""tidyr"", pkg = ""datasummary"")"
+"2","* Adding tidyr to Imports
+"
+"2","Next: 
+"
+"2","Refer to functions with tidyr::fun()
+"

@@ -1,0 +1,5 @@
+"0",""
+"0","# Plot the positions of the players and color them using their cluster for height = 40"
+"0","ggplot(lineup_h40_complete, aes(x = x, y = y, color = factor(cluster))) + "
+"0","geom_point()"
+"0",""

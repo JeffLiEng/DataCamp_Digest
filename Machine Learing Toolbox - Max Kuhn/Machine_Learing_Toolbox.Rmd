@@ -1,0 +1,54 @@
+---
+title: "Machine Learning Toolbox - Max & Zachary"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load Required Libraries
+```{r, message = FALSE}
+library(DBI)
+library(tidyverse)
+library(purrr)
+library(caret)
+```
+
+# 1. Regression models: fitting and performance
+
+
+# 1.3 Cross-Validataion
+
+compared with a single train/test split, cross-validation can give multiple estimates of out-of-sample error. If all of estimates give similar outputs, we are more certain of the model's accuracy. If the model gives different output, it indicates the model does not perform consistently and suggests potential problem with it. 
+
+The **Caret** package (thanks Max!) supports many types of cross-validation.  The function *trainControl* has many options. For example, the resamping method includes: "boo", "cv", "LOOCV", "repeatedcv".   The combination of *method = "repeatedcv"* + *number = 10* + "repeats = 3" performs 3 seperate 10-fold cross-validation. 
+
+10-fold cross validation 
+```{r}
+# (a) load data
+load("data/diamonds.RData")
+str(diamonds)
+summary(diamonds)
+
+# (b) fit *lm* model using 10-fold CV
+set.seed(42) # set seed for reproducibility 
+trControl
+
+```
+
+
+# 2. Classfication models: fitting and performance
+
+
+# 3. Tuning model parameters to improve performance
+
+# 4. Preprocessing data
+
+# 5. Selecting Models: a case study in churn prediciton 

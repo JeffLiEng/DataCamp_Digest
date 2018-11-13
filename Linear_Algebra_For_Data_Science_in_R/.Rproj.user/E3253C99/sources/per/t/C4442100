@@ -1,0 +1,27 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1539920522725.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "4010216294",
+    "id" : "C4442100",
+    "lastKnownWriteTime" : 1539929519,
+    "last_content_update" : 1539929519763,
+    "path" : "C:/Users/qfli/DataCamp/Linear Algebra For Data Science In R/linear_algebra_for_data_science_in_R.Rmd",
+    "project_path" : "linear_algebra_for_data_science_in_R.Rmd",
+    "properties" : {
+        "cursorPosition" : "156,0",
+        "docOutlineVisible" : "1",
+        "last_setup_crc32" : "",
+        "scrollLine" : "133"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

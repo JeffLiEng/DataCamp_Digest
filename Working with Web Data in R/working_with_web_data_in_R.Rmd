@@ -1,0 +1,161 @@
+---
+title: "Importing Data in R Part 2"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(tidyverse)
+library(jsonlite)
+library(rvest)
+library(scales)
+library(lubridate)
+
+```
+
+
+
+# 1. Downloading Files and Using API Clients
+
+**Objectives**: 
+
+* Learn how to download and read in static files
+
+* develop skills to use *APIs* when pre-existing clients are available
+
+
+Working with Web Data in R include: 
+
+*  Downloading files and using specialized packages to get data from web
+
+* *httr* package to query *APIs* using *GET()* and *POST()*
+
+* *JSON* and *XML*: data formats commonly returned
+
+* *CSS* to navigate and extract data from web packages
+
+## 1.1  importing data from a URL
+
+```{r}
+
+# (a) importing data from a URL
+
+# (a1) This .CSV file contains the monthly Renewable Identification Number (RIN) generation data 
+# for the Renewable Fuel Standard (RFS)
+RINS_201810 <- read_csv('https://www.epa.gov/sites/production/files/2018-10/generationbreakout.csv')
+
+# (a2) This .CSV file contains the Renewable Identification Number (RIN) availability to date for the Renewable Fuel Standard (RFS).
+RINS_available_201810 <- read_csv("https://www.epa.gov/sites/production/files/2018-10/availablerins.csv") %>% 
+  mutate(`Fuel (D Code)` = factor(`Fuel (D Code)`), 
+         RIN_Year = make_date(year = `RIN Year`, month = 1, day = 30))
+
+# (b) quick summary 
+summary(RINS_201810)
+summary(RINS_available_201810)
+
+# (c) check the imported data
+RINS_201810 %>%
+  mutate(RINs_code = as.factor(`Fuel Code`), 
+         `Total RINs by Fuel Code (million)` = `Total RINs by Fuel Code`/10^6) %>%
+  ggplot(aes(x = `RIN Year`, y = `Total RINs by Fuel Code (million)`, color = RINs_code)) +
+  geom_point() + 
+  geom_line() + 
+  scale_y_continuous(label = scales::comma) +
+  facet_wrap(~RINs_code, ncol = 1, scales = "free")
+ 
+
+# RINS_available_201810 %>%
+#   #filter(Assignment == "Assigned") %>%
+#   mutate(`Total Available (million)` = `Total Available`/10^6) %>%
+#   ggplot(aes(x = RIN_Year, y = `Total Available (million)`, color = `Fuel (D Code)`)) +
+#   geom_point() + 
+#   geom_line() + 
+#   scale_y_continuous(label = scales::comma) +
+#   facet_wrap(~`Fuel (D Code)` + Assignment, ncol = 2, scales = "free")          
+
+# (d) Saving formatted files to disk
+
+saveRDS(object = RINS_201810, file = "data/RINS_201810.RDS")
+saveRDS(object = RINS_available_201810, file = "data/RINS_available_201810.RDS")
+
+readRDS("data/RINS_201810.RDS")
+
+```
+
+## 1.2 Downloading data from a URL
+
+```{r}
+download.file(
+  url ='https://www.epa.gov/sites/production/files/2018-10/generationbreakout.csv', 
+  destfile = "data/RINS_201810.csv"
+)
+
+download.file(
+  url ="https://www.epa.gov/sites/production/files/2018-10/availablerins.csv", 
+  destfile = "data/RINS_available_201810.csv"
+)
+```
+
+## 1.3 APIs
+
+**APIs**: Application programming interfaces
+
+* *websites*, but for machines
+
+* can be used to expose data automatically
+
+* Lets us make queries for specific bits of that data
+
+
+API Clients: native (in R!) interfaces to APIs, hides API complexity, let us read data in as R objects
+
+Using API Clients: always use a client if we can; find them by googling `CRAN [name of website]' 
+
+
+```{r}
+# a client to Wikipedia's API
+# Load pageviews
+library(pageviews)
+
+# Get the pageviews for "Hadley Wickham"
+RINs_pageviews <- article_pageviews(project = "en.wikipedia","Renewable Identification Number")
+
+# Examine the resulting object
+str(RINs_pageviews)
+
+
+##----------Using access tokens-------------
+# Load birdnik
+#install.packages("birdnik")
+library(birdnik)
+
+# Get the word frequency for "vector", using api_key to access it
+api_key <- "d8ed66f01da01b0c6a0070d7c1503801993a39c126fbc3382"
+vector_frequency <- word_frequency(api_key, "vector")
+
+
+```
+
+
+
+# 2. Using *httr* to interact with APIs directly 
+
+
+# 3. Handling JSON and XML
+
+
+# 4. Web Scrapping with XPATHs
+
+
+
+# 5. CSS Web Scraping and Final Case Study

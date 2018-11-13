@@ -1,0 +1,420 @@
+---
+title: "xxx"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee  
+
+"Work hard in silence, let your success be your noise". - Frank Ocean
+
+
+Ref: Vankrunkelsven, Vincent. https://www.datacamp.com/courses/introduction-to-machine-learning-with-r, 2018.
+
+
+**Course Description:**
+
+* Provide a broad overview of the most common techniques and applications in Machine Learning. 
+
+* Gain more insigt into the assessment and training of different machine learning models. 
+
+* Practice Three of the most basic machine learning: classification, regresssion and clustering. 
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (I) Load Required Libraries
+```{r, message = FALSE}
+library(tidyverse)
+library(datasets)
+library(rpart)
+```
+
+# 1. What is Machine Learning? 
+
+Objectives: 
+
+* Identify a machine learning problem
+
+* Use basic machine learning techniques
+
+* Think about your data/results
+
+
+Machine Learning: construct-use algorithms to learn from data. Machine learning goal is to build model for prediction. 
+
+
+## 1.1 Expplorator Data Analysis 
+
+```{r}
+# iris is available from the datasets package
+
+# Reveal number of observations and variables in two different ways
+str(iris)
+dim(iris)
+
+
+# Show first and last observations in the iris data set
+head(iris, n = 1)
+tail(iris, n = 1)
+
+# Summarize the iris data set
+summary(iris)
+```
+
+## 1.2 A simple example of Machine Learning: Regression 
+
+```{r}
+# (a) Read data (repriduced from DatCamp)
+Wage <- read.table("data/Wage.txt") %>%
+  as_tibble()
+
+head(Wage)
+tail(Wage)
+
+summary(Wage)
+
+# (b) Plot 
+Wage %>%
+  ggplot(aes(x = age, y = wage)) +
+  geom_point(alpha = 0.5)
+
+
+# Build Linear Model: lm_wage (coded already)
+lm_wage <- lm(wage ~ age, data = Wage)
+
+# Define data.frame: unseen (coded already)
+unseen <- data.frame(age = 60)
+
+# Predict the wage for a 60-year old worker
+predict(lm_wage, unseen)    # $124/day
+
+```
+
+## 1.3 Supervised learning: Classification 
+
+```{r}
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Take a look at the iris dataset
+str(iris)
+summary(iris)
+
+
+# A decision tree model has been built for you
+tree <- rpart(Species ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width,
+              data = iris, method = "class")
+
+# A dataframe containing unseen observations
+unseen <- data.frame(Sepal.Length = c(5.3, 7.2),
+                     Sepal.Width = c(2.9, 3.9),
+                     Petal.Length = c(1.7, 5.4),
+                     Petal.Width = c(0.8, 2.3))
+
+# Predict the label of the unseen observations. Print out the result.
+predict(tree, unseen,type = "class")
+
+# plot(tree)
+```
+
+
+
+## 1.4 Unsupervised learning 
+```{r}
+# The cars data frame is pre-loaded
+
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Explore the cars dataset
+str(cars)
+summary(cars)
+
+
+# Group the dataset into two clusters: km_cars
+km_cars <- kmeans(cars, centers = 2, )
+
+# Print out the contents of each cluster
+km_cars$cluster
+
+# Add code: color the points in the plot based on the clusters
+plot(cars, col = km_cars$cluster)
+
+# Print out the cluster centroids
+km_cars$centers
+
+# Replace the ___ part: add the centroids to the plot
+points(km_cars$centers, pch = 22, bg = c(1, 2), cex = 2)
+
+```
+
+
+
+
+# 2. Performance measures 
+
+**Objectives**: 
+
+* Learn how to split data into training and test
+
+* Learn the concepts of bias and variance 
+
+
+**good vs bad**: depends on context of task - accuracy or computation time or interpretability. 
+
+**Confusion Matrix**: accuracy, precision, recall
+
+* accuracy =  (TP + TN)/(TP + FP + FN + TN)
+
+* precision = TP/(TP + FP)
+
+* Recall = TP/(TP + FN)
+
+
+**Clustering**: 
+
+* similarity within each cluster (within sum of squares (WSS), Diameter )  - need to be minimized. 
+
+* similarity between clusters (between cluster sum of squares (BSS), intercluster distance) - need to be maximized. 
+
+* Dunn's index: minimal intercluster distance/maximal diameter. 
+
+
+
+## 2.1 fusion Matrix
+
+
+```{r}
+# The titanic dataset is already loaded into your workspace
+
+# Set random seed. Don't remove this line
+set.seed(1)
+
+# Have a look at the structure of titanic
+titanic <- read_csv("data/titanic.csv") %>%
+  mutate(Survived = factor(Survived, levels = c(1, 0)), 
+         Pclass = factor(Pclass), 
+         Sex = factor(Sex))
+
+str(titanic)
+
+# A decision tree classification model is built on the data
+tree <- rpart(Survived ~ ., data = titanic, method = "class")
+
+# Use the predict() method to make predictions, assign to pred
+pred <- predict(tree, titanic, type = "class")
+#head(pred)
+
+# Use the table() method to make the confusion matrix
+conf <- table(titanic$Survived, pred)
+conf
+
+
+# do a manual calculation
+
+# The confusion matrix is available in your workspace as conf
+
+# Assign TP, FN, FP and TN using conf
+TP <- conf[1, 1] # this will be 212
+FN <- conf[1, 2] # this will be 78
+FP <- conf[2, 1] # fill in
+TN <- conf[2, 2] # fill in
+
+# Calculate and print the accuracy: acc
+acc <- (TP + TN)/(TP + FP + FN + TN)
+acc
+
+# Calculate and print out the precision: prec
+prec <-  TP/(TP + FP)
+prec
+
+# Calculate and print out the recall: rec
+rec <- TP/(TP + FN)
+rec
+
+```
+
+## 2.2 The Quality of a regression 
+
+```{r}
+# The air dataset is already loaded into your workspace
+
+# Take a look at the structure of air
+
+air <- read_csv("data/air.csv")
+str(air)
+
+# Inspect your colleague's code to build the model
+fit <- lm(dec ~ freq + angle + ch_length, data = air)
+
+# Use the model to predict for all values: pred
+pred <- predict(fit)
+
+# Use air$dec and pred to calculate the RMSE 
+rmse <- sqrt( sum((air$dec - pred)^2) / nrow(air) )
+
+# Print out rmse
+rmse
+
+
+# Your colleague's more complex model
+fit2 <- lm(dec ~ freq + angle + ch_length + velocity + thickness, data = air)
+
+# Use the model to predict for all values: pred2
+pred2 <- predict(fit2)
+
+# Calculate rmse2
+rmse2 <- sqrt(sum((air$dec - pred2)^2)/nrow(air))
+
+# Print out rmse2
+rmse2
+
+```
+
+Adding more variables to a regression always leads to a decrease of model RMSE (for training set). 
+
+
+## 2.4 Try Clustering
+
+A company has 210 seeds, which belongs to three types of seeds. Unfortunately, they lost their labels. The good news is we have several seeds metrics,  including area, perimeter, compactness, lenth, width, asymmetry, and groove_length. 
+
+
+
+```{r}
+# (a) read data
+seeds <- read_csv("data/seeds.csv")
+
+# (b) set random seed. 
+set.seed(1)
+
+# (c) Explore the structure of the dataset
+str(seeds)
+summary(seeds) # metrics need to be scaled for real practices. 
+
+# (d) Group the seedsin 
+km_seeds <- kmeans(seeds, center = 3)  
+names(km_seeds)
+
+# Color the points in the plot based on the clusters
+plot(length ~ compactness, data = seeds, col = km_seeds$cluster)
+
+# Print out the ratio of the WSS to the BSS
+km_seeds
+km_seeds$totss
+km_seeds$withinss
+
+sum(km_seeds$withinss) == km_seeds$tot.withinss
+
+km_seeds$tot.withinss/km_seeds$betweenss
+
+```
+
+The within sum of suqares is far lower than the between sum of squares, chich indicting the clusters are well seperated adn overall compact. 
+
+## Split data: training vs testing
+
+```{r}
+# The titanic dataset is already loaded into your workspace
+
+# Set random seed. Don't remove this line.
+set.seed(1)
+
+# Shuffle the dataset, call the result shuffled
+n <- nrow(titanic)
+shuffled <- titanic[sample(n),]
+
+# Split the data in train and test
+train_indices <- 1:round(0.7 * n) 
+
+train <- shuffled[train_indices, ]
+test <- shuffled[-train_indices, ]
+
+# Print the structure of train and test
+str(train)
+str(test)
+
+# Fill in the model that has been learned.
+tree <- rpart(Survived ~ ., train, method = "class")
+
+# Predict the outcome on the test set with tree: pred
+pred <- predict(tree, test, type = "class")
+
+# Calculate the confusion matrix: conf
+conf <- table(test$Survived, pred)
+
+# Print this confusion matrix
+conf
+
+# accuracy
+(conf[1, 1] + conf[2, 2])/sum(unlist(conf))
+
+# precision
+ conf[1, 1]/(conf[1, 1] + conf[2, 1])
+ 
+# recall 
+ conf[1, 1]/(conf[1, 1] + conf[1, 2])
+```
+
+
+Train model several times and see model variations
+```{r}
+# set random seed
+set.seed(1)
+
+# Initialize the accs vector
+accs <- rep(0, 6)
+
+n <- nrow(titanic)
+
+for (i in 1:10) {
+  # generate 6 random training indices
+
+  # indices =  (((i-1) * round((1/6) * n)) + 1):((i*round((1/6) * n)))
+  # 
+  # train = shuffled[indices, ]
+  # test = shuffled[-indices, ]
+  
+  
+  indices =  rep(1:10, len = n)
+
+  train = shuffled[indices != i, ]
+  test = shuffled[indices == i, ]
+  
+  tree = rpart(Survived ~ ., train, method = "class") 
+  
+  pred = predict(tree, test, type = "class")
+  
+  # assign the confution matrix to conf
+  conf = table(test$Survived, pred)
+  
+  # assign the accuracy of the model to the ith index
+  accs[i] = sum(diag(conf))/sum(conf)
+}
+
+accs
+mean(accs)
+
+```
+
+The above section shows one tedious way to program a 10-fold cross validation algorithm. The cross validation can be used to optimize models. 
+
+
+
+
+# 3. Classification
+
+
+# 4. Regression
+
+
+# 5. Clustering
+

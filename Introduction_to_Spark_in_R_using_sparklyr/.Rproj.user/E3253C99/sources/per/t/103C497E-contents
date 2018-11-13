@@ -1,0 +1,203 @@
+---
+title: "Introduction to Spark in R using sparklyr"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## (i) Load libraries
+```{r, message = FALSE}
+library(sparklyr)
+library(tidyverse)
+library(dplyr)
+```
+
+
+# 1. Introduction to Spark in R using sparklyr
+
+**R**  lets us write data analysis code quickly, R code is relatively easy to read. However, *R* requires that all data be analyzed in memory (RAM) on a single machine. 
+
+**Spark** is an open source cluster computing platform. In *Spark*, we can spread our data and computations across multiple machines, effectively letting us analyze an unlimited amount of data. 
+
+**sparklyr** is an R package that lets us write R code to work with data in a *Spark* cluster. It has a *dplyr* interface. 
+
+**sparklyr** is very new that we just can't do some things with *Spark* from *R*. The Scala adn Python interfaces to Spark are more mature. 
+
+```{r}
+# (a) Install Spark on my local system
+#spark_install()
+```
+
+## 1.1 The connect-work-disconnect pattern
+
+**sparklyr** converts *R* code into SQL code before passing it to *Spark*. 
+
+The typical workflow has three steps:
+
+* Connect to Spark using `spark_connect()`
+
+* Do some work
+
+* Close the connection to *Spark* using `spark_disconnect()`
+
+```{r}
+# Connect to your Spark cluster
+spark_conn <- spark_connect(master = "local")
+
+# Print the version of Spark
+spark_version(sc = spark_conn)
+
+ls("package:sparklyr", pattern = "^ft") %>% 
+  head()
+
+ls("package:sparklyr", pattern = "^ml") %>% 
+  head()
+
+# Disconnect from Spark
+spark_disconnect(sc = spark_conn)
+```
+
+
+## 1.2 Copying data into Spark
+
+```{r}
+# Explore track_metadata structure
+track_metadata <- readRDS("data/track_metadata.rds") 
+str(track_metadata)
+
+class(track_metadata)
+dim(track_metadata)
+#track_metadata 
+
+
+# Connect to your Spark cluster
+spark_conn <- spark_connect("local")
+
+
+# Copy track_metadata to Spark
+message("some things are wrong with track_metadata")
+# track_metadata_tbl <- copy_to(spark_conn, track_metadata, overwrite = TRUE)
+# track_metadata_tbl
+
+# copy mtcars to spark 
+mtcars_sparklyr <- copy_to(spark_conn, mtcars, overwrite = TRUE)
+mtcars_sparklyr
+# str(mtcars_sparklyr)
+
+# List the data frames available in Spark
+src_tbls(spark_conn)
+
+# Disconnect from Spark
+spark_disconnect(spark_conn)
+```
+Note: Compying data between R and Spark is slow, so we should have other tools. 
+
+For remote datasets, the tibble object simple stores a  connection to the remote data. In this way, even though you have big dataset, the size of the tibble object is small. 
+
+```{r}
+
+# Link the data in Spark
+track_mtcars_tbl <- tbl(spark_conn, "mtcars")
+
+# See how big the dataset is
+dim(track_mtcars_tbl)
+
+# See the tibble size
+pryr::object_size(track_mtcars_tbl)
+
+# print 5 rows, all columns
+print(track_mtcars_tbl, n = 5, width = Inf)
+```
+
+
+
+# 4. Case Study: Learning to be a Machine: Running Machine Learning Models on Spark
+
+Spark MLlib has lots of machine learning modeling functions, which start with *ml_*. 
+
+`a_tibble %>% ml_some_model("response", c("a_feature", "another_feature"), some_other_args)`. 
+
+See all the machine learning functions using *ls()*. 
+
+`ls("package:sparklyr", patter = "^ml")`
+
+The following data, **timbre**, are tracks in the million song dataset, which have 12 timbre measurements taken at regular time intervals throughout the song. 
+
+```{r}
+# ls("package:sparklyr", patter = "^ml")
+
+# Restore a R object (data)
+timbre <- readRDS("data/timbre.rds")  # Timbre measurements for Lady Gaga's "Poker Face"
+
+head(timbre)
+
+# mean of coloumns
+mean_timbre <- colMeans(timbre)
+mean_timbre
+
+```
+
+
+## 4.1 Working with parquet files
+
+Technically speaking, **parquet** file is a misnomer. When you store data in parquet format, you actually get a whole directory worth of files. The data is split across multiple *.parquet* files, allowing it to be easily stored on multiple machines, and there are some metadata files too, describing the contents of each column.
+
+`spark_read_parquet(sc, "a_dataset", "path/to/parquet/dir")`
+
+```{r}
+# (a) Define a parquet directory
+parquet_dir <- "data/timbre_parquet"
+
+# (b) list the files in the parquet dir
+filenames <- dir(parquet_dir, full.names = TRUE)
+filenames
+
+# (c) Show the filenames and their sizes
+data_frame(filename = basename(filenames), 
+           size_bytes = file.size(filenames))
+
+# (d) Import the data into Spark
+timbre_tbl <- spark_read_parquet(spark_conn, "timbre", parquet_dir)
+```
+
+
+# Appendix 
+
+source: https://eddjberry.netlify.com/post/2017-12-05-sparkr-vs-sparklyr/
+
+## A1: Machine Learning
+
+```{r}
+# Split data
+mtcars_sparklyr_part <- mtcars_sparklyr %>%
+  sdf_partition(train = 0.8, test = 0.2)
+
+# fit a random forest
+
+features <- colnames(mtcars_sparklyr)[colnames(mtcars_sparklyr) != "am"]
+
+fit_random_forest <- ml_random_forest(
+  mtcars_sparklyr_part$train, # the training partion
+  response = "am",
+  features = features, # the names minus the outcome
+  col.sample.rate = 0.25,
+  impurity = "entropy",
+  max.bins = 32L, 
+  max.depth = 5L,
+  num.trees = 100L,  
+  type = "classification"
+)
+
+summary(fit_random_forest)
+
+sparklyr::ml_tree_feature_importance(spark_conn, fit_random_forest)
+
+
+sparklyr::ml_classification_eval(spark_conn, fit_random_forest)
+
+```
+
