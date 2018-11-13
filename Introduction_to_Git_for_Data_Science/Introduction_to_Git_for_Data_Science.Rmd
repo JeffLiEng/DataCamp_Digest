@@ -1,0 +1,39 @@
+---
+title: "Introduction to Git for Data Science "
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+**Course Description** 
+
+"Version control is one of the power tools of programming. It allows you to keep track of what you did when, undo any changes you have decided you don't want, and collaborate at scale with other people. This course will introduce you to Git, a modern version control tool that is very popular with data scientists and software developers alike, and show you how it can help you get more done in less time and with less pain."
+
+
+Ref: Wilson, Greg. https://www.datacamp.com/courses/introduction-to-git-for-data-science.  2018.
+
+
+Note: some course materials have been adapted for internal training. 
+
+
+# 1. Basic workflow
+
+*A version control system*: a tool that manages changes made to the files and directories in a project.
+
+* keep track of changes to files
+
+* Notice confilicts between changes made by different people
+
+* Synchronize files between different computers
+
+Git stores all of its extra information in a directory call **.git** located in the root directory of the repository. Never edit or delete anything in *.git*. 
+
+## 1.1  Check the state of a repository 
+
+* git status 
