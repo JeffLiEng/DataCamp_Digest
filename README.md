@@ -2,4 +2,6 @@
 
 DataCamp Course Digest
 
-Some materials and data have been modified for teaching. 
+I have adapted some materials and data for my teaching. 
+
+Ref: www.datacamp.com 
