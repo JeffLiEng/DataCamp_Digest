@@ -62,3 +62,46 @@ How can I tell what's going to be committed?
 To compare the state of your files with those in the staging area, you can use git diff -r HEAD. The -r flag means "compare to a particular revision", and HEAD is a shortcut meaning "the most recent commit".
 
 You can restrict the results to a single file or directory using git diff -r HEAD path/to/file, where the path to the file is relative to where you are (for example, the path from the root directory of the repository).
+
+**Interlude: how can I edit a file?**
+
+
+Unix has a bewildering variety of text editors. In this course, we will sometimes use a very simple one called Nano. If you type nano filename, it will open filename for editing (or create it if it doesn't already exist). You can then move around with the arrow keys, delete characters with the backspace key, and so on. You can also do a few other operations with control-key combinations:
+
+Ctrl-K: delete a line.
+Ctrl-U: un-delete a line.
+Ctrl-O: save the file ('O' stands for 'output').
+Ctrl-X: exit the editor.
+
+
+
+Run nano names.txt to edit a new file in your home directory and enter the following four lines:
+
+Lovelace
+Hopper
+Johnson
+Wilson
+To save what you have written, type Ctrl-O to write the file out, then Enter to confirm the filename, then Ctrl-X and Enter to exit the editor.
+
+
+
+**How do I commit changes?**
+
+To save the changes in the staging area, you use the command *git commit*. It always saves everything that is in the staging area as one unit: as you will see later, when you want to undo changes to a project, you undo all of a commit or none of it.
+
+When you commit changes, Git requires you to enter a log message. This serves the same purpose as a comment in a program: it tells the next person to examine the repository why you made a change.
+
+By default, Git launches a text editor to let you write this message. To keep things simple, you can use -m "some message in quotes" on the command line to enter a single-line message like this:
+
+*git commit -m "Program appears to have become self-aware."*
+
+
+If you accidentally mistype a commit message, you can change it using the --amend flag.
+
+*git commit --amend - m "new message"* 
+
+
+
+
+
+
