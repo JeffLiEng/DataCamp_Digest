@@ -1,4 +1,0 @@
-"0","# Create faceted histogram"
-"0","ggplot(cars, aes(x = city_mpg)) +"
-"0","  geom_histogram() +"
-"0","  facet_wrap(~ suv)"

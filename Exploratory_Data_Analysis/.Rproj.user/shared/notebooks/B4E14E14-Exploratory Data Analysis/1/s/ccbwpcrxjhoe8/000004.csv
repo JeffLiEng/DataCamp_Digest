@@ -1,5 +1,0 @@
-"0",""
-"0","# Compute stats for population"
-"0","gap2007 %>%"
-"0","  summarize(median(pop),"
-"0","            IQR(pop))"

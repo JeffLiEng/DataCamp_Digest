@@ -1,5 +1,0 @@
-"0","# Compute stats for lifeExp in Americas"
-"0","gap2007 %>%"
-"0","  filter(continent == ""Americas"") %>%"
-"0","  summarize(mean(lifeExp),"
-"0","            sd(lifeExp))"

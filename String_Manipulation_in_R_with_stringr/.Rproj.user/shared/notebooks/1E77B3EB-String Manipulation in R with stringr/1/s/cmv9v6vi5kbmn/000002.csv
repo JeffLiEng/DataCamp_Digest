@@ -1,7 +1,0 @@
-"0","# Find girl_names that contain ""U"" and ""z""
-str_subset(starts_U, pattern = fixed(""z""))
-"
-"1","[1]"
-"1"," ""Umaiza"""
-"1","
-"

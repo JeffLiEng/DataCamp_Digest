@@ -1,5 +1,0 @@
-"0","# Extract matches
-str_extract(trip, trip_pattern)
-"
-"1","character(0)
-"

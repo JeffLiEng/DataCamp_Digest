@@ -1,7 +1,0 @@
-"0","# Calculate the test recall
-recall(test_actual, test_predicted)
-"
-"1","[1]"
-"1"," 0.75"
-"1","
-"

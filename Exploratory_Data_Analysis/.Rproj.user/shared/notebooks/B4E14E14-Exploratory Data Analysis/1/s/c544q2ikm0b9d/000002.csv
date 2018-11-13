@@ -1,7 +1,0 @@
-"0","# Change the order of the levels in align"
-"0","comics$align <- factor(comics$align, "
-"0","                       levels = c(""Bad"", ""Neutral"", ""Good""))"
-"0",""
-"0","# Create plot of align"
-"0","ggplot(comics, aes(x = align)) + "
-"0","  geom_bar()"

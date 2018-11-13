@@ -1,7 +1,0 @@
-"0","# Calc mean fraction of vowels per name
-mean(num_vowels / name_length)
-"
-"1","[1]"
-"1"," 0.4000153"
-"1","
-"

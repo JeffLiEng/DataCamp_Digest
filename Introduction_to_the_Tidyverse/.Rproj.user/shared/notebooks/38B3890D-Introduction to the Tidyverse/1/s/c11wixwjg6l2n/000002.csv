@@ -1,8 +1,0 @@
-"0","# Load the gapminder package"
-"0","library(gapminder)"
-"0",""
-"0","# Load the dplyr package"
-"0","library(dplyr)"
-"0",""
-"0","# Look at the gapminder dataset"
-"0","gapminder"

@@ -1,7 +1,0 @@
-"0",""
-"0","# Create hist of horsepwr with binwidth of 60"
-"0","cars %>%"
-"0","  ggplot(aes(x = horsepwr)) +"
-"0","  geom_histogram(binwidth = 60) +"
-"0","  ggtitle(""Distribution of Horsepower with binwidth =60"")"
-"0",""
