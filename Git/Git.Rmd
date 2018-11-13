@@ -166,4 +166,4 @@ Git uses a three-level structure to store information:
  ## 2.2 How to view a specific commit? 
  * git show + first few characters of the commit's hash
  
- 
+ xxxxxx 
