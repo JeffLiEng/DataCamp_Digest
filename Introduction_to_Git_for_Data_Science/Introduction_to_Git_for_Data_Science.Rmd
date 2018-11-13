@@ -36,4 +36,8 @@ Git stores all of its extra information in a directory call **.git** located in 
 
 ## 1.1  Check the state of a repository 
 
-* git status 
+* *git status*  --- Displays a list of the files that have been modified since the last time changes were saved. 
+
+Git has a staging area in which it stores files with changes that we want to save that haven't been saved yet. 
+Working directory --> Staging Area --> .git Directory 
+
