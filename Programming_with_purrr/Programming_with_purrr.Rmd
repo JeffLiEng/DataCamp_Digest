@@ -35,3 +35,218 @@ library(tidyverse)
 
 ```
 
+
+
+# 1. Simplifying Iteration and Lists With purrr
+
+*map(object, function):* 
+
+* object --> vector or list
+
+* function --> 
+
+
+## 1.1 For loop vs map
+
+```{r}
+# Initialize list
+all_files <- list()
+
+files <- list.files("data/", pattern = ".*.csv$", full.names = TRUE)
+
+# For loop to read files into a list
+for(i in seq_along(files)){
+  all_files[[i]] <- read_csv(file = files[[i]])
+}
+
+# Output size of list object
+length(all_files)
+
+
+##----Iteration with purrr-------
+
+# use map to iterate
+all_files_purrr <- map(files, read_csv)
+
+
+# change each character element to a number
+list_of_df <- list(a = c("1", "2", "3", "4"), 
+                   b = c("5", "6", "7", "8"))
+
+map(list_of_df, as.numeric)
+
+map(list_of_df, function(x) as.numeric(x)*2)
+```
+
+## 1.2 Subsetting lists 
+
+```{r}
+# Load repurrrsive package, to get access to the wesanderson dataset
+#install.packages("repurrrsive")
+library(repurrrsive)
+
+# Load wesanderson dataset
+data(wesanderson)
+
+# Get structure of first element in wesanderson
+str(wesanderson)
+
+# Get structure of GrandBudapest element in wesanderson
+str(wesanderson$GrandBudapest)
+
+
+# Third element of the first wesanderson vector
+wesanderson[[1]][3]
+
+# Fourth element of the GrandBudapest wesanderson vector
+wesanderson$GrandBudapest[4]
+
+```
+
+## 1.3 map_dbl, map_lgl, map_chr
+
+```{r}
+# Create a numcolors column and fill with length of each wesanderson element
+data.frame(numcolors = map_dbl(wesanderson, ~length(.x)))
+```
+
+
+
+# 2. More Complex Iterations
+
+## 2.1 Map with pipe 
+
+```{r}
+# Use pipes to check for names in sw_films
+sw_films %>%
+  names()
+
+# Set names so each element of the list is named for the film title
+sw_films_named <- sw_films %>% 
+  set_names(map_chr(sw_films, "title"))
+
+# Check to see if the names worked/are correct
+names(sw_films_named)
+
+
+# Create a list of values from 1 through 10
+numlist <- list(1:10)
+
+# Iterate over the numlist 
+map(numlist, ~.x %>% sqrt() %>% sin())
+
+```
+
+## 2.2  Map_xx
+
+```{r simulating_data_with_purrr}
+# List of sites north, east, and west
+sites <- list("north", "east", "west")
+
+# Create a list of dataframes, each with a years, a, and b column 
+list_of_df <-  map(sites,  
+  ~data.frame(sites = .x,
+       a = rnorm(mean = 5, n = 200, sd = 5/2),
+       b = rnorm(mean = 200, n = 200, sd = 15)))
+
+list_of_df
+```
+
+```{r Run_a_linear_model}
+# Map over the models to look at the relationship of a vs b
+list_of_df %>%
+    map(~ lm(a ~ b, data =.)) %>%
+    map(summary)
+```
+
+
+```{r map_chr}
+# Pull out the director element of sw_films in a list and character vector
+map(sw_films, ~.x[["director"]])
+map_chr(sw_films, ~.x[["director"]])
+
+
+# Compare outputs when checking if director is George Lucas
+map(sw_films, ~.x[["director"]] == "George Lucas")
+map_lgl(sw_films, ~.x[["director"]] == "George Lucas")
+
+
+# Pull out episode_id element as list
+map(sw_films, ~.x[["episode_id"]])
+
+# Pull out episode_id element as double vector
+map_dbl(sw_films, ~.x[["episode_id"]])
+
+# Pull out episode_id element as integer vector
+map_int(sw_films, ~.x[["episode_id"]])
+
+```
+
+## 2.3. map2() and pmap()
+
+```{r}
+# List of 1 through 3
+means <- list(1, 2, 3)
+
+# Create sites list
+sites <- list("north", "west", "east")
+
+# Map over two arguments: sites and mu
+list_of_files_map2 <- map2(.x = sites, .y = means,  ~data.frame(sites = .x,
+                           a = rnorm(mean = .y, n = 200, sd = (5/2))))
+
+list_of_files_map2
+```
+
+```{r pmap}
+
+# Create a master list, a list of lists
+sites <- list("north", "west", "east")
+means1 <- list(1, 2, 3)
+means2 <- list(0.5, 1, 1.5)
+sigma1 <- list(1, 2, 3)
+sigma2 <- list(0.5, 1, 1.5)
+
+
+pmapinputs <- list(sites = sites,  
+                   means = means1, 
+                   sigma = sigma1, 
+                   means2 = means2, 
+                   sigma2 = sigma2)
+
+# Map over the master list
+list_of_files_pmap <- pmap(pmapinputs, 
+  function(sites, means1, sigma1, means2, sigma2) 
+    data.frame(sites = sites,
+        a = rnorm(mean = means1, n = 200, sd = sigma1),
+        b = rnorm(mean = means2, n = 200, sd = sigma2)))
+                           
+list_of_files_pmap
+
+
+```
+
+
+# 3. Troubleshooting lists with purrr
+
+## 3.1 Using safely() in map()
+
+```{r}
+
+# Map safely over log
+a <- list(-10, 1, 10, 0) %>%
+      map(safely(log, otherwise = NA_real_)) %>%
+  # Transpose the result
+      transpose() 
+
+# Print the list
+a
+
+# Print the result element in the list
+a[["result"]]
+
+# Print the error element in the list
+a[["error"]]
+
+```
+
