@@ -1,0 +1,138 @@
+---
+title: "Quandl Renewable Fuel Analysis in R "
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+library(Quandl)
+library(quantmod)
+library(DBI)
+library(tidyverse)
+library(purrr)
+library(caret)
+library(rstudioapi)
+```
+
+
+# (II) my Quandl Api Key
+```{r}
+Quandl.api_key(askForPassword("My Quandl API Key"))
+```
+
+
+
+# 1. Quandl and Identifying datasets with IDs
+
+## 1.1 Quandl ID
+
+At Quandl, every dataset is identified by a unique id, which can be found on the Quandl website as the *Quandl Code*. 
+
+```{r}
+
+# Assign your first dataset to the variable:
+mydata <- Quandl("NSE/OIL")
+
+str(mydata)
+
+# Assign the Prague Stock Exchange to:
+PragueStockExchange <- Quandl("PRAGUESE/PX")
+head(PragueStockExchange, n = 5)
+
+```
+
+## 1.2 Quandl data format
+
+The Quandl package is able to return data in 4 formats: 
+
+* "raw" - data frame
+
+* "ts" - ts
+
+* "zoon" - zoo
+
+* "xts" - xts
+
+```{r}
+# Load the Facebook data with the help of Quandl
+Facebook <- Quandl("WIKI/FB", type = "xts")
+
+# Plot the chart with the help of candleChart()
+candleChart(Facebook)
+```
+
+## 1.3 Searching a Quandl dataset in R
+
+```{r}
+# Look up the first 3 results for 'Bitcoin' within the Quandl database:
+results <- Quandl.search(query = "BitCoin", silent = FALSE)
+
+# Print out the results
+str(results)
+
+# Assign the data set with code B
+BitCoin <- Quandl("BCHAIN/TOTBC")
+
+str(BitCoin)
+
+
+
+# Look for ethanol data 
+
+Ethanol_fuel <- Quandl.search(query = "Ethanol")
+
+OECD_HIGH_AGLINK_2010_WLD_ET_XP <- Quandl("OECD/HIGH_AGLINK_2010_WLD_ET_XP")
+
+head(OECD_HIGH_AGLINK_2010_WLD_ET_XP)
+
+# Fuel Ethanol consumption 
+
+Fuel_EthOH_Mon_EIA <- Quandl("EIA/STEO_EOTCPUS_M")
+
+```
+
+## 1.4  Working with datatables in Quandl
+
+```{r}
+# etrieve all rows from ZACKS/FC for AAPL (Apple) and MSFT (Microsoft). Assign the result to datatable_all
+datatable_all <- Quandl.datatable("ZACKS/FC", ticker = c("AAPL", "MSFT"))
+
+# Retrieve all rows for ZACKS/FC for 'AAPL' and 'MSFT'.  Only return the ticker and per_end_date columns
+datatable_columns <- Quandl.datatable("ZACKS/FC", ticker = c("AAPL","MSFT"), qopts.columns = c("ticker", "per_end_date"))
+
+
+```
+
+
+# 2. Manipulating Quandl Datasets
+
+Use *start_date* and *end_date* arguments
+
+
+```{r}
+# NSE/Oil data
+
+quandldata = Quandl("NSE/OIL", collapse="monthly", start_date="2013-01-01", type="ts")
+plot(quandldata[,1])
+
+
+# the USD/EUR exchange rate 
+
+exchange <- Quandl(code = "CUR/EUR", start_date = "2013-01-01", end_date = "2013-12-01")
+
+plot(exchange)
+
+```
+
+

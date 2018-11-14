@@ -1,0 +1,37 @@
+---
+title: "Programming with purr "
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+
+**Course Description**
+
+"Lists can be difficult to both understand and manipulate, but they can pack a ton of information and are very powerful. In this course, you will learn to easily extract, summarize, and manipulate lists and how to export the data to your desired object, be it another list, a vector, or even something else! Throughout the course, you will work with the purrr package and a variety of datasets from the repurrrsive package, including data from Star Wars and Wes Anderson films and data collected about GitHub users and GitHub repos. Following this course, your list skills will be purrrfect!" 
+
+
+
+Ref: Auriel Fournier, Foundations of Functional Programming with purrr. https://www.datacamp.com/courses/foundations-of-functional-programming-with-purrr. Accessed on 2018. 
+
+
+Note: Some course materials and data have been digested and adapted for my teaching. 
+
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+
+library(tidyverse)
+
+```
+
