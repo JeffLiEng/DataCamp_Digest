@@ -702,7 +702,7 @@ z5
 
 # 4. Best Practices
 
-Three mostly discouraged plots in the data viz community: 
+Three mostly discouraged plots in the data community: 
 
 * heat maps
 
@@ -725,4 +725,78 @@ m +
 
 
 ```
+
+
+Draw a dynamite plot about the weight of the cars per cylinder type, add a distinction between transmission type, *am*, for the dynamite plots. 
+
+```{r}
+# Base layers
+m <- ggplot(mtcars, aes(x = cyl,y = wt, col = factor(am), fill = factor(am)))
+
+# Plot 1: Draw dynamite plot
+m +
+  stat_summary(fun.y = mean, geom = "bar") +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), geom = "errorbar", width = 0.1)
+
+# Plot 2: Set position dodge in each stat function
+m +
+  stat_summary(fun.y = mean, geom = "bar", position = "dodge") +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), 
+               geom = "errorbar", width = 0.1, position = "dodge")
+
+# Set your dodge posn manually
+posn.d <- position_dodge(0.9)
+
+# Plot 3: Redraw dynamite plot
+m +
+  stat_summary(fun.y = mean, geom = "bar", position = posn.d) +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult = 1), geom = "errorbar", width = 0.1, position = posn.d)
+  
+```
+
+If it is appropriate to use bar plots, then it would also be nice to give an impression of the number of values in each group. 
+
+```{r}
+library(tidyverse)
+mtcars.cyl <- mtcars %>%
+  group_by(cyl) %>%
+  summarize(wt.avg = mean(wt), 
+          sd = sd(wt), 
+          n = n()) %>%
+  ungroup() %>%
+  mutate( prop = n/sum(n))
+
+mtcars.cyl
+
+# base layers
+m <- ggplot(mtcars.cyl, aes(x = cyl, y = wt.avg))
+
+# plot 1: draw bar plot with geom_bar
+m + geom_bar(stat = "identity", fill = "skyblue")
+
+# plot2: Draw bar plot with geom_col
+m + geom_col(fill = "skyblue")
+
+# plot 3: geom_col with variable widths
+m + geom_col(fill = "skyblue", width = mtcars.cyl$prop)
+
+# Plot 4: Add error bars 
+
+m + geom_col(fill = "skyblue", width = mtcars.cyl$prop) +
+  geom_errorbar(aes(ymin = wt.avg - sd, ymax = wt.avg + sd), width = 0.1)
+
+```
+
+**Pie Charts** 
+
+```{r}
+# bar chart
+ggplot(mtcars, aes( x = cyl, fill = factor(am))) + 
+  geom_bar(position = "fill")
+
+head(mtcars)
+
+```
+
+
 
