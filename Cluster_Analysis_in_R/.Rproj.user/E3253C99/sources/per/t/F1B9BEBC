@@ -5,17 +5,17 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "3033549593",
+    "hash" : "2424043263",
     "id" : "F1B9BEBC",
-    "lastKnownWriteTime" : 1540967795,
-    "last_content_update" : 1540967795966,
-    "path" : "C:/Users/qfli/DataCamp/cluster_analysis_in_r/cluster_analysis_in_r.Rmd",
+    "lastKnownWriteTime" : 1543302027,
+    "last_content_update" : 1543302027491,
+    "path" : "C:/Users/qfli/DataCamp_Digest/Cluster_Analysis_in_R/cluster_analysis_in_r.Rmd",
     "project_path" : "cluster_analysis_in_r.Rmd",
     "properties" : {
-        "cursorPosition" : "307,0",
+        "cursorPosition" : "383,0",
         "docOutlineVisible" : "1",
-        "last_setup_crc32" : "21B8D2C4bb338d19",
-        "scrollLine" : "297"
+        "last_setup_crc32" : "D0793BF2bb338d19",
+        "scrollLine" : "356"
     },
     "read_only" : false,
     "read_only_alternatives" : [

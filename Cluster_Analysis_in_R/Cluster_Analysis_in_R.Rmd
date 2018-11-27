@@ -1,5 +1,5 @@
 ---
-title: "Cluster Analysis in R"
+title: "Cluster Analysis in R - Reader's Digest"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -20,7 +20,7 @@ Course Description:
 * learn k-means clustering
 
 
-Ref: Gorenshteyn, Dmitry. *https://www.datacamp.com/courses/cluster-analysis-in-r*.  2018.
+Ref: Gorenshteyn, Dmitriy. *https://www.datacamp.com/courses/cluster-analysis-in-r*.  2018.
 
 
 ```{r setup, include=FALSE}
@@ -48,31 +48,57 @@ What is clustering?
 
 A form of exploratory data analysis (EDA) where **observations** are divided into meaningful groups that share common characteristics (features). 
 
+
+The flow of cluster analysis: 
+
+* Pre-process data
+
+* Select similarity measure
+
+* Cluster
+
+* Analyze (might need to back to select similarity measure)
+
+
+Examples: 
 Market segmentation and pattern grouping are both good examples where clustering is appropriate. 
 
 
 ## 1.1 Distance Between Observations and the scales of features 
 
+Distance vs Similarity: $\Distance = 1 - Similarity$
+
+
 ```{r}
 # (a) create a sample dataset
-three_players <- tibble(x = c(5, 15, 0), y = c(4, 10, 20))
+three_players <- tibble(x = c(5, 15, 0), 
+                        y = c(4, 10, 20))
 
 # (b) calculate distance 
-dist(three_players)
+print(dist(three_players, method = "euclidean"), digits = 3)
 
 # (c) create a sample dataset with different scale of features
-three <- tibble(hight = c(5, 1, 2), weight = c(90, 92, 79))
+three <- tibble(hight = c(5, 1, 2), 
+                weight = c(90, 92, 79))
 
-dist(three)
+print(dist(three, method = "euclidean"), digits =3) # wrong method  to calculate distance
 
-dist(scale(three))
+# scale first, then calculate dist
+scaled_three <- scale(three)
+
+print(dist(scaled_three, method = "euclidean"), digits = 3)   # correct way to calculate distance
 
 ```
 
 
 ## 1.2 Measuring distance for categorical data
 
-Calculating Jaccard Distance:  Intersection over Union. 
+Calculating Jaccard Distance:  
+
+Intersection over Union. 
+$J(A, B) = \frac{A\cap B}{A\cup B}$
+
+$Distance(A, B) = 1 - J(A,B)$
 
 
 ```{r}
@@ -86,6 +112,7 @@ job_survey
 
 # Dummify the Survey Data
 dummy_survey <- dummy.data.frame(job_survey)
+dummy_survey
 
 # Calculate the Distance
 dist_survey <- dist(dummy_survey, method = "binary")
@@ -97,7 +124,17 @@ dist_survey
 No 1 and 2 are identical, so the distance is zero.
 
 
-How to compare one observation to a pair of observations? The decision depends on the linkage method which we will show in the follow section. 
+```{r}
+# create a survey data set 
+survey_b <- data.frame(color = c("red",   "green",   "blue",   "blue"), 
+                       sport = c("soccer", "hockey", "hockey", "soccer"))
+
+(dummy_survey_b <- dummy.data.frame(survey_b))
+
+
+dist(dummy_survey_b, method = "binary")
+
+```
 
 
 
@@ -107,14 +144,14 @@ How to compare one observation to a pair of observations? The decision depends o
 
 * How to group similar observations (clusters)
 
-* How to use linkage criterial and dendrogram plot 
+* How to use linkage criteria and dendrogram plot 
 
-# Lean to perform market segmentation of clients using their speding habits
+# Lean to perform market segmentation of clients using their spending habits
 
 
 ## 2.1 Comparing more than two observations
 
-**Likage Criteria**
+**Linkage Criteria**
 
 * Complete linkage: maximum distance between two sets
 
@@ -125,22 +162,29 @@ How to compare one observation to a pair of observations? The decision depends o
 The choice of the linkage method can change the clustering results. 
 
 
+### 2.1.1 Complete linkage example
+
 ```{r}
 # (a) read rds data file: the positions of 12 players
-
 lineup <- read_rds("data/lineup.rds")
 
+# plot 12 players' lineup positions
+lineup %>% 
+  ggplot(aes(x = x, y = y)) +
+  geom_point(alpha = 0.5, color = "red", size = 4)
+
 # Calculate the Distance
-dist_players <- dist(lineup)
+dist_players <- dist(lineup, method = "euclidean")
 
 # Perform the hierarchical clustering using the complete linkage
 hc_players_complete <- hclust(dist_players, method = "complete")
+names(hc_players_complete)
 
 # Calculate the assignment vector with a k of 2
-clusters_k2_complete <- cutree(hc_players, k = 2)
+clusters_k2_complete <- cutree(hc_players_complete, k = 2)
 
 # Create a new dataframe storing these results
-lineup_k2_complete <- mutate(lineup, cluster = clusters_k2_complete)
+lineup_k2_complete <- lineup %>% mutate(cluster = clusters_k2_complete)
 
 # Count the cluster assignments
 count(lineup_k2_complete, cluster)
@@ -151,15 +195,16 @@ ggplot(lineup_k2_complete, aes(x = x, y = y, color = factor(cluster))) +
   labs(title = "Complete linkage")
 ```
 
+### 2.1.2 Average linkage
 ```{r}
-# Perform the hierarchical clustering using the complete linkage
+# Perform the hierarchical clustering using the average linkage
 hc_players_average <- hclust(dist_players, method = "average")
 
 # Calculate the assignment vector with a k of 2
 clusters_k2_average <- cutree(hc_players_average, k = 2)
 
 # Create a new dataframe storing these results
-lineup_k2_average <- mutate(lineup, cluster = clusters_k2_average)
+lineup_k2_average <- lineup %>% mutate(cluster = clusters_k2_average)
 
 # Plot the positions of the players and color them using their cluster
 ggplot(lineup_k2_average, aes(x = x, y = y, color = factor(cluster))) +
@@ -167,8 +212,9 @@ ggplot(lineup_k2_average, aes(x = x, y = y, color = factor(cluster))) +
   labs(title = "Average Linkage")
 ```
 
+### 2.1.3 Single linkage example
 ```{r}
-# Perform the hierarchical clustering using the complete linkage
+# Perform the hierarchical clustering using the single linkage
 hc_players_single <- hclust(dist_players, method = "single")
 
 # Calculate the assignment vector with a k of 2
@@ -187,7 +233,7 @@ ggplot(lineup_k2_single, aes(x = x, y = y, color = factor(cluster))) +
 **"complete** looks better than **"average"** or **"single"** based on what we expect from our data (6 vs 6 games). 
 
 
-## 2.2 Dendrogram 
+## 2.2 Dendrogram - Visualizing 
 
 ```{r}
 par(mfrow = c(1, 3))
@@ -197,8 +243,9 @@ plot(hc_players_average)
 ```
 
 
-```{r}
+Coloring the Dendrogram 
 
+```{r}
 dist_players <- dist(lineup, method = 'euclidean')
 hc_players <- hclust(dist_players, method = "complete")
 
@@ -222,9 +269,13 @@ plot(dend_40)
 
 ```
 
+
+**cutree() using height**
+
 The height that we use to cut the tree greatly influences the number of clusters and their size. 
 
 ```{r}
+# calculate distance and perform hierarchical clustering 
 dist_players <- dist(lineup, method = 'euclidean')
 hc_players <- hclust(dist_players, method = "complete")
 
@@ -243,27 +294,28 @@ lineup_h40_complete <- mutate(lineup, cluster = clusters_h40)
 
 # Plot the positions of the players and color them using their cluster for height = 20
 ggplot(lineup_h20_complete, aes(x = x, y = y, color = factor(cluster))) +
-  geom_point()
+  geom_point(size = 4)
 
 # Plot the positions of the players and color them using their cluster for height = 40
 ggplot(lineup_h40_complete, aes(x = x, y = y, color = factor(cluster))) + 
-geom_point()
+geom_point(size = 4)
 
 ```
 
 
-The height of any branch is determined by the linkage and distance decisions (in this case complete linkage and Euclidean distance). While the members of the clusters that form below a desired height have a maximum linkage distance amongst themselves.
+The height of any branch is determined by the linkage and distance decisions (in this case complete linkage and Euclidean distance). While the members of the clusters that form below a desired height have a maximum linkage distance among themselves.
 
 
 ## 2.3 Segment wholesale customers
 
-We are going to hierarchical clustering to perform market segmentation (i.e. use consumer characteristics to group them into subgroups). --- a much simplifier case study. 
+We are going to perform a hierarchical clustering for market segmentation (i.e. use consumer characteristics to group them into subgroups). --- a much simplified case study. 
 
 We have 45 different clients of a wholesale distributor for the food categories of *Milk*, *Grocery*, and *Frozen*.  All features are the same type (amount spent), so we don't need to scale it. 
 
+
+### 2.3.1 Read data and plot data 
 ```{r}
 # (a) read data 
-dir("data/")
 customers_spend <- read_rds("data/ws_customers.rds")
 
 # summary of data
@@ -275,10 +327,10 @@ customers_spend %>%
   ggplot(aes(x = spent, color = Items)) +
   geom_density()
 
-
-
 ```
 
+
+### 2.3.2 Perform hierarchical clustering 
 ```{r}
 # Calculate Euclidean distance between customers
 dist_customers <- dist(customers_spend)
@@ -294,10 +346,6 @@ clust_customers <- cutree(hc_customers, h = 15000)
 
 # Generate the segmented customers dataframe
 segment_customers <- mutate(customers_spend, cluster = clust_customers)
-```
-
-
-```{r}
 
 # Count the number of customers that fall into each cluster
 count(segment_customers, cluster)
@@ -330,4 +378,27 @@ segment_customers %>%
 * Customers in cluster 4 spent more money on Frozen goods than any other cluster.
 
 * The majority of customers fell into cluster 2 and did not show any excessive spending in any category.
+
+
+
+
+
+
+
+
+
+
+# A1: Appendix - math notation in R markdown? 
+
+Why math notation in R markdown? 
+
+"We fit a linear model with terms for age, sex" versus \(Y_i = \alpha + \beta_a A_i + \beta_s S_i + \epsilon_i\)
+
+"We estimated the intercept to be 3.3" versus \(\hat{\alpha} = 3.3\)
+
+
+* How to write math inline
+
+wrapping in \$ symbols: "The intercept was estimated as $\hat{\alpha} = 4$"
+
 
