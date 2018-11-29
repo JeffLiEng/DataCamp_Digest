@@ -23,15 +23,15 @@ Course Description:
 Ref: Gorenshteyn, Dmitriy. *https://www.datacamp.com/courses/cluster-analysis-in-r*.  2018.
 
 
+## (I) Load Required Libraries
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-## (I) Load Required Libraries
-```{r, message = FALSE}
 library(tidyverse)
 library(dummies)
 library(dendextend)
+library(cluster)
+
 ```
 
 
@@ -381,8 +381,419 @@ segment_customers %>%
 
 
 
+# 3. K-means 
 
 
+```{r}
+# (a) read rds data file: the positions of 12 players
+lineup <- read_rds("data/lineup.rds")
+
+# Build a kmeans model
+model_km2 <- kmeans(lineup, centers = 2)
+
+# Extract the cluster assignment vector from the kmeans model
+clust_km2 <- model_km2$cluster
+
+# Create a new dataframe appending the cluster assignment
+lineup_km2 <- mutate(lineup, cluster = clust_km2)
+
+# Plot the positions of the players and color them using their cluster
+ggplot(lineup_km2, aes(x = x, y = y, color = factor(cluster))) +
+  geom_point(size = 4, alpha = 0.5)
+```
+
+Knowing the desired number of clusters ahead of time can be very helpful when performing a k-means analysis. 
+
+
+
+## 3.2 Evaluating Different Values of K
+
+Often times, the optimal number of clusters isn't known and must be estiamted. In the following example, we will levarage *map_dbl()* to run k-mean using k ranging from 1 to 10 and exact the **total within-cluster sum of squares** metric from the model. 
+
+```{r}
+# generating the elbow plot
+model <- kmeans(x = lineup, centers = 2)
+model$tot.withinss
+
+# use map()
+library(purrr)
+tot_withinss <- map_dbl(1:10, function(k){
+  model <- kmeans(x = lineup, centers = k)
+  model$tot.withinss
+})
+
+elbow_df <- data.frame(k= 1:10, 
+                       tot_withinss = tot_withinss)
+
+# generate the Elbow plot
+elbow_df %>%
+  ggplot(aes(x = k, y = tot_withinss)) +
+  geom_point(alpha = 0.5) +
+  geom_line() + 
+  scale_x_continuous(breaks = 1:10)
+
+```
+
+
+## 3.3 Silhouette (sil-e-wet) Analysis
+
+The **Silhouette** value is a measure of how similar an object is to its own cluster (cohesion) compared to other clusters (separtor). 
+
+Silhouette analysis allows you to calculate how similar each observations is with the cluster it is assigned relative to other clusters. This metric (silhouette width) ranges from -1 to 1 for each observation in your data and can be interpreted as follows:
+
+* Values close to 1 suggest that the observation is well matched to the assigned cluster
+
+* Values close to 0 suggest that the observation is borderline matched between two clusters
+
+* Values close to -1 suggest that the observations may be assigned to the wrong cluster
+
+
+```{r}
+# Calculating S(i)
+
+pam_k3 <- pam(lineup, k = 3)
+pam_k3$silinfo$widths
+
+# Silhouette plot
+sil_plot <- silhouette(pam_k3)
+plot(sil_plot)
+
+# average Silhouette Width
+pam_k3$silinfo$avg.width    # 1: Well matched to each cluster; 0: On border between clusters; -1: Poorly matched to each cluster
+
+# find highest Average Silhouette width
+sil_width <- map_dbl(2:10, function(k) {
+  model <- pam(x = lineup, k = k)
+  model$silinfo$avg.width
+})
+
+sil_df <- data.frame(
+  k = 2:10, 
+  sil_width = sil_width
+)
+
+print(sil_df)
+
+
+# choosing K using Average Silhouette width
+ggplot(sil_df, aes(x = k, y = sil_width)) + 
+  geom_line() +
+  geom_point(alpha = 0.5) +
+  scale_x_continuous(breaks = 2:10)
+
+```
+
+
+Excercise: k = 2 vs k =3 
+
+```{r}
+
+# Generate a k-means model using the pam() function with a k = 2
+pam_k2 <- pam(lineup, k = 2)
+
+# Plot the silhouette visual for the pam_k2 model
+plot(silhouette(pam_k2))
+
+# Generate a k-means model using the pam() function with a k = 3
+pam_k3 <- pam(lineup, k = 3)
+
+# Plot the silhouette visual for the pam_k3 model
+plot(silhouette(pam_k3))
+
+# Use map_dbl to run many models with varying value of k
+sil_width <- map_dbl(2:10,  function(k){
+  model <- pam(x = customers_spend, k = k)
+  model$silinfo$avg.width
+})
+
+# Generate a data frame containing both k and sil_width
+sil_df <- data.frame(
+  k = 2:10,
+  sil_width = sil_width
+)
+
+# Plot the relationship between k and sil_width
+ggplot(sil_df, aes(x = k, y = sil_width)) +
+  geom_line() +
+  scale_x_continuous(breaks = 2:10)
+```
+
+For k = 2, no observation has a silhouette width close to 0. For k = 3, observation 3 is close to 0 and is negative. This suggests that k = 3 is not the right number of clusters.
+
+
+## 3.4 Revisiting wholesale data: "Best" K
+
+* step 1: determine the "best" value of k using average silhouette width.
+
+```{r}
+# (a) read data 
+customers_spend <- read_rds("data/ws_customers.rds")
+
+# Use map_dbl to run many models with varying value of k
+sil_width <- map_dbl(2:10,  function(k){
+  model <- pam(x = customers_spend, k = k)
+  model$silinfo$avg.width
+})
+
+# Generate a data frame containing both k and sil_width
+sil_df <- data.frame(
+  k = 2:10,
+  sil_width = sil_width
+)
+
+# Plot the relationship between k and sil_width
+ggplot(sil_df, aes(x = k, y = sil_width)) +
+  geom_line() +
+  geom_point(size = 3, alpha = 0.5) +
+  scale_x_continuous(breaks = 2:10)
+
+```
+
+k=2 has the highest average sillhouette width and is the "best" to move forward
+
+```{r}
+set.seed(42)
+
+# Build a k-means model for the customers_spend with a k of 2
+model_customers <- kmeans(customers_spend, centers = 2)
+
+# Extract the vector of cluster assignments from the model
+clust_customers <- model_customers$cluster
+
+# Build the segment_customers dataframe
+segment_customers <- mutate(customers_spend, cluster = clust_customers)
+
+# Calculate the size of each cluster
+count(segment_customers, cluster)
+
+# Calculate the mean for each category
+segment_customers %>% 
+  group_by(cluster) %>% 
+  summarise_all(funs(mean(.)))
+```
+
+
+It seems that in this case cluster 1 consists of individuals who proportionally spend more on Frozen food while cluster 2 customers spend more on Milk and Grocery. Did you notice that when you explored this data using hierarchical clustering, the method resulted in 4 clusters while using k-means got you 2? Both of these results are valid, but which one is appropriate for this would require more subject matter expertise. Before you proceed with the next chapter, remember that: Generating clusters is a science, but interpreting them is an art.
+
+
+
+# 4. Occupational Wage Data 
+
+About the data: 
+
+* 22 Occupation observations
+
+* 15 Measurements of average income from 2001 - 2016
+
+We would like to use these data to identify clusters of occupations thata maintained similary income trends. 
+
+
+Flowchart of Hierarchical clustering: 
+
+* Evaluate whether pre-processing is necessary
+
+* Create a distance matrix
+
+* Build a dendrogram
+
+* Extract clusters from dendrogram
+
+* Explore resulting clusters
+
+
+## 4.1 Load and evaluate data 
+```{r}
+# read data 
+oes <- read_rds("data/oes.rds")
+class(oes)
+
+# determine whether any pre-processing steps (such as scaling and imputation) are necessary. 
+head(oes)
+summary(oes)
+```
+
+There are no missing values, no categorical and the features are on the same scale. 
+
+
+## 4.2 oes - Hierarchical clustering
+```{r}
+# Calculate Euclidean distance between the occupations
+dist_oes <- dist(oes, method = "euclidean")
+
+# Generate an average linkage analysis 
+hc_oes <- hclust(dist_oes, method = "average")
+
+# Create a dendrogram object from the hclust variable
+dend_oes <- as.dendrogram(hc_oes)
+
+# Plot the dendrogram
+plot(dend_oes)
+
+# Color branches by cluster formed from the cut at a height of 100000
+dend_colored <- color_branches(dend_oes, h = 100000)
+
+# Plot the colored dendrogram
+plot(dend_colored)
+```
+
+Based on the dendrogram it may be reasonalbe to start with the three clusters formed at a height of 100,00.  The members of these clusters appear to be tightly grouped but different from one another. 
+
+
+## 4.3 oes - Hierarchical clustering exploration
+```{r}
+#  change matrix to data frame and move the rownames into a column
+df_oes <- oes %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "occupation")
+
+# create a cluster assignment vector at h = 100, 000
+cut_oes <- cutree(hc_oes, h = 100000)
+cut_oes
+
+# Generate the segmented the oes dataframe
+clust_oes <- df_oes %>%
+  mutate(cluster = cut_oes)
+
+# Create a tidy data frame by gathering the year and values into two columns
+gathered_oes <- clust_oes %>%
+  gather(key = year, value = mean_salary, -occupation, -cluster)
+
+str(gathered_oes)
+
+
+# view the clustering assignment by sorting the cluster assignment vector
+sort(cut_oes)
+
+
+# plot the relationship between mean_salary and year and color the lines by the assigned cluster
+gathered_oes %>%
+  ggplot(aes(x = year, y = mean_salary, color = factor(cluster))) + 
+  geom_line(aes(group = occupation))
+```
+
+From the plot, it looks like both **Management** and **Legal** professions (cluster 1) experienced the most rapid growth in these 15 years. 
+
+
+## 4.4 oes - k-means clustering
+
+k-means workflow: 
+
+* Evaluate whether pre-processing is necessary
+
+* Estimate the "best" k using the elbow plot
+
+* Estimate the "best" k using the maximum average silhouette width
+
+* Explore resulting clusters
+
+
+### 4.4.1 Elbow analysis
+In the Hierarchical clustering, we used the dendrgram to propose a clustering that generated 3 trees. 
+
+```{r elbow_analysis}
+# Use map_dbl to run several models with varying value of k (centers)
+tot_withinss <- map_dbl(1:10, function(k) {
+  model <- kmeans(x = oes, centers = k)
+  model$tot.withinss
+})
+
+# Generate a data frame containing both k and tot_withinss
+elbow_df <- data.frame(
+  k = 1:10, 
+  tot_withinss = tot_withinss
+)
+
+# Plot the elbow plot
+elbow_df %>% 
+  ggplot(aes(x = k, y = tot_withinss)) + 
+  geom_line() + 
+  geom_point(size = 4, alpha = 0.5) + 
+  scale_x_continuous(breaks = 1:10)
+
+```
+
+The elbow analysis proposed a different value of k from the Hierarchical Analysis.  Hierarchical clustering resulted in 3 clusters and the elbow method suggested 2. m
+
+
+### 4.4.2 oes - K-means: Averages Silhouette Widths
+
+```{r}
+# use map_dbl to run 9 models iwth varying value of k
+sil_width <- map_dbl(2:10, function(k) {
+  model <- pam(oes, k = k)
+  model$silinfo$avg.width
+})
+
+# Generate a data frame containing both k and sil_width
+sil_df <- data.frame(
+  k = 2:10, 
+  sil_width = sil_width
+)
+
+# Plot the relationship between k and sil_width
+sil_df %>%
+  ggplot(aes(x = k, y = sil_width)) + 
+  geom_line() + 
+  geom_point(size = 4, alpha = 0.5) + 
+  scale_x_continuous(breaks = 2:10)
+```
+
+ It seems that this analysis results in another value of k, this time 7 is the top contender (although 2 comes very close).
+
+
+## 4.5 The "best" number of clusters
+
+### 4.5.1 k=2
+```{r kmean_km2}
+# k = 2
+clust_km2 <- kmeans(oes, centers = 2)
+
+oes_km2 <- df_oes %>% 
+  mutate(cluster = clust_km2$cluster) 
+
+
+# plot
+oes_km2 %>%
+  gather(key = year, value = mean_salary, -occupation, -cluster) %>%
+  ggplot(aes(x = year, y = mean_salary, color = factor(cluster))) + 
+  geom_line(aes(group = occupation)) + 
+  labs(title = "K-Means Clustering: k = 2", subtitle = "Based on Elbow Plot")
+
+```
+
+### 4.5.2 k = 7 
+```{r kmean_km7}
+# k = 7
+clust_km7 <- kmeans(oes, centers = 7)
+
+oes_km7 <- df_oes %>% 
+  mutate(cluster = clust_km7$cluster) 
+
+
+# plot
+oes_km7 %>%
+  gather(key = year, value = mean_salary, -occupation, -cluster) %>%
+  ggplot(aes(x = year, y = mean_salary, color = factor(cluster))) + 
+  geom_line(aes(group = occupation)) + 
+  labs(title = "K-Mean Clustering: k = 7", subtitle = "Based on Silhouette Plot")
+
+```
+
+All of the above (Hierarchical with 2 clusters, kmeans 2, and kmeans 7) are correct but the best way to cluster is highly dependent on how you would use this data after.
+
+There is no quantitative way to determine which of these clustering approaches is the right one without futher exploration
+
+
+
+## 4.6 Comparing Hierarchical Clustering with k-means
+
+* Distance Used: hc - virually vs km - euclidean only
+
+* Results stable: hc - yes,    vs km - No
+
+* Evaluating # of clusters:  hc - dendrogram, silhouette, elbow vs km: silhoutte, elbow
+
+* Computation complexity: hc - Relatively higher vs km - Relatively lower. 
 
 
 
