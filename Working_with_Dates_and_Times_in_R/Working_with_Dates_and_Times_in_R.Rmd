@@ -30,6 +30,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(lubridate)
 library(anytime)
 library(tidyverse)
+library(ggridges)
 
 ```
 
@@ -40,15 +41,48 @@ Objective:
 
 * Learn the ways that R stores data and times
 
+"R doesn't know something is a date or time unless you tell it. In this chapter you'll learn about some of the ways R stores dates and times by exploring how often R versions are released, and how quickly people download them. You'll also get a sneak peek at what you'll learn in the following chapters."
 
-The global standard numeric date format: ISO 8601 YYYY-MM-DD (for example 1982-07-12, it is my friend's birthday!). 
+
+For **Dates**, different conventions in different places. Such as 27th Feb 2013, 27/2/2013, 2/27/2013, 2013-02-27. The global standard numeric date format: ISO 8601 YYYY-MM-DD (for example 1982-07-12, it is my friend's birthday!). 
+
 
 * ordered from the largest to smallest unit of time
 
 * has a fixed number of digits
 
 
-## 1.1 **Date** objects are stored as days since 1970-01-01. 
+## 1.1 Dates in R
+
+```{r}
+2003-02-27  # not correct input
+"2003-02-27" # not correct input
+str("2003-02-27")
+as.Date("2003-02-27")
+str(as.Date("2003-02-27"))
+```
+Packages that import dates: *readr*, *anytime*
+
+
+Dates act like numbers.  Date objects are stored as days since 1970-01-01. 
+```{r}
+as.Date("2003-02-27") > as.Date("2002-02-27")
+as.Date("2003-02-27") + 1
+as.Date("2003-02-27") - as.Date("2002-02-27")
+```
+
+How to plot dates?
+```{r}
+x <- c(as.Date("2003-02-27"), 
+       as.Date("2003-03-27"), 
+       as.Date("2003-04-27"))
+
+plot(x, 1:3)
+
+ggplot() +
+  geom_point(aes(x = x, y =1:3))
+```
+
 
 
 ```{r}
@@ -58,7 +92,9 @@ x <- "2013-04-03"
 
 # Examine structure of x
 str(x)
+```
 
+```{r}
 # Use as.Date() to interpret x as a date
 x_date <- as.Date(x)
 
@@ -67,22 +103,35 @@ str(x_date)
 
 # Store April 10 2014 as a Date
 april_10_2014 <- as.Date("2014-04-10")
+
 class(april_10_2014)
+```
 
-
+```{r}
 #-------------import with readr and anytime packages---------------
 # Use read_csv() to import rversions.csv
-releases <- read_csv("data/rversions.csv")
+releases <- read_csv("data/rversions.csv", col_types = list(col_integer(), 
+                                                        col_integer(), 
+                                                        col_integer(),
+                                                        col_date(format = ""),
+                                                        col_datetime(format = ""), 
+                                                        col_time(format = ""), 
+                                                        col_character()))
 
+head(releases)
 # Examine the structure of the date column
 str(releases$date)
+```
 
+```{r}
 # Various ways of writing Sep 10 2009
 sep_10_2009 <- c("September 10 2009", "2009-09-10", "10 Sep 2009", "09-10-2009")
 
 # Use anytime() to parse sep_10_2009
 anytime(sep_10_2009)
+```
 
+```{r}
 
 #----plotting with dates------------------
 
@@ -100,8 +149,9 @@ ggplot(releases, aes(x = date, y = type)) +
 ggplot(releases, aes(x = date, y = type)) +
   geom_line(aes(group = 1, color = factor(major))) +
   scale_x_date(date_breaks = "10 years", date_labels = "%Y")
+```
 
-
+```{r}
 #---Arithmetic and logical operators -------------
 # Find the largest date
 last_release_date <- max(releases$date)
@@ -128,6 +178,24 @@ ISO 8601: HH::MM:SS
 * SS: 00 -- 60
 
 
+Timezones: 
+
+* local time: "2013-02-27T18:00:00"  6 pm local time
+
+* UTC: "2013-02-27T18:00:00Z" - 6 pm UTC
+
+* "2013-02-27T18:00:00-08:00" - 6 pm in Oregon
+
+
+```{r}
+as.POSIXct("2013-02-27T18:00:00Z")
+as.POSIXct("2013-02-27T18:00:00Z", tz = "UTC")
+```
+
+Datetimes behave nicely too: compared, subtracted, plotted. 
+
+
+
 There are two objects types: 
 
 * **POSIXlt** - list with named components   (*lt* = List Time or local time )
@@ -148,12 +216,17 @@ as.POSIXct("2010-10-01 12:12:00")
 
 # Use as.POSIXct again but set the timezone to `"America/Los_Angeles"`
 as.POSIXct("2010-10-01 12:12:00", tz = "America/Los_Angeles")
+```
 
+```{r}
 # Use read_csv to import rversions.csv
 releases <- read_csv("data/rversions.csv")
 
 # Examine structure of datetime column
 str(releases$datetime)
+```
+
+```{r}
 
 # ---------------import and plot --------------
 # Import "cran-logs_2015-04-17.csv" with read_csv()
@@ -184,13 +257,49 @@ As shown in the figures, it only takes about two days for downloads of the new v
 
 # 2. Parsing and Manipulating Dates and Times with lubridate
 
+"Dates and times come in a huge assortment of formats, so your first hurdle is often to parse the format you have into an R datetime. This chapter teaches you to import dates and times with the lubridate package. You'll also learn how to extract parts of a datetime. You'll practice by exploring the weather in R's birthplace, Auckland NZ."
+
 Objectives: 
 
 * learn how to import dates and times
 
 * learn how to extract parts of datetime 
 
+
+
+## 2.1 Why lubridate? 
+
+* Make working with dates and times in R easy
+
+* Consistent behaviour regardless of underlying object
 ```{r}
+ymd("2013-02-27")
+dmy("27/2/2013")
+parse_date_time(
+  c("Feb 27th, 2017", "27th Feb 2017"), 
+  order = c("mdy", "dmy"))
+```
+
+Manipulating datetimes
+```{r}
+# read csv
+akl_daily <- read_csv("data/akl_weather_daily.csv")
+head(akl_daily)
+
+# manipulate datetimes
+akl_daily <- akl_daily %>%
+  mutate(
+    year = year(date), 
+    yday = yday(date), 
+    month = month(date, label = TRUE)
+  )
+
+head(akl_daily)
+```
+
+
+## 2.2 ymd() and parse_date_time() functions 
+```{r ymd}
 # Parse x 
 x <- "2010 September 20th" # 2010-09-20
 ymd(x)
@@ -202,45 +311,250 @@ dmy(y)
 # Parse z 
 z <- "Sep, 12th 2010 14:00"  # 2010-09-12T14:00
 mdy_hm(z)
+```
 
-
+```{r parse_date_time}
 #---parse_date_time()-----------------------
 # Specify an order string to parse x
 x <- "Monday June 1st 2010 at 4pm"
-parse_date_time(x, orders = "amdyIp")
+parse_date_time(x, orders = "amdyIp")    # a - Abbrevated weekday, y - year with century, I - Hours (12 hour), p - AM/PM
 
 # Specify order to include both "mdy" and "dmy"
-two_orders <- c("October 7, 2001", "October 13, 2002", "April 13, 2003", 
-  "17 April 2005", "23 April 2017")
+two_orders <- c("October 7, 2001", 
+                "October 13, 2002", 
+                "April 13, 2003", 
+                "17 April 2005", 
+                "23 April 2017")
+
 parse_date_time(two_orders, orders = c("mdy","dmy"))
 
 # Specify order to include "dOmY", "OmY" and "Y"
 short_dates <- c("11 December 1282", "May 1372", "1253")
+
 parse_date_time(short_dates, orders = c("dOmY", "OmY","Y"))
+
+```
+
+
+## 2.3 Practice: Weather in Auckland 
+### 2.3.1 Daily data 
+```{r}
+
+# make_date(year, month, day)  and make_datetime
+make_date(2018, 11, 29)
+make_datetime(2018, 11, 29, 21, 14, 0)
+
+# Import CSV with read_csv()
+akl_daily_raw <- read_csv("data/akl_weather_daily.csv")
+
+# Print akl_daily_raw
+head(akl_daily_raw)
+
+# Parse date 
+akl_daily <- akl_daily_raw %>%
+  mutate(date = ymd(date))
+
+# Print akl_daily
+head(akl_daily)
+
+# Plot to check work
+ggplot(akl_daily, aes(x = date, y = max_temp)) +
+  geom_line() 
+
+```
+
+It is not so hot in Auckland, and less than 80 F. Summer falls in Dec-Jan-Feb. 
+
+### 2.3.2 Hourly data
+```{r}
+# import hourly data
+akl_hourly_raw <- read_csv("data/akl_weather_hourly_2016.csv")
+
+# Print the head of data
+head(akl_hourly_raw)
+
+# use make_date() to combine year, month and mday
+akl_hourly <- akl_hourly_raw %>%
+  mutate(date = make_date(year = year, month = month, day = mday))
+
+# Parse datetime_string
+akl_hourly <- akl_hourly %>%
+  mutate(
+    datetime_string = str_c(date, time, sep="T"), 
+    datetime = ymd_hms(datetime_string)
+  )
+
+head(akl_hourly)
+
+
+# Print date, time and datetime columns of akl_hourly
+akl_hourly %>% select(date, time, datetime)
+
+# Plot to check work
+ggplot(akl_hourly, aes(x = datetime, y = temperature)) +
+  geom_line()
+```
+
+It's interesting how the day to day variation is about half the size of the yearly variation. 
+
+
+### 2.3.3 Extracting parts of a datetime
+
+* basic functions: year(), month(), day(), hour(), min(), second(), wday(), yday(), and tz
+
+* other might be useful functions: leap_year() - TRUE or FALSE, am(), pm(), dst(), quarter() - 1/2/3/4, semester() - 1/2. 
+
+```{r}
+# Examine the head() of release_time
+release_time <- releases$datetime
+head(release_time)
+
+# Examine the head() of the months of release time
+head(month(release_time))
+
+# Extract the month of release
+month(release_time) %>% table()
+
+# Extract the year of release
+year(release_time) %>% table()
+
+# how ofter is the hour before 12 (noon)? 
+mean(hour(release_time) < 12)
+
+# How ofter is the release in am?
+mean(am(release_time))
+```
+
+Adding useful labels
+```{r add_labels}
+# Use wday() to tabulate release by day of the week
+wday(releases$datetime) %>% table()
+
+# Add label = TRUE to make table more readable
+wday(releases$datetime, label = TRUE) %>% table()
+
+# create column wday to hold labelled week days
+releases$wday <- wday(releases$datetime, label = TRUE)
+
+# plot barchart of weekday by types of release
+
+ggplot(releases, aes(x = wday)) +
+  geom_bar() +
+  facet_wrap( ~ type, ncol = 1, scale = "free_y")
 
 
 ```
+
+Looks like not too many releases occur on the weekends, and there is quite a different weekday pattern between minor and patch releases. 
+
+
+### 2.3.4 Extracting and explore weather in Auckland
+```{r}
+# Add columns of year, yday and month
+akl_daily <- akl_daily %>%
+  mutate(
+    year = year(date), 
+    yday = yday(date), 
+    month = month(date, label = TRUE))
+
+# Plot max-temp by yday for all years
+ggplot(akl_daily, aes(x = yday, y = max_temp)) + 
+  geom_line(aes(group = year), alpha = 0.5)
+
+# Examine distribution of max_temp by month
+ggplot(akl_daily, aes(x = max_temp, y = month, height = ..density..)) +
+  geom_density_ridges(stat = "density")
+
+```
+
+Looks like Jan, Feb and Mar are great months to visit Aukland because it has warm temperatures. 
+
+
+### 2.3.5 Extracting and summarize
+
+How many days in each month there was any rain during the day? 
+
+```{r}
+akl_daily %>% 
+  group_by(month) %>%
+  summarise(sum(events == "Rain", na.rm = TRUE)/n())
+
+# Create new columns hour, month and rainy
+akl_hourly <- akl_hourly %>%
+  mutate(
+    hour = hour(datetime),
+    month = month(datetime, label = TRUE),
+    rainy = weather == "Precipitation")
+
+# Filter for hours between 8am and 10pm (inclusive)
+akl_day <- akl_hourly %>% 
+  filter(hour>= 8, hour <= 22)
+
+# Summarise for each date if there is any rain
+rainy_days <- akl_day %>% 
+  group_by(month, date) %>%
+  summarise(
+    any_rain = any(rainy)
+  )
+
+# Summarise for each month, the number of days with rain
+rainy_days %>% 
+  summarise(
+    days_rainy = sum(any_rain)
+  )
+
+```
+
+
+### 2.3.6 Rounding versum extracting 
+```{r}
+head(release_time) %>% hour()
+
+head(release_time) %>% floor_date(unit = "hour")
+```
+
+Rounding in lubridate:  round_date() - round to nearest; ceiling_date() - round up; floor_date() - round to down. 
+
+Possible values of unit: second, minute, hour, day, week, month, bimonth, quartr, halfyear, year, 2 years, 5 minutes. 
+
+```{r}
+r_3_4_1 <- ymd_hms("2016-05-03 07:13:28 UTC")
+
+# Round down to day
+floor_date(r_3_4_1, unit = "day")
+
+# Round to nearest 5 minutes
+round_date(r_3_4_1, unit = "5 minutes")
+
+# Round up to week 
+ceiling_date(r_3_4_1, unit = "week")
+
+# Subtract r_3_4_1 rounded down to day
+r_3_4_1 - floor_date(r_3_4_1, unit = "day")
+```
+
+Rounding with the weather data
+
+```{r}
+# Create day_hour, datetime rounded down to hour
+akl_hourly <- akl_hourly %>%
+  mutate(
+    day_hour = floor_date(datetime, unit = "hour")
+  )
+
+# Count observations per hour  
+akl_hourly %>% 
+  count(day_hour) 
+
+# Find day_hours with n != 2  
+akl_hourly %>% 
+  count(day_hour) %>%
+  filter(n != 2) %>% 
+  arrange(desc(n))
+```
+
+Yay! 92 hours that don't have two measurements. Interestingly there are four measurements on 2016-04-03 and 2016-09-25, they happen to be the days Daylight Saving starts and ends.
 
 
 # 3. Arithmetic with Dates and Times
-
-Objectives: 
-
-* learn how to calculate with dates and times
-
-```{r}
-
-```
-
-
-
-# 4. Problems in Practice 
-
-Objectives: 
-
-* practice real life problems
-
-```{r}
-
-```
 
