@@ -31,6 +31,8 @@ library(lubridate)
 library(anytime)
 library(tidyverse)
 library(ggridges)
+library(fasttime)
+library(microbenchmark)
 
 ```
 
@@ -557,4 +559,410 @@ Yay! 92 hours that don't have two measurements. Interestingly there are four mea
 
 
 # 3. Arithmetic with Dates and Times
+
+## 3.1 Taking differences of datatimes 
+### 3.1.1 lecture
+```{r}
+# (a) read data
+releases <- read_csv("data/rversions.csv")
+last_release <- releases %>% filter(date == max(date))
+
+# (b) easy way but not smart way
+Sys.Date() - last_release$date
+
+# (c) better way
+difftime(Sys.Date(), last_release$date)
+
+# (d) with different units = "secs", "hours", "days", or "weeks"
+difftime(Sys.Date(), last_release$date, units = "secs")
+difftime(Sys.Date(), last_release$date, units = "weeks")
+
+# (e) function of now() and today()
+today()
+str(today())
+
+now()
+str(now())
+```
+
+### 3.1.2 practice - How long has it been? 
+
+```{r}
+# the date of Apollo 11 landed and moment of setp 
+data_landing <- mdy("July 20, 1969")
+# Neil Armstrong stepped onto the surface
+moment_step <- mdy_hms("July 20, 1969, 02:56:15", tz = "UTC")  
+
+# How many days since the first man on the moom?
+difftime(today(), data_landing, units = "days") 
+
+# How many seconds since the first man on the moom? 
+difftime(now(), moment_step, units = "secs")
+
+```
+
+How many seconds in a day? 
+```{r}
+# Three dates
+mar_11 <- ymd_hms("2017-03-11 12:00:00", tz = "America/Los_Angeles")
+mar_12 <- ymd_hms("2017-03-12 12:00:00", tz = "America/Los_Angeles")
+mar_13 <- ymd_hms("2017-03-13 12:00:00", tz = "America/Los_Angeles")
+
+# Difference between may_13 and mar_12 in seconds
+difftime(mar_13, mar_12, units = "secs")
+
+# Difference between may_12 and mar_11 in seconds
+difftime(mar_12, mar_11, units = "secs")
+```
+
+
+## 3.2 Time spans
+### 3.2.1 Time Spans - lecture
+
+* period - human concept of a time span
+
+* duration - stopwatch concept of a time span
+
+```{r}
+# Creating a time  span
+days()
+days(x = 2)
+ddays(2)
+
+# Arithmetic with time spans
+2 *days()
+days() + days()
+ymd("2011-01-01") + days()
+
+# function to create time spans - duration
+dseconds()
+dminutes()
+dhours()
+ddays()
+dweeks()
+dyears()
+
+# function to create time spans - Period
+seconds()
+minutes()
+hours()
+days()
+weeks()
+months(x = 1, abbreviate = TRUE)
+years()
+
+```
+
+### 3.2.2 Time spans - practice
+```{r}
+# Add a period of one week to mon_2pm
+mon_2pm <- dmy_hm("27 Aug 2018 14:00")
+mon_2pm + weeks(x = 1)
+
+# Add a duration of 81 hours to tue_9am
+tue_9am <- dmy_hm("28 Aug 2018 9:00")
+tue_9am + dhours(x = 81)
+
+# Subtract a period of five years from today()
+today() - years(x = 5)
+
+# Subtract a duration of five years from today()
+today() - dyears( x = 5)
+
+```
+
+When dealing with human interpretations of dates and time you want to use periods. 
+
+
+```{r}
+# Time of North American Eclipse 2017
+eclipse_2017 <- ymd_hms("2017-08-21 18:26:40")
+
+# Duration of 29 days, 12 hours, 44 mins and 3 secs (A Synodic month being the period of the Moon's phases)
+synodic <- ddays(x = 29) + dhours(x = 12) + dminutes(x = 44) + dseconds(x = 3)
+synodic
+
+# 223 synodic months (A Saros is a length of time that corresponds to 223 Synodic months)
+saros <- 223 * synodic
+
+# Add saros to eclipse_2017
+eclipse_2017 + saros
+```
+
+### 3.2.3 Generating sequences of datetimes
+```{r}
+# generate a sequence of periods from 1 day up to 10 days
+1:10 * days(x = 1)
+today() + 1:10 * days(x = 1)
+
+# Add a period of 8 hours to today
+today_8am <- today() + hours(x = 8)
+
+# sequence of two weeks from 1 to 26
+1:26 * weeks(x = 2)
+
+# Create datatime for every two weeks for a year
+today_8am + 1:26 * weeks(x = 2)
+
+```
+
+### 3.2.4 The tricky thing about months
+
+```{r}
+# lubridate returns the same day of the month in the next month, but since the 31st of February doesn't exist, it returns NA
+ymd("2018-01-31") + months(1)
+
+# %m+% and %m-%: roll back to the last existing date
+
+# A sequence of 1 to 12 periods of 1 month
+month_seq <- 1:12 * months(x = 1)
+
+# Add 1 to 12 months to jan_31
+jan_31 <- ymd("2018-01-31")
+
+jan_31 + month_seq
+
+# Replace + with %m+%
+jan_31 %m+% month_seq
+
+# Replace + with %m-%
+jan_31 %m-% month_seq
+
+
+# Be caution with %m-% and %m+%
+jan_31 %m+% months(1) %m-% months(1)  # I didnot get jan_31 back
+
+add_with_rollback(e1 = jan_31, e2 = months(1), roll_to_first = FALSE)
+
+```
+
+
+## 3.3 Intervals
+### 3.3.1 Lecture: Creating intervals, Operating on an interval, comparing intervals
+
+Which kid of time span to use? 
+
+* **Intervals** when you have a start and end
+
+* **Periods** when you are interested in human units
+
+* **Durations** if you are interested in seconds elapsed
+
+
+```{r}
+# two ways to create intervals
+dmy("5 January 1961") %--% dmy("30 January 1969")
+interval(dmy("5 January 1961"), dmy("30 January 1969"))
+
+# operating on an interval 
+beatles <- dmy("5 January 1961") %--% dmy("30 January 1969")
+
+int_start(beatles)
+int_end(beatles)
+int_length(beatles)
+as.period(beatles)
+as.duration(beatles)
+
+# comparing intervals
+hendrix_at_woodstock <- mdy("August 17 1969")
+hendrix_at_woodstock %within% beatles
+
+hendrix <- dmy("01 October 1966") %--% dmy("16 September 1970")
+int_overlaps(beatles, hendrix)
+
+```
+
+### 3.3.2 Examining intervals. Reigns of kings and queens
+
+```{r}
+dir("data/")
+```
+
+
+# 4. Problems in practice
+
+## 4.1 Time zones - Lecture
+```{r}
+# time zones 
+Sys.timezone()
+
+# IANA Timezones
+length(OlsonNames())
+head(OlsonNames())
+tail(OlsonNames())
+
+# Setting and extracting 
+mar_11 <- ymd_hms("2017-03-11 12:00:00", tz = "America/Los_Angeles")
+mar_11
+tz(mar_11)
+
+# Manipulateing timezones
+force_tz(mar_11, tzone = "America/New_York")
+
+# View the same instant in a different timezone
+with_tz(mar_11, tzone = "America/New_York")
+```
+
+## 4.2 setting the timezone, Viewing in a timezone
+
+### 4.2.1 Setting the timezone
+
+* to correct wrong timezone, set it with force_tz(). Timezone needs to be one from OlsonNames()
+
+```{r}
+# Game2: CAN vs NZL in Edmonton
+game2 <- mdy_hm("June 11 2015 19:00")
+
+# Games3: CHN vs NZL in Winnipeg
+game3 <- mdy_hm("June 15 2015 18:30")
+
+# Set the timezone to "America/Edmonton"
+game2_local <- force_tz(game2, tzone = "America/Edmonton")
+game2_local
+
+# Set the timezone to "America/Winnipeg"
+game3_local <- force_tz(game3, tzone = "America/Winnipeg")
+game3_local
+
+# Hong long does the team have to rest? 
+as.period(interval(game2_local, game3_local))
+```
+
+### 4.2.2 Viewing in a timezone
+```{r}
+# the difference between now() displayed in the "America/Los_Angeles" timezone and "Pacific/Auckland" timezone:
+now <- now()
+with_tz(now, "America/Los_Angeles") - with_tz(now, "Pacific/Auckland")
+
+# What time is game2_local in NZ?
+with_tz(game2_local, tzone = "Pacific/Auckland")
+
+# what time is game2_local in Corvallis, Oregan
+with_tz(game2_local, tzone = "America/Los_Angeles")
+
+# waht time is game3_local in NZ?
+with_tz(game3_local, tzone = "Pacific/Auckland")
+```
+
+### 4.2.3 Timezones in the weather data
+```{r}
+# Hourly Auckland weather data 
+akl_hourly <- read_csv("data/akl_weather_hourly_2016.csv") %>%
+  mutate(date = make_date(year = year, month = month, day = mday), 
+        datetime_string = str_c(date, time, sep = "T"), 
+        datetime = ymd_hms(datetime_string))
+
+glimpse(akl_hourly)
+
+# Examine datetime and date_utc columns
+head(akl_hourly$datetime)
+head(akl_hourly$date_utc)
+
+# Force datetime to Pacific/Auckland
+akl_hourly <- akl_hourly %>%
+  mutate(datetime = force_tz(datetime, tzone = "Pacific/Auckland"))
+
+# Reexame datetime
+head(akl_hourly$datetime)
+
+# Are datetime and date_utc the same moments
+table(akl_hourly$datetime-akl_hourly$date_utc)
+```
+
+There are 17,450 rows *datetime* and *date_utc* describe the same moment, but for 4 rows they are different because of DST. 
+
+### 4.2.4 Times without dates
+```{r}
+# Examine structure of time column 
+str(akl_hourly$time)
+
+# Examine head of time column
+head(akl_hourly$time)
+
+# A plot using just time
+ggplot(akl_hourly, aes(x = time, y = temperature)) + 
+  geom_line(aes(group = date), alpha = 0.2)
+```
+
+Using time without date is a great way to examine daily patterns. 
+
+## 4.3 More on importing and exporting datetimes
+### 4.3.1 Lectures
+```{r}
+# Fast parsing is better option, becuase parse_date_time() can be slow because it's designed to be forgiving and flexible. 
+fasttime::fastPOSIXct("2003-02-27")
+
+# fast_strptime()
+x <- "2001-02-27"
+parse_date_time(x, order ="ymd")
+fast_strptime(x, format = "%Y-%m-%d")
+fast_strptime(x, format = "%y-%m-%d")
+
+# Exporting datetimes
+akl_hourly %>%
+  select(datetime) %>%
+  write_csv("data/tmp.csv")
+
+```
+
+### 4.3.2 Fast parsing with "fasttime"
+```{r}
+# Examine structure of dates
+dates <- akl_hourly$datetime_string
+
+# Examine structure of dates
+str(dates)
+
+# Use fastPOSIXct() to parse dates
+fastPOSIXct(dates) %>% str()
+
+# Compare speed of fastPOSIXct() to ymd_hms()
+microbenchmark(
+  ymd_hms = ymd_hms(dates), 
+  fasttime = fastPOSIXct(dates), 
+  times  = 20
+)
+```
+
+It shows *fasttime* is about 20 times faster than *ymd_hms*. 
+
+### 4.3.3 Fast parsing with *lubridate::fast_strptime*
+
+```{r}
+# head of dates
+head(dates)
+
+# parse dates with fast_strptime
+fast_strptime(dates, format = "%Y-%m-%dT%H:%M:%S")
+
+# Comparse speed to ymd_hms() and fasttime
+microbenchmark(
+  ymd_hms = ymd_hms(dates),
+  fasttime = fastPOSIXct(dates),
+  fast_strptime = fast_strptime(dates, 
+    format = "%Y-%m-%dT%H:%M:%SZ"),
+  times = 20)
+```
+
+### 4.3.4 Outputting pretty dates and times
+```{r}
+# Create a stamp based on "Sep 20 2017"
+date_stamp <- stamp("Sep 20, 2017")
+
+# Print date_stamp
+date_stamp
+
+# Call date_stamp on today()
+date_stamp(today())
+
+# Create and call a stamp based on "09/20/2017"
+stamp("09/20/2017")(today())
+
+# Use string finished for stamp()
+finished <- "I finished 'Dates and Times in R' on Thursday, September 20, 2017!"
+stamp(finished)(today())
+
+?stamp
+
+```
 

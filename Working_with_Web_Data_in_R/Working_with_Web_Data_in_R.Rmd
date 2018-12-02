@@ -9,12 +9,11 @@ output:
     toc_float: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+# (I) Load Required Libraries
 
-## (I) Load Required Libraries
-```{r, message = FALSE}
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
 library(tidyverse)
 library(jsonlite)
 library(rvest)
