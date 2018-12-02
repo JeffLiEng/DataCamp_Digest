@@ -1,5 +1,0 @@
-"0","# Spread the contents of mbta4: mbta5"
-"0","mbta5 <- spread(mbta4, key = ""mode"", value = ""thou_riders"")"
-"0",""
-"0","# View the head of mbta5"
-"0","head(mbta5)"

@@ -1,6 +1,0 @@
-"0",""
-"0","# Split month column into month and year: mbta6"
-"0","mbta6 <- separate(mbta5, month, c(""year"", ""month""),  sep =""-"")"
-"0",""
-"0","# View the head of mbta6"
-"0","head(mbta6)"

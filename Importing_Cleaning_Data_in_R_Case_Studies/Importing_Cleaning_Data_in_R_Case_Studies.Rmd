@@ -14,15 +14,16 @@ output:
 
 Ref: Carchedi, Nick. https://www.datacamp.com/courses/importing-cleaning-data-in-r-case-studies. 2018.
 
+## (I) Load Required Libraries
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
 
-## (I) Load Required Libraries
-```{r, message = FALSE}
 library(tidyverse)
 library(readxl)
+library(gdata)
+library(stringr)
+library(data.table)
 ```
 
 
@@ -72,8 +73,7 @@ sales3 <- sales2[, keep]
 ```
 
 
-
-## 1.3 Separting Columns
+## 1.3 Separating Columns
 
 ```{r, message=TRUE}
 # Split event_date_time: sales4
@@ -162,6 +162,7 @@ mbta2 <- mbta[-c(1,7, 11), ]
 
 # Remove the first column of mbta2: mbta3
 mbta3 <- mbta2[, -1]
+head(mbta3)
 
 # Gather columns of mbta3: mbta4
 mbta4 <- gather(mbta3, key = "month", value = "thou_riders", -mode)
@@ -207,5 +208,193 @@ hist(mbta6$Boat)
 # ggplot(mbta_all, aes(x = month, y = thou_riders, col = mode)) + geom_point() + 
 #   scale_x_discrete(name = "Month", breaks = c(200701, 200801, 200901, 201001, 201101)) +  
 #   scale_y_continuous(name = "Avg Weekday Ridership (thousands)")
+```
+
+
+# 3. World Food Facts
+
+This chapter will import and clean some data about food products from around the world.  The sugar content of a sample of foods from around the world. 
+
+## 3.1 Importing the data
+```{r}
+# Import food.csv as a data frame
+food <- fread("data/food.csv", data.table = FALSE)   # fread() can quickly import CSV files, no matter how large
+
+# View summary of food
+summary(food)
+
+# Veiw head of food
+head(food)
+
+# view structure of food
+str(food)
+
+```
+
+This dataset is so large and has so many variables that even *str*, *head*, and *summary* outputs seemed pretty intimidating!
+
+## 3.2 Inspecting variables
+```{r}
+# View a glimpse of food
+glimpse(food)
+
+# View column names of food
+names(food)
+```
+
+
+## 3.3 Removing duplicate info and finding columns
+
+* col 1-9: what and when information was added
+
+* col 10:17, 22:27: meta information about food
+
+* col 18:21, 28:34: where it came from 
+
+* col 35:52: what it's make of
+
+* col 53:54: nutrition grades
+
+* col 55:63: some unclear
+
+* col 64:159: some nutritional information
+
+
+
+```{r}
+# Create vector of column indices: nutrition
+nutrition <- str_detect(names(food), pattern = ".*100g$") 
+
+# View a summary of nutrition columns
+summary(food[, nutrition])
+
+# Find indices of sugar NA values: missing
+missing <- is.na(food$sugars_100g)
+
+# Replace NA values with 0 
+food$sugars_100g[missing] <- 0
+
+# remove negative and 0 
+food2 <- food[food$sugars_100g >0, ]
+
+# Create a histogram
+hist(food2$sugars_100g, breaks = 100)
+
+# Find entries containing "plasti": plastic
+plastic <- str_detect(food$packaging, pattern = "plasti")
+
+# print the sum of plastic
+sum(plastic)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 4. School Attendance Data
+Use all of the tools you've learned to import and clean a gnarly dataset containing information on average school attendance in the US. The attendance data from public schools in the US were organized by school level and state, during the 2007-2008 academic year. The data contain information on average daily attendance (ADA) as a percentage of total enrollment, school day length, and school year length. 
+
+## 4.1 Read and inspect data
+```{r}
+# Load the gdata package
+library(gdata)
+
+# Import the spreadsheet: att
+att <- read.xls("data/attendance.xls", perl = "c:/Perl64/bin/perl.exe")
+
+# Print the column names
+names(att)
+
+# Print the first 6 rows
+head(att, n = 6)
+
+# print the last 6 rows
+tail(att, n = 6)
+
+# print the structure
+str(att)
+```
+
+Data are really messy. The column names are mostly missing, irrelevant notes are at the end of the data frame, and the numeric data were imported as factors. 
+
+## 4.2 Removing unnecessary rows, columns
+
+```{r}
+# Create remove
+remove <- c(3, 56:59)
+remove
+
+# Create att2
+att2 <- att[-remove, ]
+
+# create remove (unnecessary columns)
+un_col <- seq(3, 17, by = 2)
+
+# create att3 (removing unnecessary columns)
+att3 <- att2[, -un_col]
+```
+
+## 4.3 Splitting the data into: elementary, secondary, and all schools
+```{r}
+# subset just elementary schools: att_elem
+att_elem <- att3[, c(1, 6, 7)]
+
+# subset just secondary schools: att_sec
+att_sec <- att3[, c(1, 8:9)]
+
+# subset all schools: att4
+att4 <- att3[, 1:5]
+```
+
+## 4.4 Replacing the names
+```{r}
+# Define cnames vector
+cnames <- c("state", "avg_attend_pct", "avg_hr_per_day", "avg_day_per_yr", "avg_hr_per_yr")
+
+# Assign column names of att4
+colnames(att4) <- cnames
+
+# Remove first two rows of att4
+att5 <- att4[-c(1:2), ]
+
+# view the anmes of att5
+names(att5)
+```
+
+
+## 4.5 Cleaning up extra characters
+```{r}
+# Remove all periods in state column
+att5$state <- str_replace_all(att5$state, pattern = "\\.", replacement = "")
+
+# Remove white space around state names
+att5$state <- str_trim(att5$state)
+
+# View the head of att5
+head(att5)
+```
+
+## 4.6 Type conversions
+```{r}
+att5 <- att5 %>%
+  mutate_at(.vars = vars(-state), funs(as.numeric))
+
+head(att5)
 ```
 
