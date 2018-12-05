@@ -1,0 +1,78 @@
+---
+title: "Introduction to Time Series Analysis"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"Many phenomena in our day-to-day lives, such as the movement of stock prices, are measured in intervals over a period of time. Time series analysis methods are extremely useful for analyzing these special data types. In this course, you will be introduced to some core time series analysis concepts and techniques."
+
+Ref: matteson, David (2018) Introduction to Time Series Analysis, https://www.datacamp.com/courses/introduction-to-time-series-analysis, 2018.
+
+
+Note: Some course materials and data have beem revised for training by Jeff Li. 
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+```
+
+
+# 1. Exploratory time series data analysis
+
+"This chapter will give you insights on how to organize and visualize time series data in R. You will learn several simplifying assumptions that are widely used in time series analysis, and common characteristics of financial time series."
+
+## 1.1 Exloring raw time series
+
+River Nile annual streamflow data. 
+
+```{r, eval=FALSE}
+# create the data
+ streamflow <- c(1120, 1160,  963, 1210, 1160, 1160,  813, 1230, 1370, 1140,  995,  935, 1110,  994, 1020,
+                  960, 1180,  799,  958, 1140, 1100, 1210, 1150, 1250, 1260, 1220, 1030, 1100,  774,  840,
+                  874,  694,  940,  833,  701,  916,  692, 1020, 1050,  969,  831,  726,  456,  824,  702,
+                 1120, 1100,  832,  764,  821,  768,  845,  864,  862,  698,  845,  744,  796, 1040,  759,
+                  781,  865,  845,  944,  984,  897,  822, 1010,  771,  676,  649,  846,  812,  742,  801,
+                 1040,  860,  874,  848,  890,  744,  749,  838, 1050,  918,  986,  797,  923,  975,  815,
+                 1020,  906,  901, 1170,  912,  746,  919,  718,  714,  740)
+
+Nile <- ts(streamflow, frequency = 1, start = 1871, end = 1970)
+
+# print the Nile dataset
+print(Nile)
+
+# List the number of observation in the Nile dataset
+length(Nile)
+
+# Display the first 10 elelments of the Nile dataset
+head(Nile, n = 10)
+
+# Display the last 12 elements of the Nile dataset
+tail(Nile, n = 12)
+```
+
+## 1.2 Basic time series plots
+
+```{r}
+# Plot the Nile data
+plot(Nile)
+
+# Plot the Nile data with xlab adn ylab arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3}")
+
+# Plot the Nile data with xlab, ylab, main, and type arguments
+plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3}", main = "Annual River Nile Volume at Aswan, 1871 - 1970", type = "b")
+```
+
