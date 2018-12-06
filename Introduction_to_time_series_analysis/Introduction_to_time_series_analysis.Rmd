@@ -76,3 +76,172 @@ plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3}")
 plot(Nile, xlab = "Year", ylab = "River Volume (1e9 m^{3}", main = "Annual River Nile Volume at Aswan, 1871 - 1970", type = "b")
 ```
 
+## 1.3 Continuous and discrete time index 
+
+```{r, eval=FALSE}
+# Plot the continuous_series using continuous time indexing
+par(mfrow=c(2,1))
+plot(continuous_time_index,continuous_series, type = "b")
+
+# Make a discrete time index using 1:20 
+discrete_time_index <- 1:20
+
+# Now plot the continuous_series using discrete time indexing
+plot(discrete_time_index,continuous_series, type = "b")
+
+```
+
+## 1.4 Sampling Frequency
+
+* Exact 
+
+* Approximate
+
+* Missing
+
+R Functions: start(), end(), frequency(), deltat(). There functions can provide considerable descriptive information about the structures and patterns in the time series data. 
+
+```{r, eval=FALSE}
+# Plot AirPassengers
+plot(AirPassengers)
+
+# View the start and end dates of AirPassengers
+start(AirPassengers)
+end(AirPassengers)
+
+
+# Use time(), deltat(), frequency(), and cycle() with AirPassengers 
+time(AirPassengers)
+deltat(AirPassengers)
+frequency(AirPassengers)
+cycle(AirPassengers)
+
+```
+
+## 1.5 Missing values
+
+Normally, a simple data imputation using the mean is not a great method to approximate what's really going on in the real situation. 
+
+```{r, eval=FALSE}
+# Plot the AirPassengers data
+plot(AirPassengers)
+
+# Compute the mean of AirPassengers
+mean(AirPassengers, na.rm = TRUE)
+
+# Impute mean values to NA in AirPassengers
+AirPassengers[85:96] <- mean(AirPassengers, na.rm = TRUE)
+
+# Generate another plot of AirPassengers
+plot(AirPassengers)
+
+# Add the complete AirPassengers data to your plot
+rm(AirPassengers)
+points(AirPassengers, type = "l", col = 2, lty = 3)
+
+```
+
+## 1.6 Basic Time Series Objects
+
+```{r}
+# building ts() objects
+data_vector <- c(10, 6, 11, 8, 10, 3, 6, 9)
+
+time_series <- ts(data_vector)
+plot(time_series)
+
+# specifiy the start date and observation frequency
+time_series <- ts(data_vector, start = 2001, frequency = 1)
+plot(time_series)
+
+# check whether an object is of the ts() class: 
+is.ts(data_vector)
+is.ts(time_series)
+```
+
+A time series object is a vector (univariate) or matrix with addition attributes: time indices, sampling frequency, time increment, the cycle length. 
+
+```{r, eval=FALSE}
+# Use print() and plot() to view data_vector
+print(data_vector)
+plot(data_vector)
+
+# Convert data_vector to a ts object with start = 2004 and frequency = 4
+time_series <- ts(data_vector, start = 2004, frequency = 4)
+
+# Use print() and plot() to view time_series
+print(time_series)
+plot(time_series)
+  
+```
+
+## 1.7 Plotting a time series object
+```{r}
+# Check whether eu_stocks is a ts object
+eu_stocks <- EuStockMarkets
+is.ts(eu_stocks)
+
+# View the start, end, and frequency of eu_stocks
+start(eu_stocks)
+end(eu_stocks)
+frequency(eu_stocks)
+
+# Generate a simple plot of eu_stocks
+plot(eu_stocks)
+
+# Use ts.plot with eu_stocks
+ts.plot(eu_stocks, col = 1:4, xlab = "Year", ylab = "Index Value", main = "Major European Stock Indices, 1991-1998")
+
+# Add a legend to your ts.plot
+legend("topleft", colnames(eu_stocks), lty = 1, col = 1:4, bty = "n")
+```
+
+
+# 2. Predicting the future
+
+## 2.1 Trend Spotting
+
+* Linear     (diff() can remove a linear trend)
+
+* Rapid growth    (log transformation can linearize a rapid growth trend)
+
+* Periodic
+
+* Variance: increase variance trends over time
+
+
+## 2.2 Removing trends in level by differencing
+
+The first difference transformation of a time series z[t] consists of the differences (changes) between successive observations over time, that is z[t]−z[t−1].
+
+Differencing a time series can remove a time trend. The function diff() will calculate the first difference or change series. A difference series lets you examine the increments or changes in a given time series. It always has one fewer observations than the original series.
+
+```{r, eval=FALSE}
+# Generate the first difference of z
+dz <- diff(z)
+  
+# Plot dz
+ts.plot(dz)
+
+# View the length of z and dz, respectively
+length(z)
+length(dz)
+```
+By removing the long-term time trend, we can view the amount of change from one observation to the next. 
+
+
+## 2.3 Removing seasonal trends with seasonal differencing
+```{r, eval=FALSE}
+# Generate a diff of x with lag = 4. Save this to dx
+dx <- diff(x, lag = 4)
+  
+# Plot dx
+  ts.plot(dx)
+
+# View the length of x and dx, respectively 
+length(x)
+length(dx)
+
+
+```
+

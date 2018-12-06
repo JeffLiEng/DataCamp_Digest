@@ -1,0 +1,95 @@
+---
+title: "Introduction to Portfolio Analysis in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"A golden rule in investing is to always test the portfolio strategy on historical data, and, once you are trading the strategy, to constantly monitor its performance. In this course, you will learn this by critically analyzing portfolio returns using the package PerformanceAnalytics. The course also shows how to estimate the portfolio weights that optimally balance risk and return. This is a data-driven course that combines portfolio theory with the practice in R, illustrated on real-life examples of equity portfolios and asset allocation problems. If you'd like to continue exploring the data after you've finished this course, the data used in the first three chapters can be obtained using the tseries-package. The code to get them can be found here. The data used in chapter 4 can be downloaded here."
+
+Ref: Boudt, Kris (2018) Introduction to Portfolio Analysis in R, https://www.datacamp.com/courses/introduction-to-portfolio-analysis-in-r, 2018.
+
+
+Note: Some course materials and data have beem revised for training by Jeff Li. 
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tseries)
+library(xts)
+library(PerformanceAnalytics)
+
+```
+
+# 1. The Building blocks
+
+Asset returns and portfolio weights; those are the building blocks of a portfolio return. This chapter is about computing those portfolio weights and returns in R.
+
+## 1.1 Download data:  Data for the Apple and Microsoft Stock
+```{r}
+# Download historical finance data
+aapl <- get.hist.quote(instrument = "AAPL",
+                       start = as.Date("2005-12-31"),
+                       end = Sys.Date(),
+                       quote = "AdjClose",
+                       quiet = TRUE)
+
+# Microsoft Stock 
+msft <- get.hist.quote(instrument = "MSFT",
+                       start = as.Date("2005-12-31"),
+                       end = Sys.Date(),
+                       quote = "AdjClose",
+                       quiet = TRUE)
+
+# Coca Cola 
+ko <- get.hist.quote(instrument = "KO", 
+                     start = as.Date("2003-01-01"), 
+                     end = Sys.Date(), 
+                     quote = "AdjClose", 
+                     quiet = TRUE) 
+
+ko <- ko/10.90741
+# PepsiCo compan
+pep <- get.hist.quote(instrument = "PEP", 
+                      start = as.Date("2003-01-01"), 
+                      end = Sys.Date(), 
+                      quote = "AdjClose", 
+                      quiet = TRUE) 
+
+pep <- pep/28.33771
+
+```
+
+
+Diversified portfolios reduce risk by offsetting loss with a potential gain in another asset. 
+
+
+# 1.2 Get a feel for the data
+
+As a first example, let us consider the stock price of the Coca Cola Company and the PepsiCo company from January 2003, until the end of August 2016.
+
+```{r}
+# Define ko_pep  as the ratio expressing the value of the share price of the Coca Cola company in terms of the share price of PepsiCo.
+head(ko)
+head(pep)
+ko_pep <- ko/pep
+head(ko_pep)
+
+# Make a time series plot of ko_pep:  Note that when the value of the ratio is larger than 1, the performance of ko since January 2003 is higher than that of pep.
+plot.zoo(ko_pep)
+  
+# Add as a reference, a horizontal line at 1
+abline(h = 1)
+  
+```
+

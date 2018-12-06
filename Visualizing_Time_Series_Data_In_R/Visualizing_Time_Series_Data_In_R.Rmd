@@ -1,0 +1,170 @@
+---
+title: "Credit Risk Modeling in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"This hands-on-course with real-life credit data will teach you how to model credit risk by using logistic regression and decision trees in R.
+
+Modeling credit risk for both personal and company loans is of major importance for banks. The probability that a debtor will default is a key component in getting to a measure for credit risk. While other models will be introduced in this course as well, you will learn about two model types that are often used in the credit scoring context; logistic regression and decision trees. You will learn how to use them in this particular context, and how these models are evaluated by banks."
+
+Ref: Dirick, Lore (2018) Credit Risk Modeling in R, https://www.datacamp.com/courses/introduction-to-credit-risk-modeling-in-r, 2018.
+
+
+Note: Some course materials and data have beem revised for training by Jeff Li. 
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(gmodels)
+
+```
+
+
+# 1. Introduction and data preprocessing 
+
+This chapter begins with a general introduction to credit risk models. We'll explore a real-life data set, then preprocess the data set such that it's in the appropriate format before applying the credit risk models.
+
+## 1.1 Lecture  and Exloring the credit data 
+
+What is loan default? 
+
+Borrower cound not pay  back to bank. 
+
+Componenets of expected loss (EL):
+
+* Probability of default (PD)
+
+* Exposure at default (EAD)
+
+* Loss given default (LGD) 
+
+EL = PD x EAD x LGD
+
+```{r}
+# (a) read data 
+loan_data <- read_rds("data/loan_data_ch1.rds")
+
+# (b) the head of data
+head(loan_data, 5)
+
+# Cross Table
+CrossTable(loan_data$home_ownership)
+
+CrossTable(loan_data$home_ownership, loan_data$loan_status, prop.r = TRUE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
+```
+
+## 1.2 Exploring teh credit data
+```{r}
+# View the structure of loan_data
+str(loan_data)
+
+# Call CrossTable() on grade adn load_status
+CrossTable(x = loan_data$grade, y= loan_data$loan_status, prop.r = TRUE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE )
+```
+
+The proportion of defaults increases when the credit rating moves from A (good credit score) to G (worse credit score). 
+
+## 1.3 Histogram 
+
+```{r}
+hist(loan_data$int_rate, main = "Histogram of interest rate", xlab = "Interest Rate")
+
+# annual_inc
+hist_income <- hist(loan_data$annual_inc, xlab = "Annual Income", main = "Histogram of Annual Income")
+hist_income
+
+# define n_break
+n_breaks <- sqrt(nrow(loan_data))
+
+hist_income_n <- hist(loan_data$annual_inc, breaks = n_breaks, xlab = "Annual Income", main = "Histogram of Annual Income")
+
+# plot of annual_inc
+plot(loan_data$annual_inc, ylab = "Annual Income")
+
+
+```
+
+**Outliers**
+
+* What is a value an outlier? 
+
+* Expert judgement
+
+* rule of thumb: Q1 - 1.5*IQR or Q3 + 1.5*IQR
+
+* mostly: combination of both
+
+```{r}
+# "annual salaries > $3 million are outliers"
+index_outlier_expert <- which(loan_data$annual_inc > 3000000)
+
+# remove expert outlier
+loan_data_expert <- loan_data[-index_outlier_expert, ]
+
+# hist of cleaned data based on expert judgement
+hist(loan_data_expert$annual_inc, sqrt(nrow(loan_data_expert)), xlab = "Annual income expert judgement")
+
+# Use of a rule of thumb: outlier if bigger than Q3 + 1.5*IQR
+outlier_cutoff <- quantile(loan_data$annual_inc, 0.75) + 1.5 * IQR(loan_data$annual_inc)
+index_outlier_ROT <- which(loan_data$annual_inc > outlier_cutoff)
+
+loan_data_ROT <- loan_data[-index_outlier_ROT, ]
+
+# Hist of cleaned data based on the rule of thumb 
+hist(loan_data_ROT$annual_inc, sqrt(nrow(loan_data_ROT)), xlab = "Annual income rule of thumb")
+
+
+# Create histogram of loan_amnt: hist_1
+hist_1 <- hist(loan_data$loan_amnt)
+
+# Print locations of the breaks in hist_1
+hist_1$breaks
+
+# Change number of breaks and add labels: hist_2
+hist_2 <- hist(loan_data$loan_amnt, breaks = 200, xlab = "Loan amount", 
+               main = "Histogram of the loan amount")
+```
+
+
+```{r}
+# Create histogram of loan_amnt: hist_1
+hist_1 <- hist(loan_data$loan_amnt)
+
+# Print locations of the breaks in hist_1
+hist_1$breaks
+
+# Change number of breaks and add labels: hist_2
+hist_2 <- hist(loan_data$loan_amnt, breaks = 200, xlab = "Loan amount", 
+               main = "Histogram of the loan amount")
+```
+
+There are some high peaks at round values: 5,000, 10,000, 15,000,... People tend to borrow round numbers. 
+
+
+```{r}
+# Plot the age variable
+hist(loan_data$age, ylab = "Age")
+
+# Save the outlier's index to index_highage
+index_highage <- which(loan_data$age > 122)
+
+# Create data set new_data with outlier deleted
+new_data <- loan_data[-index_highage, ]
+
+# Make bivariate scatterplot of age and annual income
+plot(loan_data$age, loan_data$annual_inc, xlab = "Age", ylab = "Annual Income")
+```
+
