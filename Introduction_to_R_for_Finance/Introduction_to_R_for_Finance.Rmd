@@ -1,0 +1,132 @@
+---
+title: "Introduction to Time Series Analysis"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"Learning R can be intimidating, especially without concrete examples you might see in the real world. In this finance oriented introduction to R, you will learn essential data structures such as lists and data frames and have the chance to apply that knowledge directly to financial examples. By the end of the course, you will feel comfortable with the basics of manipulating your data to perform financial analysis in R."
+
+Ref: Dirick, Lore (2018) Introduction to R for Finance, https://www.datacamp.com/courses/introduction-to-r-for-finance, 2018.
+
+
+Note: Some course materials and data have been revised for training by Jeff Li. 
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+```
+
+# 1. The Basics
+
+Welcome! Let's get comfortable with the very basics of R, and learn how to use it as a calculator. You will also create your first variables in R and explore some of the base data types such as numeric and characters.
+
+## 1.1 Basic data types
+
+* Numeric: 5, 5L, 
+
+* character: 
+
+* Logical 
+
+class() to return data types.  The class() is a useful function. 
+
+
+# 2. Vectors and Matrices 
+
+c(), is.vector(), names()
+
+
+# 3. Data Frames
+
+# 4. Factors
+
+## 4.1 Create factors
+```{r}
+# create factor
+answer <- c("stock", "bond", "bond", "stock")
+
+investment <- factor(answer)
+
+investment
+
+class(investment)
+as.integer(investment)
+levels(investment)
+
+```
+
+## 4.2 cut() it up
+```{r}
+rank <- c(36, 45, 23, 1, 4, 5, 10, 32, 30, 50, 23)  # 1 is worst, 50 is best
+buckets <- c(0, 10, 20, 30, 40, 50)
+
+ranking_grouped <- cut(rank, breaks = buckets)
+
+ranking_grouped
+```
+
+## 4.3 Order factors
+```{r}
+# create a rank
+rank <- c("L", "M", "H", "L", "M")
+
+# rank ordered by default 
+(rank_ordered_default <- ordered(rank))  # not correct
+
+# define the order 
+
+rank_ordered <- factor(rank, ordered = TRUE, levels = c("L", "M", "H"))
+rank_ordered
+summary(rank_ordered)
+
+```
+
+
+# 5. Lists
+
+## 5.1 Split() it up
+```{r}
+# create a data.frame
+debt <- data.frame(name = c("Dan", "Dan", "Dan", "Rob", "Rob", "Rob"), 
+                   payment = c(100, 200, 500, 50, 75, 100), stringsAsFactors = FALSE)
+
+debt
+
+# create a grouping 
+grouping <- debt$name
+
+# split
+split_debt <- split(debt, grouping)
+
+# see the results
+split_debt
+
+# unsplit
+unsplit(split_debt, grouping)
+
+# "split-apply-combine"
+
+split_debt$Dan$new_payment <- split_debt$Dan$payment * .8
+split_debt$Rob$new_payment <- split_debt$Rob$payment * .9
+
+split_debt
+
+unsplit(split_debt, grouping)
+
+```
+
+
+## 5.2 Attributes
+

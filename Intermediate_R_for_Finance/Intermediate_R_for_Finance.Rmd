@@ -1,0 +1,405 @@
+---
+title: "Intermediate R for Finance"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+
+**Course Description**
+
+"If you enjoyed the Introduction to R for Finance course, then you will love Intermediate R for Finance. Here, you will first learn the basics about how dates work in R, an important skill for the rest of the course. Your next step will be to explore the world of if statements, loops, and functions. These are powerful ideas that are essential to any financial data scientist's toolkit. Finally, we will spend some time working with the family of apply functions as a vectorized alternative to loops. And of course, all examples will be finance related! Enjoy!" 
+
+
+Ref: Dirik, Lore. https://www.datacamp.com/courses/intermediate-r-for-finance, 2018.
+
+
+Note: Some course materials have been revised for internal R training. 
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+```
+
+
+# 1. Dates 
+
+"Welcome! Before we go deeper into the world of R, it will be nice to have an understanding of how dates and times are created. This chapter will teach you enough to begin working with dates, but only scratches the surface of what you can do with them."
+
+## 1.1 Dates - Lecture 1
+
+* Date - Calendar dates
+
+* POSIX - Portable Operating System Interface - POSIXct and POSIXlt, Date+ time + timezone ("2017-03-14 10:00:21 EDT")
+
+```{r}
+
+# What is the current date?
+Sys.Date()
+
+# What is the current date and time?
+Sys.time()
+
+# Create the variable today
+today <- Sys.Date()
+
+
+# Confirm the class of today
+class(today)
+
+# creating dates
+character_date <- "1957-03-04"
+class(character_date)
+
+# as.Date
+sp500_birthday <- as.Date(character_date)
+sp500_birthday
+class(sp500_birthday)
+
+```
+
+## 1.2 Create Data
+```{r}
+
+# Create crash
+crash <- as.Date("2008-09-29")
+
+# Print crash
+crash
+
+# crash as a numeric
+as.numeric(crash)
+
+# Current time as a numeric
+as.numeric(Sys.time())
+
+# Incorrect date format
+#as.Date("09/29/2008")
+
+```
+
+```{r}
+
+# Create dates from "2017-02-05" to "2017-02-08" inclusive.
+dates <- c("2017-02-05", "2017-02-06", "2017-02-07", "2017-02-08")
+
+# Add names to dates
+names(dates) <- c("Sunday", "Monday", "Tuesday", "Wednesday") 
+
+# Subset dates to only return the date for Monday
+dates[2]
+```
+
+## 1.3 Date formats and extractor functions
+```{r}
+# ISO 8601 Standard: year-month-day
+as.Date("2017-01-28")
+
+# Alternative form: year/month/day
+as.Date("2017/01/28")
+
+# Explicitly tell R the format  (%b = Abbreviated month name, %B = Full month name)
+as.Date("01/28/2017", format = "%m/%d/%Y")
+
+# Lehman Brothers bankruptcy
+as.Date("September 15, 2008", format = "%B %d, %Y")
+
+# Extractor functions
+dates <- as.Date(c("2017-01-03", "2017-01-04"))
+weekdays(dates)
+```
+
+As a reminder, here are the formats:
+
+%Y: 4-digit year (1982)
+%y: 2-digit year (82)
+%m: 2-digit month (01)
+%d: 2-digit day of the month (13)
+%A: weekday (Wednesday)
+%a: abbreviated weekday (Wed)
+%B: month (January)
+%b: abbreviated month (Jan)
+
+```{r}
+
+
+# char_dates
+char_dates <- c("1jan17", "2jan17", "3jan17", "4jan17", "5jan17")
+
+# Create dates using as.Date() and the correct format 
+dates <- as.Date(char_dates, format ="%d%b%y")
+
+# Use format() to go from "2017-01-04" -> "Jan 04, 17"
+format(dates, format = "%b %d, %y")
+
+# Use format() to go from "2017-01-04" -> "01,04,2017"
+format(dates, format = "%m, %d, %Y")
+
+
+```
+
+Only useful to report or export dates. 
+
+
+## 1.4 Subtraction of dates
+
+```{r}
+
+# Dates
+dates <- as.Date(c("2017-01-01", "2017-01-02", "2017-01-03"))
+
+# Create the origin
+origin <- as.Date("1970-01-01")
+
+# Use as.numeric() on dates
+as.numeric(dates)
+
+# Find the difference between dates and origin
+dates - origin
+
+difftime(dates, origin, units = "days")
+```
+
+## 1.5 months(), weekdays(), and quarters()
+
+```{r}
+
+# dates
+dates <- as.Date(c("2017-01-02", "2017-05-03", "2017-08-04", "2017-10-17"))
+
+# Extract the months
+months(dates)
+
+# Extract the quarters
+quarters(dates)
+
+# dates2
+dates2 <- as.Date(c("2017-01-02", "2017-01-03", "2017-01-04", "2017-01-05"))
+
+# Assign the weekdays() of dates2 as the names()
+
+names(dates2) <- weekdays(dates2)
+
+# Print dates2
+dates2
+```
+
+
+# 2. If Statements and Operators
+
+"Imagine you own stock in a company. If the stock goes above a certain price, you might want to sell. If the stock drops below a certain price, you might want to buy it while it's cheap! This kind of thinking can be implemented using operators and if statements. In this chapter, you will learn all about them, and create a program that tells you to buy or sell a stock."
+
+
+# 3. Loops 
+
+"Loops can be useful for doing the same operation to each element of your data structure. In this chapter you will learn all about repeat, while, and for loops!"
+
+## 3.1 Repeat loops
+
+We must specify when to *break* out of the loop, otherwise it runs for eternity!
+
+```{r}
+# don't do infinite loop!
+# i <- 0
+# repeat{
+#   i <- i + 1
+#   print(i)
+# }
+
+# add a break point
+i <- 0
+repeat{
+  i <- i +1
+  print(i)
+  
+  if(i == 5) {
+    break
+  }
+}
+
+# Repeatedly check a stock price
+stock_price <- 52.1
+
+repeat{
+  stock_price <- stock_price * runif(1, min = 0.99, max = 1.01)
+  print(stock_price)
+
+
+if(stock_price > 52.5) {
+  print("Stock price is above 52.5! Sell!")
+  break
+  }
+}
+
+```
+
+## 3.2 While loop 
+```{r}
+# example 1
+i <- 0
+while(i < 3) {
+  print(i)
+  i <- i + 1
+}
+
+# check while true
+stock_price <- 52.1
+
+while(stock_price <= 52.5) {
+  stock_price <- stock_price * runif(1, 0.99, 1.01)
+  print(stock_price)
+}
+print("Stock price is above 52.5! Sell!")
+
+```
+
+```{r}
+# plot with a while loop
+debt <- 5000
+i <- 0
+x_axis <- i
+y_axis <- debt
+
+# Initial plot
+plot(x_axis, y_axis, xlim = c(0, 10), ylim = c(0, 5000))
+
+# Graph the debt
+while(debt > 0) {
+  #pay debt 
+  debt <- debt - 500
+  i <- i + 1
+  x_axis <- c(x_axis, i)
+  y_axis <- c(y_axis, debt)
+  
+  # next plot
+  plot(x_axis, y_axis, xlim = c(0, 10), ylim = c(0, 5000))
+}
+```
+
+
+Add a break point inside *while*: 
+
+```{r}
+# debt and cash
+debt <- 5000
+cash <- 4000
+
+# Pay off your debt...if you can!
+while (debt > 0) {
+  debt <- debt - 500
+  cash <- cash - 500
+  print(paste("Debt remaining:", debt, "and Cash remaining:", cash))
+
+   if (cash == 0) {
+     print("You ran out of cash!")
+     break
+   }
+}
+```
+
+## 3.3 For loops
+```{r}
+# ex1: for loop
+one_to_five <- 1:5
+one_to_five
+
+for(number in one_to_five) {
+  print(number)
+}
+```
+
+Loop over a list
+
+```{r}
+# create a list
+stock_list <- list(stock_name = "Apple", 
+                   ticker = "AAPL", 
+                   price = 126.5, 
+                   good_deal = TRUE)
+class(stock_list[[1]])
+
+# check *class*
+for (i in stock_list) {
+  print(class(i))
+}
+
+
+# loop for data.frame
+df <- data.frame(x = 1:3, 
+                 y = c("A", "B", "C"), 
+                 z = c(TRUE, FALSE, TRUE))
+
+for(i in df) {
+  print(class(i))
+}
+```
+
+
+Break and next
+
+```{r}
+# create a vector
+my_vec <- c(1, 20, 3, 4, 10, NA, 78)
+
+# for loop: berak and next
+for (value in my_vec) {
+  if(is.na(value)) {
+    print("Missing value")
+    next
+  }
+  
+  if(value > 10) {
+    print("Value is greater than 10")
+    break
+  } else("look OK")
+}
+```
+
+# 4. Functions
+
+"If data structures like data frames and vectors are how you hold your data, functions are how you tell R what to do with your data. In this chapter, you will learn about using built-in functions, creating your own unique functions, and you will finish off with a brief introduction to packages.
+
+"
+
+
+```{r}
+# tidyquant package
+library(tidyquant)
+
+# Pull Apple stock data
+apple <- tq_get("AAPL", get = "stock.prices", from = "2007-01-03", to = "2017-06-05")
+
+
+# take a lokk at what it returned
+head(apple)
+sto
+
+# plot the stock price over time
+plot(apple$date, apple$adjusted, type = "l")
+
+# Calculate daily stock return for the adjusted price
+apple <- tq_mutate(data = apple, 
+                   ohlc_fun = Ad, 
+                   mutate_fun = dailyReturn)
+
+# Sort the return from the least to greatest
+sorted_returns <- sort(apple$daily.returns)
+
+# plot them
+plot(sorted_returns)
+```
+
+
+# 5. Apply 
+"A popular alternative to loops in R are the apply functions. These are often more readable than loops, and are incredibly useful for scaling the data science workflow to perform a complicated calculation on any number of observations. Learn about them here!"
+
+
