@@ -1,0 +1,239 @@
+---
+title: "Manipulating Time Series Data in R with xts & zoo"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+
+**Course Description**
+
+"Time series are all around us, from server logs to high frequency financial data. Managing and manipulating ordered observations is central to all time series analysis. The xts and zoo packages provide a set of powerful tools to make this task fast and mistake free. In this course, you will learn everything from the basics of xts to advanced tips and tricks for working with time series data in R." 
+
+
+Ref: Ryan, Jeffrey. 2018. "Manipulating Time Series Data in R with xts & zoo", https://www.datacamp.com/courses/manipulating-time-series-data-in-r-with-xts-zoo, 2018.
+
+
+Note: Some course materials have been revised for internal R training. 
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(zoo)
+
+library(xts)
+
+
+```
+
+# 1. Introduction to eXtensible Time Series, using xts and zoo for time series
+
+"xts and zoo are just two of the many different types of objects that exist in R. This chapter will introduce the basic objects in xts and zoo and their components, and offers examples of how to construct and examine the data."
+
+What is xts? 
+
+* eXtensible Time Series
+
+* An extended zoo object
+
+* Matrix + Index
+
+* Observations + Times
+
+```{r}
+# an Xts example 
+# xts = matrix + index
+
+x <- matrix(1:4, ncol = 2, nrow = 2)
+x
+
+idx <- as.Date(c("2015-01-01", "2015-02-01"))
+idx
+
+X <- xts(x = x, order.by = idx)
+class(X)
+X
+
+```
+
+Deconstructing xts
+
+```{r}
+coredata(X, fmt = FALSE)
+index(X)
+```
+
+## 1.1 More than a matrix
+
+```{r}
+# View the structure of previos created X
+str(X)
+
+# Extract the 2nd observation of the 2nd column
+X[2, 2]
+
+# Extract the 2nd obsrvation of the 2nd column 
+core <- coredata(X, fmt = FALSE)
+core[2, 2]
+```
+
+```{r}
+# Create the object data using 5 random numbers
+data <- rnorm(n = 5)
+
+# Create dates as Date class object starting from 2016-01-01
+dates <- seq(as.Date("2016-01-01"), length = 5, by = "days")
+
+# Use xts() to create smith
+smith <- xts(x = data, order.by = dates)
+
+# Create bday (1899-05-08) using a POSIXct data class object
+bday <- as.POSIXct("1899-05-08")
+
+
+# Create hayek and add a new attribute call born 
+hayek <- xts(x = data, order.by = dates, born = bday)
+
+hayek
+str(hayek)
+```
+
+## 1.2 Deconstructing xts
+
+```{r}
+# Extract the core data of hayek
+hayek_core <- coredata(hayek)
+
+# View the class of hayek_core
+class(hayek_core)
+
+# Extract the index of hayek
+hayek_index <- index(hayek)
+
+# View the class of hayek_index
+class(hayek_index)
+```
+
+## 1.3 Time based indices 
+
+
+```{r}
+# Create dates
+dates <- as.Date("2016-01-02") + 0:4
+
+# Create ts_a
+ts_a <- xts(x = 1:5, order.by = dates)
+ts_a
+
+# create ts_b
+ts_b <- xts(x = 1:5, order.by = as.POSIXct(dates))
+ts_b
+
+# Extract the rows of ts_a using the index of ts_b
+ts_a[index(ts_b)]
+
+# Extract the rows of ts_b using the index of ts_a
+ts_b[index(ts_a)]
+
+```
+
+## 1.4 Converting xts objects
+
+
+```{r}
+# Convert austres to an xts object called au
+head(austres)
+class(austres)
+austres
+
+au <- as.xts(austres)
+head(au)
+
+# Then convert your xts object (au) into a matrix am
+am <- as.matrix(au)
+
+# Inspect the head of am
+head(am)
+
+# Convert the original austres into a matrix am2
+am2 <- as.matrix(austres)
+
+# Inspect the head of am2
+head(am2)
+
+```
+
+## 1.5 Importing data
+
+```{r}
+# tmp_file
+tmp_file <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1127/datasets/tmp_file.csv"
+dat <- read.csv(tmp_file)
+dat
+
+
+# Convert dat into xts
+xts(dat, order.by = as.Date(rownames(dat), "%m/%d/%Y"))
+
+
+# Read tmp_file using read.zoo
+dat_zoo <- read.zoo(tmp_file, index.column = 0, sep =",", format = "%m/%d/%Y" )
+dat_zoo
+
+# Convert dat_zoo to xts
+dat_xts <- as.xts(dat_zoo)
+
+```
+
+## 1.6 Exporting xts objects
+
+```{r}
+# Convert sunspots to xts using as.xts()
+sunspots_xts <- as.xts(sunspots)
+head(sunspots_xts)
+
+# Get the temporary file name
+tmp <- tempfile()
+tmp
+
+# Write the xts object using zoo to tmp
+write.zoo(sunspots_xts, sep = ",", file = tmp)
+
+# Read teh tmp file. FUN = as.yearmon converts strings such as Jan 1749 into a proper time class
+sun <- read.zoo(tmp, sep = ",", FUN = as.yearmon)
+head(sun)
+
+# Convert sun into xts. Save this as sun_xts
+sun_xts <- as.xts(sun)
+head(sun_xts)
+```
+
+
+
+# 2. First Order of Business - Basic Manipulations
+
+"Now that you can create basic xts objects, it's time to see how powerful they can be. This chapter will cover the basics of one of the most useful features of xts: time based subsetting. From there you'll explore additional ways to extract data using time phrases, and conclude with how to do basic operations like adding and subtracting your xts objects."
+
+
+
+# 3. Merging and modifying time series
+
+"One of the most important parts of working with time series data involves creating derived time series. To do this effectively, it is critical to keep track of dates and times. In this chapter you will look at how xts handles merging new columns and rows into existing data, how to deal with the inevitable missing observations in time series, and how to shift your series in time."
+
+
+# 4. Apply and aggregate by time
+
+"Now the fun begins! A very common usage pattern for time series is to calculate values for disjoint periods of time or aggregate values from a higher frequency to a lower frequency. For most series, you'll often want to see the weekly mean of a price or measurement. You may even find yourself looking at data that has different frequencies and you need to normalize to the lowest frequency. This chapter is where it all happens. Hang tight, and lets get going!"
+
+
+# 5. Extra Features of xts
+"Now that you are comfortable with most of the core features, its time to explore some of the lesser known (but powerful!) aspects of working with xts. In this final chapter you will use the internals of the index to find repeating intervals, see how xts provides intuitive time zone support, and experiment with ways to explore your data by time - including identifying frequency and coverage in time. Let's finish this course!"
+
