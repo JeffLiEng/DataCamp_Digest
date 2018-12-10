@@ -1,5 +1,5 @@
 ---
-title: "xxx"
+title: "Introduction to Machine Learning"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -25,7 +25,9 @@ Ref: Vankrunkelsven, Vincent. https://www.datacamp.com/courses/introduction-to-m
 
 * Practice Three of the most basic machine learning: classification, regresssion and clustering. 
 
+"This online machine learning course is perfect for those who have a solid basis in R and statistics, but are complete beginners with machine learning. After a broad overview of the discipline's most common techniques and applications, you'll gain more insight into the assessment and training of different machine learning models. The rest of the course is dedicated to a first reconnaissance with three of the most basic machine learning tasks: classification, regression and clustering."
 
+Note: Some course materials have been revised for internal training by Jeff Li at Edeniq. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -68,6 +70,7 @@ tail(iris, n = 1)
 
 # Summarize the iris data set
 summary(iris)
+vapply(iris[, 1:4], FUN = summary, FUN.VALUE = numeric(6))
 ```
 
 ## 1.2 A simple example of Machine Learning: Regression 
@@ -409,8 +412,124 @@ The above section shows one tedious way to program a 10-fold cross validation al
 
 
 
-
 # 3. Classification
+
+"You'll gradually take your first steps to correctly perform classification, one of the most important tasks in machine learning today. By the end of this chapter, you'll be able to learn and build a decision tree and to classify unseen observations with k-Nearest Neighbors."
+
+## 3.1 Learn a decision tree
+Build a decision tree that uses a person's age, gender, and travel class to predict whether or not they survived the Titanic.
+
+```{r}
+# import the data
+dir("data/")
+titanic <- read_csv("data/titanic.csv") %>% mutate(Survived = factor(Survived), 
+                                                   Pclass = factor(Pclass), 
+                                                   Sex = factor(Sex, levels = c("male", "female")))
+dim(titanic)
+summary(titanic)
+
+# split data
+set.seed(1)
+train_indices <- sample(1:nrow(titanic), size = 500)
+
+
+train <- titanic[train_indices, ]
+test <- titanic[-train_indices, ]
+
+head(train)
+
+# Load the rpart, rattle, rpart.plot, and RColorBrewer package
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+
+# Build a tree model
+tree <- rpart(formula = Survived ~ ., data = train, method = "class")
+
+# Draw the decision tree
+rpart.plot(tree)
+fancyRpartPlot(tree)
+```
+
+In the 3rd node, 76% of the training instances are positive adn 24% are negative. The majority class thus is positive (1), which is signaled by the number 1 on top. 
+
+## 3.2 Classify with the decision tree
+```{r}
+# Predict the value of the test set: pred
+pred <- predict(object = tree, newdata = test, type = "class")
+
+# construct the confusion matrix: conf
+conf <- table(test$Survived, pred)
+conf
+
+# print out the accuracy
+sum(diag(conf))/sum(conf)
+
+```
+
+Around 80% of all test instances have been classified correctly. This's not bad! 
+
+## 3.3 Pruning the tree
+
+```{r}
+# Calculation of a complex tree
+set.seed(1)
+tree <- rpart(Survived ~ ., data = train, method = "class", control = rpart.control(cp = 0.00001))
+
+# Draw the complex tree
+fancyRpartPlot(tree)
+
+# Use the *prune() method to shrink *tree* to a more compact tree. Specify the cp argument to be 0.01, which basically tells the algorithm to remove node splits that do not significantly decrease the impurity. 
+pruned <- prune(tree = tree, cp = 0.01)
+
+# Redraw the pruned tree
+fancyRpartPlot(pruned)
+```
+
+Another way to check if you ovefit your model is by comparing the accuracy on the training set with the accuracy on the test set. 
+
+
+## 3.4 Splitting Criterion
+Gini impurity vs informatio gain
+
+```{r}
+# load and split data into "train" and "test"
+set.seed(1)
+load("data/emails.RData")
+train_indices <- sample(1:nrow(emails), size = round(0.7*nrow(emails), 0)) 
+train <- emails[train_indices, ]
+test <- emails[-train_indices, ]
+dim(train)
+dim(test)
+summary(emails)
+str(emails)
+
+# Train and test tree with gini criterion
+tree_g <- rpart(spam ~., data = train, method = "class" )
+pred_g <- predict(tree_g, test, type = "class")
+conf_g <- table(test$spam, pred_g)
+conf_g
+acc_g <- sum(diag(conf_g))/sum(conf_g)
+acc_g
+
+# Train and test tree with informatio criterion
+tree_i <- rpart(formula = spam ~., data = train, method = "class", parms = list(split = "information"))
+pred_i <- predict(object = tree_i, newdata = test, type = "class")
+conf_i <- table(test$spam, pred_i)
+conf_i
+acc_i <- sum(diag(conf_i)) /sum(conf_i)
+
+# Draw fancy plots of both tree_g and tree_i
+fancyRpartPlot(tree_g)
+fancyRpartPlot(tree_i)
+
+# Pirnt out acc_g and acc_i
+acc_g
+acc_i
+```
+
+Using different splitting criterion can influence the resultig model. However, the resulting trees are quite similar. The same variables are ofter present in both trees and the accuracy on the test set is comparable: 89.1% and 89.6%. 
 
 
 # 4. Regression
