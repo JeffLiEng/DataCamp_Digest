@@ -532,6 +532,8 @@ acc_i
 Using different splitting criterion can influence the resultig model. However, the resulting trees are quite similar. The same variables are ofter present in both trees and the accuracy on the test set is comparable: 89.1% and 89.6%. 
 
 
+
+
 # 4. Regression
 
 

@@ -222,11 +222,227 @@ head(sun_xts)
 
 "Now that you can create basic xts objects, it's time to see how powerful they can be. This chapter will cover the basics of one of the most useful features of xts: time based subsetting. From there you'll explore additional ways to extract data using time phrases, and conclude with how to do basic operations like adding and subtracting your xts objects."
 
+## 2.1 Querying for dates
+
+One & two sided intervals
+```{r}
+# Load fund data
+data(edhec, package = "PerformanceAnalytics")
+
+# one sided interval
+head(edhec["2007-01", 1:3])
+
+# two sided intervals
+head(edhec["2007-01/2007-03", 1:3])
+
+# Truncated dates
+head(edhec["200701/03", 1:3])
+
+# Time support
+# iday["20160808T2213"]
+
+# Repeating intraday inervals
+
+# iday["T05:30/T06:30"]
+```
+
+```{r, eval=FALSE}
+# Select all of 2016 from x
+x_2016 <- x["2016"]
+
+# Select January 1, 2016 to March 22, 2016
+jan_march <- x["2016/2016-03-22"]
+
+# Verify that jan_march contains 82 rows
+82 == length(jan_march)
+```
+Subsetting  a range is useful way to get a snapshot of a larger time series object. 
+
+
+## 2.2 Extracting recurring intraday intervals
+
+```{r, eval=FALSE}
+# Extract all data from irreg between 8AM and 10AM
+morn_2010 <- irreg["T08:00/T10:00"]
+
+# Extract the observations in morn_2010 for January 13th, 2010
+morn_2010["2010-01-13"]
+```
+
+
+## 2.3 Row selection with time objects, Update adn replace elements
+
+Subsetting using a vector of dates is a good way when working with xts objecss
+
+```{r, eval=FALSE}
+# S# Replace the values in x contained in the dates vector with NA
+x[dates] <- NA
+
+# Replace all values in x for dates starting June 9, 2016 with 0
+x["2016-06-09/"] <- 0
+
+# Verify that the value in x for June 11, 2016 is now indeed 0
+x["2016-06-11"]
+    
+ubset x using the vector dates
+dates <- as.Date(c("2016-06-04", "2016-06-8"))
+x[dates]
+
+# Subset x using dates as POSIXct
+x[as.POSIXct(dates)]
+```
+
+```{r, eval=FALSE}
+# Replace the values in x contained in the dates vector with NA
+x[dates] <- NA
+
+# Replace all values in x for dates starting June 9, 2016 with 0
+x["2016-06-09/"] <- 0
+
+# Verify that the value in x for June 11, 2016 is now indeed 0
+x["2016-06-11"]
+    
+
+```
+
+## 2.4 Find the first or last period of time
+
+```{r}
+# first() and last()
+first(edhec[, "Funds of Funds"], "4 months")
+
+last(edhec[, "Funds of Funds"], "1 year")
+```
+
+```{r, eval=FALSE}
+# Create lastweek using the last 1 week of temps
+lastweek <- last(temps, "1 week")
+
+# Print the last 2 observations in lastweek
+last(lastweek, n = 2)
+
+# Extract all but the first two days of lastweek
+first(lastweek, "-2 days")
+
+# Extract the first three days of the second week of temps
+first(last(first(temps, "2 weeks"), "1 weeks"), "3 days")
+```
+
+Relative subsetting with first() and last() can be a valuable way to look at the most recent data in your xts object. 
+
+
+## 2.5 Matrix arithmetic - add, subtract, multiply, and divide in time
+
+Whe we perform any binary opertion using two _xts_ objects, these objects are first aligned using teh intersection of the indexes. 
+
+```{r}
+a <- c(1, 1, 1)
+a_index <- as.Date(c("2015-01-24", "2015-01-25", "2015-01-26"))
+a <- xts(a, order.by = a_index) 
+
+b <- xts(2, order.by = as.Date("2015-01-24"))
+  
+# Add a and b
+a+b
+
+# Add a with the numeric value of b
+a + as.numeric(b)
+```
+
+Adding two xts objects returns only the dates commom to both. Adding a numerica to an xts object is a bit more intuitive. 
+
+## 2.6 Math with non-overlapping indexes
+
+```{r}
+# Add a to b, and fill all missing rows of b with 0
+a + merge(b, index(a), fill = 0)
+
+# Add a to b and fill NAs with the last observation
+a + merge(b, index(a), fill = na.locf)
+```
+
 
 
 # 3. Merging and modifying time series
 
 "One of the most important parts of working with time series data involves creating derived time series. To do this effectively, it is critical to keep track of dates and times. In this chapter you will look at how xts handles merging new columns and rows into existing data, how to deal with the inevitable missing observations in time series, and how to shift your series in time."
+
+## 3.1 Combining xts by column with merge
+
+```{r}
+# create  a and b
+a <- xts(x = c(-1.2,       0.27,   1.08, -2.3), order.by = as.Date(c("2016-06-05",               "2016-06-08", "2016-06-09", "2016-06-13")))
+b <- xts(x = c(0.43, 0.51, -0.57, -0.54      ), order.by = as.Date(c("2016-06-05", "2016-06-06", "2016-06-08", "2016-06-09"              )))
+b
+
+# perform an inner join of a and b
+merge(a, b, join = "inner")
+
+# perform a left -join of a and b, fill missing values with 0
+merge(a, b, join = "left", fill = 0)
+
+```
+
+## 3.2 Filling missing values using last or previous observation, interpolating using na.approx()
+
+* na.locf(): last observation carried forward. 
+
+* fromLast = TRUE: apply next observation carried backward 
+
+```{r}
+# create a temps
+temps <- xts(x = c(1, 2, NA, 4, 5), order.by = as.Date(c("2018-12-01", "2018-12-02", "2018-12-03", "2018-12-04", "2018-12-05")))
+temps
+
+# Fill missing values in temps using the last observation
+temps_last <- na.locf(temps)
+temps_last
+
+# Fill missing values in temps using the next observation
+temps_next <- na.locf(temps, fromLast = TRUE)
+temps_next
+
+# na.approx()
+na.approx(temps)
+```
+
+## 3.3 Combine a leading and lagging time series
+
+```{r}
+# create x 
+x <- xts(x = 5:9, order.by = (as.Date("2018-12-06") + 0:4) ) 
+x
+
+# Create a leading object called lead_x
+lead_x <- lag(x, k = -1)
+lead_x
+
+# create a lagging object called lag_x
+lag_x <- lag(x, k = 1)   # xts follws the literature. 
+lag_x
+
+# Merge into z
+z <- merge(lead_x, x, lag_x)
+z
+
+```
+
+## 3.4 Calculate a difference of a series using diff()
+
+```{r, eval=FALSE}
+
+# Calculate the first difference of AirPass and assign to diff_by_hand
+diff_by_hand <- AirPass - lag(AirPass, k = 1)
+
+# Use merge to compare the first parts of diff_by_hand and diff(AirPass)
+merge(head(diff_by_hand), head(diff(AirPass)))
+
+# Calculate the first order 12 month difference of AirPass
+diff(AirPass, lag = 12, differences = 1)
+
+```
+
+
 
 
 # 4. Apply and aggregate by time
