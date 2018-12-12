@@ -1,0 +1,140 @@
+---
+title: "Designing and Analyzing Clinical Trials in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+
+**Course Description**
+
+"Clinical trials are scientific experiments that are conducted to assess whether treatments are effective and safe. They are used by a variety of organizations, including pharmaceutical companies for drug development. Biostatisticians play a key role in ensuring the success of a clinical trial. In this course you will gain an overview of the important principles and a practical introduction to commonly used statistical analyses. This course would be valuable for data analysts, medical students, clinicians, medical researchers and others interested in learning about the design and analysis of clinical trials." 
+
+
+Ref: Alfred, Tamuno. 2018. Designing and Analyzing Clinical Trials in R. https://www.datacamp.com/courses/designing-and-analyzing-clinical-trials-in-r. 
+
+
+Note: Some course materials have been revised for internal R training. 
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(samplesize)
+library(gsDesign)
+
+```
+
+# 1. Principles
+
+
+
+# 2. Trial Designs
+
+
+# 3. Sample Size and Power
+
+By the end of this chapter you will be able to calculate the numbers of patients needed for a clinical trial under a range of scenarios.
+
+## 3.1 Sample size for comparing means
+```{r}
+#Generate the sample size for delta of 1, with SD of 3 and 80% power.
+ss1 <- power.t.test(delta = 1, sd = 3, power = 0.8)
+ss1
+
+#Round up and display the numbers needed per group
+ceiling(ss1$n)
+
+#Use the sample size from above to show that it provides 80% power
+power.t.test(n = 143, delta = 1, sd = 3)
+```
+
+## 3.2 Sample Size and Treatment Difference
+```{r}
+# Generate a vector containing values between 0.5 and 2.0, incrementing by 0.25
+delta <- seq(from = 0.5, to = 2.0, by = 0.25)
+npergp <- NULL # number per group
+
+# Specify the standard deviation and power
+for (i in 1:length(delta)) {
+  npergp[i] <- ceiling(power.t.test(delta = delta[i], sd = 3, power = 0.80)$n)
+}
+
+# Create a data frame for the deltas and sample sizes
+sample_sizes <- data.frame(delta, npergp)
+
+# Plot the patients per group against the treatment differences
+ggplot(sample_sizes, aes(x = delta, y = npergp)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Sample Size Scenarios", x = "Treatment Difference", y = "Patients per Group")
+```
+
+
+## 3.3 Sample Size for Comparing Proportions
+
+Use the power.prop.test() to calculate the sample size needed for a trial with a recovery percentage of 40% and 60% in the placebo and active treatment groups, respectively, and 80% power.
+
+```{r}
+# Use the power.prop.test to generate sample sizes for the proportions
+power.prop.test(p1 = 0.4, p2 = 0.6, power = 0.8)
+
+# Find the minimum detectable percentage ofr the above using 150 patients per group
+power.prop.test(p1 = 0.4, power = 0.8, n = 150)$p2 * 100
+```
+It the placebo recovery percentage is 40%, then with 97 patients per group, we have 80% power to detect a treatment difference of 20%, i.e. 60% in the active arm. With 150 patients per arm, we can detect a smaller difference, ~16%, i.e. ~56% in the active arm. 
+
+
+## 3.4 Sample Size for Unequal Groups
+
+Calculate the sample size required for a trial where patients will be randomized to active treatment and placebo in a 2:1 ratio for a two-sided t-test. 
+
+```{r}
+# Use the *samplesize* library 
+library(samplesize)
+
+# Use 90% power, delta 1.5, standard deviation of 2.5, fraction of 0.5
+unequalgps <- n.ttest(power = 0.9, alpha = 0.05, mean.diff = 1.5, sd1 = 2.5, sd2 = 2.5, k = 0.5, design = "unpaired", fraction = "unbalanced")
+
+unequalgps
+```
+
+## 3.5 Sample Size for One-sided Tests
+```{r}
+# Generate sample sizes comparing the proportions using a two-sided test
+two_sided <- power.prop.test(p1 = 0.1, p2 = 0.3, power = 0.80, alternative = "two.sided")
+two_sided
+ceiling(two_sided$n)
+
+# Repeat using a one-sided test
+one_sided <- power.prop.test(p1 = 0.1, p2 = 0.3, power = 0.80, alternative = "one.sided")
+one_sided
+ceiling(one_sided$n)
+
+# Display the reduction per group
+ceiling(two_sided$n) - ceiling(one_sided$n)
+
+```
+
+One sided test needs fewer patients. 
+
+
+
+## 3.6 Stopping Rules
+
+To avoid prolonging a study, a trial may be stopped early if there is strong evidence for efficacy at an interim analysis. Here we will derive the p-values needed to stop a trial early under the Pocock and O’Brien-Fleming spending functions.
+
+```{r}
+# Use the gsDesing function to generate the p-values for four analyses under the Pocock rule
+Pocock <- gsDesign(k = 4, test.type = 2, sfu = "")
+```
+
+
