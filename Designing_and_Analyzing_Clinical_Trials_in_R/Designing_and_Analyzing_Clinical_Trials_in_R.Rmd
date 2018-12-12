@@ -134,7 +134,30 @@ To avoid prolonging a study, a trial may be stopped early if there is strong evi
 
 ```{r}
 # Use the gsDesing function to generate the p-values for four analyses under the Pocock rule
-Pocock <- gsDesign(k = 4, test.type = 2, sfu = "")
+Pocock <- gsDesign(k = 4, test.type = 2, sfu = "Pocock")
+Pocock
+2*(1-pnorm(Pocock$upper$bound))
+
+
+# Repeat for the O'Brein & Fleming Rule
+OF <- gsDesign(k = 4, test.type = 2, sfu = "OF")
+OF
+2 * (1 - pnorm(OF$upper$bound))
 ```
 
+## 3.7 Sample Size Adjustments for Interim Analyses
 
+A trial was originally planned to have no interim analyses. A sample size calculation estimated 500 patients were needed for 90% power at 5% siginificant level.
+
+Here we will derive the new sample size requirements if three interim analyses are planned with the potential to stop early under the Pocock and O’Brien-Fleming spending functions. 
+
+```{r}
+# Use the gsDesign function to generate the sample sizes at each stage under the Pocock rule
+Pocock.ss <- gsDesign(k = 4, test.type = 2, sfu = "Pocock", n.fix = 500, beta = 0.1)
+ceiling(Pocock.ss$n.I)
+
+# Repeat for the O'Brein-Feming rule
+OF.ss <- gsDesign(k = 4, test.type = 2, sfu = "OF", n.fix = 500, beta = 0.1)
+ceiling(OF.ss$n.I)
+```
+Under the Pcocock rule, we would need to increase the total sample size to 592 and it would be 512 if we followed the O'Brein & Fleming. 
