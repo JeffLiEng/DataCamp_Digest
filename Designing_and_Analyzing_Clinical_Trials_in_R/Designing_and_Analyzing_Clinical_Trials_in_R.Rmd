@@ -161,3 +161,49 @@ OF.ss <- gsDesign(k = 4, test.type = 2, sfu = "OF", n.fix = 500, beta = 0.1)
 ceiling(OF.ss$n.I)
 ```
 Under the Pcocock rule, we would need to increase the total sample size to 592 and it would be 512 if we followed the O'Brein & Fleming. 
+
+
+## 3.8 Sample Size for Equivalent Binary Outcomes
+
+Calculate the required sample size for an equivalence trial given the power adn delta. Also calculate the statistical power given the sample size. 
+
+```{r}
+library(TOSTER)
+
+# Find the sample size per group for expected rates of 60%, 4% delta, 90% power and 5% significance level
+powerTOSTtwo.prop(alpha = 0.05, statistical_power = 0.90, prop1 = 0.60, prop2 = 0.60, low_eqbound_prop = -0.04, high_eqbound_prop = 0.04)
+
+#Find the power if the above trial is limited to 2500 per group
+powerTOSTtwo.prop(alpha = 0.05, N=2500, prop1 = 0.60, prop2 = 0.60, low_eqbound_prop = -0.04, high_eqbound_prop = 0.04)
+
+```
+
+## 3.9 Sample size for Equivalence Continuous Outcomes
+
+Calculate various sample size for an equivalence trial with a continuous outcome. 
+
+```{r}
+# Find teh sample size for a standard deviation of 10, delta of 2, 80% power adn 5% significance level
+powerTOSTtwo.raw(alpha = 0.05, statistical_power = 0.80, sdpooled = 10, low_eqbound = -2, high_eqbound = 2)
+
+
+# Find the sample sizes based on standard deviations between 7 and 13
+stdev <- seq(7, 13, 1)
+npergp <- NULL
+
+for (i in 1:length(stdev)) {
+  npergp[i] <- ceiling(powerTOSTtwo.raw(alpha = 0.05, statistical_power = 0.80, sdpooled = stdev[i], low_eqbound = -2, high_eqbound = 2))
+}
+
+sample.sizes <- data.frame(stdev, npergp)
+
+# plot npergp again stdev
+ggplot(data = sample.sizes, aes(x = stdev, y = npergp)) +
+  geom_line() + 
+  geom_point() +
+  labs(title = "Equivalence Sample Size Scenarios", x = "Standard Deviation", y = "Patients per Group")
+
+
+
+```
+

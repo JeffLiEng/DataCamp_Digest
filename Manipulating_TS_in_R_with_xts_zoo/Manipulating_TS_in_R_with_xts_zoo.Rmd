@@ -443,11 +443,47 @@ diff(AirPass, lag = 12, differences = 1)
 ```
 
 
-
-
 # 4. Apply and aggregate by time
 
 "Now the fun begins! A very common usage pattern for time series is to calculate values for disjoint periods of time or aggregate values from a higher frequency to a lower frequency. For most series, you'll often want to see the weekly mean of a price or measurement. You may even find yourself looking at data that has different frequencies and you need to normalize to the lowest frequency. This chapter is where it all happens. Hang tight, and lets get going!"
+
+## 4.1 Find interval by time in xts
+
+```{r, eval=FALSE}
+# Locate the weeks
+endpoints(temps, on = "weeks")
+
+# Locate every two weeks
+endpoints(temps, on = "weeks", k = 2)
+```
+
+Locating endpoints can help speed teh process of aggregating time series data. 
+
+## 4.2 Apply a function by time periods
+
+Apply a function to the values between endpoints. 
+
+```{r, eval=FALSE}
+# Calculate the weekly endpoints
+ep <- endpoints(temps, on = "weeks")
+
+# Now calculate the weekly mean and display the results
+period.apply(temps[, "Temp.Mean"], INDEX = ep, FUN = mean)
+```
+
+## 4.3 Using lapply() and split to apply functions on intervals
+```{r, eval=FALSE}
+# Split temps by week
+temps_weekly <- split(temps, f = "weeks")
+
+# Create a list of weekly means, temps_avg, and print this list
+temps_avg <- lapply(X = temps_weekly, FUN = mean)
+temps_avg
+```
+
+
+
+
 
 
 # 5. Extra Features of xts
