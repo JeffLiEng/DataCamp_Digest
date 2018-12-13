@@ -1,0 +1,123 @@
+---
+title: "Importing and Managing Financial Data in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+**Course Description**
+
+"If you've ever done anything with financial or economic time series, you know the data come in various shapes, sizes, and periodicities. Getting the data into R can be stressful and time-consuming, especially when you need to merge data from several different sources into one data set. This course will cover importing data from local files as well as from internet sources."
+
+
+Ref: Ulrich, Joshua. "Importing and Managing Financial Data in R". https://www.datacamp.com/courses/importing-and-managing-financial-data-in-r. 2018. 
+
+Note: Some course materials have been revised for internal training by Jeff Li. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) I like to have the package of "tidyverse"
+library(tidyverse)
+library(quantmod)
+```
+
+
+# 1. Introduction and downloading data
+
+A wealth of financial and economic data are available online. Learn how getSymbols() and Quandl() make it easy to access data from a variety of sources.
+
+What is getSymbols()? 
+
+* Provides access to multiple data sources
+
+* Return xts object by default
+
+* Return data like an ordinary function or create an object like load() does in base R
+
+```{r}
+# getSymbols() example
+aapl <- getSymbols(Symbols = "AAPL", src = "yahoo", auto.assign = FALSE)
+head(aapl)
+
+getSymbols(Symbols = "AAPL", src = "yahoo", auto.assign = TRUE)
+head(AAPL)
+```
+
+## 1.1 Introducing getSymbols()
+
+The getSymbols() function from the quantmod package provides a consistent interface to import data from various sources into your workspace. By default, getSymbols() imports the data as a xts object.
+
+import QQQ data from Yahoo! Finance. QQQ is an exchange-traded fund that tracks the Nasdaq 100 index, and Yahoo! Finance is the default data source for getSymbols().
+
+```{r}
+# Load the quantmod package
+library(quantmod)
+
+# Import QQQ data from Yahoo! Finance
+getSymbols("QQQ", auto.assign = TRUE)
+
+# Look at the structure of the object getSymbols created
+str(QQQ)
+
+# Look at the first few rows of QQQ
+head(QQQ)
+
+# plot 
+plot(QQQ)
+```
+
+## 1.2 Data Sources
+
+Import data from __Alpha Vantage__ and __FRED__. __Alpha Vantage__ is a source similar to Yahoo! Finance. __FRED__ is an online database of economic time series data created and maintained by the Federal Reserve Bank of St. Louis.
+
+```{r}
+# Import QQQ data from Alpha Vantage
+getSymbols(Symbols = "QQQ", src = "av", auto.assign = TRUE, api.key = Sys.getenv("av_API"))
+head(QQQ)
+
+# Look at the structure of QQQ
+str(QQQ)
+
+# Plot QQQ
+plot(QQQ)
+
+# Import GDP data from FRED
+getSymbols(Symbols = "GDP", src = "FRED", auto.assign = TRUE)
+
+# Look at the structure of GDP
+str(GDP)
+
+# look at the  head of GDP
+head(GDP)
+
+# Plot GDP
+plot(GDP)
+```
+
+## 1.3 Make *getSymbols() return the data it retrieves
+```{r}
+# Assign SPY data to *spy* using auto.assign argument
+spy <- getSymbols("SPY", auto.assign = FALSE)
+
+# Look at the structure of the `spy` object
+str(spy)
+
+plot(spy)
+
+# Assign JNJ data to *jnj* using env argument
+jnj <- getSymbols("JNJ", env = NULL)
+
+# Look at the structure of the jnj
+str(jnj)
+
+plot(jnj)
+```
+
+Turning off auto.assign is useful if we want to assign the data to an object ourselves.
