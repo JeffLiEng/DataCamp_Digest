@@ -26,6 +26,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # (b) I like to have the package of "tidyverse"
 library(tidyverse)
 library(quantmod)
+library(Quandl)
 ```
 
 
@@ -121,3 +122,118 @@ plot(jnj)
 ```
 
 Turning off auto.assign is useful if we want to assign the data to an object ourselves.
+
+
+## 1.4 Quandl() vs getSymbols()
+
+Defaulst: 
+
+* getSymbols() returns *xts*
+
+* Quandl() returns *data.frame*
+
+
+```{r}
+# Return xts object
+dgs10 <- Quandl::Quandl(code = "FRED/DGS10", type = "xts")
+head(dgs10)
+
+# set Quandl API key
+Quandl.api_key(Sys.getenv("quandl_api_key"))
+
+# Import GDP data from FRED
+gdp <- Quandl(code = "FRED/GDP")
+
+# Look at the structure of the object returned by Quandl
+str(gdp)
+
+plot(gdp)
+
+# 
+quandldata <- quandl.api(path = "datasets/NSE/OIL", http = "GET")
+
+str(quandldata)
+```
+
+## 1.5 Return data type
+```{r}
+# Import GDP data from FRED as xts
+gdp_xts <- Quandl(code = "FRED/GDP", type = "xts")
+
+# Look at the structure of gdp_xts
+str(gdp_xts)
+
+# Import GDP data from FRED as zoo
+gdp_zoo <- Quandl(code = "FRED/GDP", type = "zoo")
+
+# Look at the structure of gdp_zoo
+str(gdp_zoo)
+
+head(gdp_zoo)
+```
+
+
+## 1.6 Find Stock Ticker From Yahoo Finance
+
+Search Yahoo Finance for the ticker symbol for Pfizer stock. *getSymbols()* will error if the data are not available for download. 
+
+```{r}
+# Create an object containing the Pfizer ticker symbol
+symbol <- "PFE"
+
+# Use getSymbols to import the data
+getSymbols(Symbols = symbol, src = "yahoo", auto.assign = TRUE)
+
+# Look at the first few rows of data
+head(PFE)
+```
+
+## 1.7 Download exchange rate data from Oanda
+
+Oanda.com provides 180 days of historical data. 
+
+```{r}
+# see the list of currencies provided by Oanda.com
+currencies <- quantmod::oanda.currencies
+
+# Create a currecy_pair object
+currency_pair <- "GBP/CAD" # The British Pound and the Canadian Dollar
+
+# Load British Pound to Canadian Dollar exchange rate data
+getSymbols(currency_pair, src = "oanda", auto.assign = TRUE)
+
+# Examine object using str()
+str(GBPCAD)
+plot(GBPCAD)
+
+# USD to RMB
+getSymbols("USD/CNY", src = "oanda", auto.assign = TRUE)
+plot(USDCNY)
+
+# Try to load data from 190 days ago
+getSymbols("USD/CNY", from = Sys.Date() - 180, to = Sys.Date(), src = "oanda", auto.assign = TRUE)
+```
+
+## 1.8 Find and import Unemployment Rate data from FRED
+
+```{r}
+# Create a series_name object 
+series_name <- "UNRATE" # United States civilian umemployment rate
+
+# Load the data using getSymbols
+getSymbols(series_name, src = "FRED", auto.assign = TRUE)
+plot(UNRATE)
+
+
+# Creae a quandl_code object
+quandl_code <- "FRED/UNRATE"
+
+# Load the data using Quandl
+unemploy_rate <- Quandl(quandl_code, type = "xts")
+
+head(unemploy_rate)
+tail(unemploy_rate)
+
+```
+
+**FRED** contains a huge number of economic data series. 
