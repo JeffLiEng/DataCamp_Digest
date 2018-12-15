@@ -166,7 +166,7 @@ A great deal of applied mathematics and statistics, as well as data science, end
 
 $$A*\bar{X} = \bar{b}$$
 
-In this chapter, we will work with a matrix-vector model for team strength in the Women's Nation Basketball Association (WNBA) at the conclusion of the 2017 season. These team strengths cab be used to predict who willwin a match between any two teams. 
+In this chapter, we will work with a matrix-vector model for team strength in the Women's Nation Basketball Association (WNBA) at the conclusion of the 2017 season. These team strengths cab be used to predict who will win a match between any two teams. 
 
 The WNBA has 12 teams, so Messey Matrix M will be 12 x 12. 
 
@@ -306,5 +306,205 @@ A %*% Lambda$vectors[, 2] - Lambda$values[2] * Lambda$vectors[, 2]
 
 # 4.  Principal Component Analysis
 
-"Big Data" is ubiquitous in data science and its applications. However, redundancy in these datasets can be problematic. In this chapter, we learn about pricipal component analysis and how it can be used in dimension reduction. 
+"Big Data" is ubiquitous in data science and its applications. However, redundancy in these datasets can be problematic. In this chapter, we learn about principal component analysis and how it can be used in dimension reduction. 
 
+
+One of the importance things that principal component analysis can do is shrink redundancy in your dataset. In its simplest manifestation, redundancy occurs when two variables are correlated. 
+
+Principal Component Analysis: 
+
+* One of the more-useful method from applied linear algebra
+
+* Non-parametric way of extracting meaningful information from confusing data sets
+
+* Uncover hidden, low-dimensional structures that underlie your data
+
+* These structure are more-easily visualized and are often interpretable to content experts
+
+**Theory**
+
+$$\mathbf{A} = \left[\begin{array}
+{rrr}
+1 & 2 \\
+2 & 4 \\
+3 & 6 \\
+4 & 8 \\
+5 & 10 \\
+\end{array}\right]
+$$
+
+The matrix $A^T$, the *transpose* of A, is the matrix made by interchanging the rows and columns of A. 
+
+If your data set is in a matrix A, and the mean of each column has been subtracted for each element in a given column, then the *i*, $j^{th}$ element of the matrix
+
+$$\frac{A^T*A}{n-1}$$
+
+where *n* is the number of rows of A, is the *co-variance* between the variables in the $i^th$ and $j^th$ column of the data in the matrix. 
+
+Hence, the $i^th$ element of the diagonal of $\frac{A^T*A}{n-1}$ is the *variance* of the ith column of the matrix. 
+
+```{r}
+# create a matrix A
+A <- matrix(c(1, 2, 3, 4, 5, 2, 4, 6, 8, 10), ncol = 2)
+A
+
+# subtract the mean
+A[ ,1] <- A[, 1] - mean(A[, 1])
+A[, 2] <- A[ ,2] - mean(A[, 2])
+
+A
+
+# Calculate covariance
+t(A) %*% A /(nrow(A) - 1)
+
+cov(A[, 1] , A[, 2])
+var(A[, 1])
+var(A[, 2])
+
+```
+
+
+**PCA**
+
+* The eigenvalues $\lambda_1, \lambda_2, ..., \lambda_n$ of $\frac{A^T*A}{n-1}$ are real, and their corresponding eigenvectors are *orthogonal*, or point in distinct directions. 
+
+* The *total variance* of the data set is the sum of the eigenvalues of $\frac{A^T*A}{n-1}$. 
+
+* These eigenvectors $v_1, v_2, ..., v_n$ are called the *principal components* of the data set in the matrix *A*. 
+
+* The direction that $v_j$ points in can explain $\lambda_j$ of the total variance in the data set. If $\lambda_j$ or a subset of $\lambda_1, \lambda_2, ..., \lambda_n$ explain a significant amount of the total variance, there is an opportunity for dimension reduction. 
+
+```{r}
+# variance-covariance matrix 
+var_covar_matrix <- t(A) %*% A/(nrow(A) - 1)
+var_covar_matrix
+
+# eigen values and vectors
+eigen(var_covar_matrix)
+```
+
+
+## 4.1.1  PCA - NFL Player dataset  
+
+```{r}
+# Read the data set
+combine <- read_csv("data/NFL_Player_dataset.csv")
+head(combine)
+```
+
+### 4.1 Redundant Variables 
+```{r}
+head(select(combine, height:shuttle))
+
+# plot: forty vs shuttle
+ggplot(data = combine, aes(x = shuttle, y = forty)) + 
+  geom_point(alpha = 0.7) + 
+  geom_smooth(method = "lm")
+
+# Find the correlation between variables forty and three_cone
+cor(combine$forty, combine$three_cone)
+
+# Find the correlation between variables vertical adn broad_jump
+cor(combine$vertical, combine$broad_jump)
+
+```
+
+### 4.1.2 calculate variance-covarince matrix and its structure
+```{r pca}
+# Extract numerical elements 
+A <- combine[, 5:12]
+
+# Make A into a matrix
+A <- as.matrix(A)
+
+# subtract the mean of all columns
+
+A <- apply(A, 2, function(x) x - mean(x))
+
+colMeans(A) # all means = 0 now
+
+# Variance-covariance calculations
+
+# create matrix B of variance-covariance
+B <- t(A) %*% A /(nrow(A) - 1)
+B
+
+# compare 1st element of B to 1st column of variance of A
+B[1, 1]
+var(A[,1])
+
+# Compare 1st element of 2nd column and row element of B to 1st and 2nd columns of A 
+B[1, 2]
+B[2, 1]
+
+var(A[, 1], A[, 2])
+```
+
+We need to understand the structure of the variance-covariance matrix of a dataset. 
+
+### 4.1.3 Eigenanalyses of combine data
+
+Evaluate the potential to reduce the dimension of the data
+
+```{r}
+# find eigenvalues of B
+V <- eigen(B)
+
+# Print eigenvalues
+round(V$values, digits = 4)
+
+# head of eigenvector
+round(head(V$vectors), digits = 4)
+
+# Estimate the variablity in the dataset can be explained by the first principal component
+V$values[1]/sum(V$values) * 100
+```
+
+## 4.2 PCA is easy in R
+### 4.2.1 Scaling Data Before PCA
+
+When dealing with data that have features with different scales, it is often important to scale the data first. This is because data that larger values may sway the data even with relatively little variability. 
+
+```{r}
+# Scale columns 5-12 of combmine
+B <- scale(combine[, 5:12])
+
+# Print the first few rows of the data
+head(B)
+
+# Summarize the principle component analysis
+pr_comp <- prcomp(B)
+summary(prcomp(B))
+
+# add pc1 and pc2 to data set
+
+combine_with_pc1pc2 <- cbind(combine, pr_comp$x[, 1:2])
+
+head(combine_with_pc1pc2)
+
+# plot pc1 and pc2
+ggplot(combine_with_pc1pc2, aes(x = PC1, y = PC2, color = position)) +
+  geom_point(alpha = 0.6)
+```
+
+### 4.2.2 Summarizing PCA in R
+
+As shown in the above figure, the categorical variable (position) seems to identify itself with clusters in the first two principle components. 
+
+Perform the same analysis as in the previous exercise, but only use the subset of the data where position equals "WR". 
+
+```{r}
+# Subset combine only to "WR"
+combine_WR <- subset(combine, position == "WR")
+
+# scale columns 5-12 of combine_WR
+B <- scale(combine_WR[, 5:12])
+
+# Print the first few rows of the data
+head(B)
+
+# summarize the principal component analysis 
+summary(prcomp(B))
+```
+
+It takes the first three principal components of the wide receiver subset of data to explain the same amount of variability as the first component in the larger dataset. Once a major variable is removed, there's a lot more structure to the data's principal components! 
