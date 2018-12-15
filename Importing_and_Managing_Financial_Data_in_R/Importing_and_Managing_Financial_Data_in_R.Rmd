@@ -186,6 +186,13 @@ getSymbols(Symbols = symbol, src = "yahoo", auto.assign = TRUE)
 
 # Look at the first few rows of data
 head(PFE)
+
+# Aemetis, Inc. (AMTX) 
+getSymbols(Symbols = "AMTX", src = "yahoo", auto.assign = TRUE)
+
+plot(AMTX$AMTX.Adjusted)
+head(AMTX["201811/201812"])
+tail(AMTX)
 ```
 
 ## 1.7 Download exchange rate data from Oanda
