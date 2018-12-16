@@ -1,0 +1,477 @@
+---
+title: "Building Web Applications in R with Shiny: Case Studies"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+__Course Description__
+
+"After learning the basics of using Shiny to build web applications, this course will take you to the next level by putting your newly acquired skills into use. You'll get experience developing fun and realistic Shiny apps for different common use cases, such as using Shiny to explore a dataset, to generate a customized plot, and even to create a word cloud. With all this practice and new knowledge, you should be inspired and well-equipped to develop Shiny apps for your own use!"
+
+
+Reference: Attali, Dean, "Building Web Applications in R with Shiny: Case Studies", www.datacamp.com. 2018. 
+
+Note: Some course materials have been modified to run locally and train students by Jeff Li. 
+
+
+# (I) Load required libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(shiny)
+```
+
+
+# 1. Shiny Review 
+
+In the first chapter, you'll review the essentials of Shiny development. You'll get re-introduced to the basic structure of a Shiny application, as well as some core Shiny concepts such as inputs, outputs, and reactivity. Completing this chapter will help refresh your Shiny knowledge and ensure you have the required skills to develop Shiny apps for real-life scenarios.
+
+
+The following example is from "https://bookdown.org/yihui/rmarkdown/shiny-embedded.html" to show how to embed a standalone Shiny application within a document. There are two ways to do this: 
+
+* Defining the application inline using the shinyApp() function; 
+
+* Referring to an external application directory using the shinyAppDir() function. 
+
+```{r,echo=FALSE}
+# Embed a standalone Shiny application with this RMarkdown document: defining the application inline using the shinyApp() function. 
+
+shinyApp(
+  
+  ui = fluidPage(
+    selectInput("region", "Region:", 
+                choices = colnames(WorldPhones)),
+    plotOutput("phonePlot")
+  ), 
+  
+  server = function(input, output) {
+    output$phonePlot = renderPlot({
+      barplot(WorldPhones[, input$region] * 1000, 
+              ylab = "Number of Telephones", xlab = "Year")
+    })
+  }, 
+  
+  options = list(height = 500)
+  
+)
+
+```
+
+## 1.1 Simple text
+
+Every Shiny app has a UI (user interface) portion and a server portion. The UI is where the visual elements are placed - it controls the layout and appearance of your app. The server is where the logic of the app is implemented - for example, where calculations are performed and plots are generated. 
+
+```{r, echo=FALSE}
+
+# Define UI for application
+ui <- fluidPage(
+  # add plain text to a Shiny app
+  "Shiny is fun!"
+)
+
+# Define the server logic
+server <- function(input, output) {}
+
+# Run the application 
+
+shinyApp(ui = ui, server = server)
+
+```
+
+## 1.2 Format text
+
+h1(), h2(), strong(), em(),...
+
+```{r, echo=FALSE}
+# Load the shiny package
+library(shiny)
+
+# define UI for the applicaiton
+ui <- fluidPage(
+  # "DataCamp" as a primary header
+  h1("DataCamp"), 
+  
+  # "Shiny use cases course" as a secondary header
+  h2("Shiny use case course"),
+  
+  # "Shiny" in italics
+  em("Shiny"), 
+  
+  # "is fun" as bold text
+  strong("is fun!")
+  
+)
+
+# Define the server logic
+server <- function(input, output) {}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+## 1.3 Adding structure to your app
+
+Layout in Shiny are used to give your app some structure by placing elements in certain desired positions. 
+
+A *sidebar layout*, created with the *sidebarLayout()* function, provides a basic two-column structure with a smaller sidebar on the left and a larger main panel on the right. It has two arguments: *sidebarPanel()* and *mainPanel()*. 
+
+
+```{r, echo=FALSE}
+# Define UI for the application
+ui <- fluidPage(
+  # Add a sidebar layout to the application
+  sidebarLayout(
+    # Add a sidebar panel around thetext and inputs
+    sidebarPanel(
+      h4("Plot parameters"), 
+      textInput(inputId = "title", label = "Plot title", value = "Car speed vs distance to stop"), 
+      numericInput(inputId = "num", label = "Number of cars to show", value = 30, min = 1, max = nrow(cars)), 
+      sliderInput(inputId = "size", label = "Point size", min = 1, max = 5, value = 2, step = 0.5)
+      ), 
+    
+    # Add a main panel around the plot and table
+    mainPanel(
+      plotOutput(outputId = "plot"), 
+      tableOutput(outputId = "table")
+      )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  output$plot <- renderPlot({
+    plot(cars[1:input$num, ], main = input$title, cex = input$size)
+  })
+  
+  output$table <- renderTable({
+    cars[1:input$num, ]
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+```
+
+Using sidebar layouts is a great way to add a little structure to any Shiny app you build. 
+
+
+## 1.4 Adding inputs
+
+Inputs are Shiny's way to allow users to interact with an app. 
+
+```{r, echo=FALSE}
+# Define UI for the applicaiton
+ui <- fluidPage(
+  # Creat a numerica input iwth ID "age" and label of "how old are you?"
+  numericInput(inputId = "age", label = "How old are you?", value = 20), 
+  
+  # Create a text input with Id "name" and label of "what is your name
+  textInput(inputId = "name", label = "What is your name?")
+)
+
+# Define the derver logic
+server <- function(input, output) {}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+After Creating inputs, we need to add outputs to the UI. 
+
+## 1.5 Adding placeholders for outputs
+
+Outputs are any object that should be displayed to the user and is generated in R, such as a plot or a table.  First, we need to tell Shiny where to place the output. 
+
+Several common placeholders: 
+
+* plotOutput() 
+
+* tableOutput()
+
+* textOutput()
+
+```{r, echo=FALSE}
+# Define UI for the applicaiton
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Create a text input iwth an ID of "name"
+      textInput(inputId = "name", label = "What is your name?", value = "Jeff"), 
+      numericInput(inputId = "num", label = "Number of flowers to show data for", value = 10, min = 1, max = nrow(iris))
+    ), 
+    
+    mainPanel(
+      # Add a placeholder for a text output with ID "greeting"
+      textOutput(outputId = "greeting"), 
+      # Add a placehoder for a plot with ID "cars_plot"
+      plotOutput(outputId = "cars_plot"), 
+      # Add a placeholder for a table with ID "iris_table"
+      tableOutput(outputId = "iris_table")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {}   # left empty for now. listening to changes in the inputs and rendering outputs
+
+# Rund the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+## 1.6 Constructing output objects
+
+Three rules to build an output in Shiny: 
+
+* Build the object with the appropriate *render..()* functions
+
+* Save the result of the render function into the *output* list. Specifically, output$<outputID>  - the output placeholder in the UI that has ID outputID
+
+* If the output relies on any user-modified input values, access using the *input*, input$<inputId>. 
+
+```{r, echo=FALSE}
+# Define UI for the applicaiton
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Create a text input iwth an ID of "name"
+      textInput(inputId = "name", label = "What is your name?", value = "Jeff"), 
+      numericInput(inputId = "num", label = "Number of flowers to show data for", value = 10, min = 1, max = nrow(iris))
+    ), 
+    
+    mainPanel(
+      # Add a placeholder for a text output with ID "greeting"
+      textOutput(outputId = "greeting"), 
+      # Add a placehoder for a plot with ID "cars_plot"
+      plotOutput(outputId = "cars_plot"), 
+      # Add a placeholder for a table with ID "iris_table"
+      tableOutput(outputId = "iris_table")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  # Create a plot of the "cars" dataset
+  output$cars_plot <- renderPlot({
+    plot(cars)
+  })
+  
+  # Render a text greeting as "Hello <name>"
+  output$greeting <- renderText({
+    str_c("Hello", " ", input$name, "!" )
+  })
+  
+  # Show a table of the first n rows of the "iris" data
+  output$iris_table <- renderTable({
+    data <- iris[1:input$num, ]
+    data
+  })
+}   
+
+
+# Rund the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+## 1.7 Reactivity: Simple Reactive Variable and composed reactive variable
+
+In Shiny, all inputs are reactive variables. We can also create new reactive variables with *reactive()* function. 
+
+If there are multiple reactive values, then modifying any of them will cause a re-evaluation. 
+
+
+## 1.8 Reactive Contexts
+
+Reactive values can only be accessed within a **reactive context**. 
+
+Reactive context: 
+
+* reactive()
+
+* observe()
+
+* rend*() functions
+
+```{r, echo= FALSE}
+
+# Define ui and server
+ui <- fluidPage(
+  numericInput(inputId = "num1", label = "Number 1", value = 5), 
+  numericInput(inputId = "num2", label = "Number 2", value = 10), 
+  textOutput(outputId = "result")
+)
+
+server <- function(input, output) {
+  # Calculate the sum of the inputs
+  sum <- reactive({
+    input$num1 + input$num2
+  })
+  
+  # Calculate the average of the inputs
+  average <- reactive({
+    sum()/2
+  })
+  
+  output$result <- renderText({
+    paste(
+      # Print the calculated sum 
+      "The sum is", sum(), 
+      # Print the calculated average
+      "and the average is", average()
+    )
+  })
+}
+
+
+# run Shiny app
+shinyApp(ui = ui, server = server)
+
+```
+
+Reactive variables are key parts to develop Shiny applications efficiently. 
+
+
+# 2. Make the perfect plot using Shiny
+
+Lean how to create a Shiny app to make a customizable plot
+
+## 2.1 Explore the Gapminder data
+```{r}
+library(gapminder)
+
+head(gapminder)
+
+# the lowest life expectancy recored in this dataset? 
+min(gapminder$lifeExp)
+
+```
+
+## 2.2 More exploration of the Gapminder data
+
+```{r, echo=TRUE}
+# Load the gapminder package
+library(gapminder)
+
+# Define UI for the application
+ui <- fluidPage(
+  "The population of France in 1972 was", 
+  textOutput(outputId = "answer")
+)
+
+# Denfine the server function 
+
+server <- function(input, output) {
+  output$answer <- renderText({
+    
+    gapminder %>%
+      filter(country == "France" & year == 1972) %>%
+      pull(pop)
+      
+  }
+  )
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+```
+
+
+## 2.3 Add a plot title: text input, numeric input
+
+In Shiny, as soon as the user changes the value of any input, Shiny makes the current value of that input immediately available to you in the server through the *input* argument of the server function. You can retrieve the value any input using *input$<inputID>*. 
+
+```{r}
+# Load the ggplot2 package for plotting
+library(ggplot2)
+
+# Define UI for the application
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Add a title text input
+      textInput(inputId = "title", label = "Title", value = "GDP vs life exp"), 
+      # Add a size numeric input
+      numericInput(inputId = "size", label = "Point size", value = 1, min = 1, max = 5)
+    ), 
+    
+    mainPanel(
+      plotOutput(outputId = "plot")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  output$plot <- renderPlot({
+    ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+      # Use the size input as the plot point size
+      geom_point(size = input$size) + 
+      scale_x_log10() + 
+      # Use the input value as the plot's title
+      ggtitle(input$title)
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+## 2.4 Fit a smooth curve: checkbox input
+
+```{r}
+# Load the ggplot2 package for plotting
+library(ggplot2)
+
+# Define UI for the application
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Add a title text input
+      textInput(inputId = "title", label = "Title", value = "GDP vs life exp"), 
+      # Add a size numeric input
+      numericInput(inputId = "size", label = "Point size", value = 1, min = 1, max = 5), 
+      # Add a checkbox for line of best fit
+      checkboxInput(inputId = "fit", label = "Add line of best fit", value = FALSE)
+    ), 
+    
+    mainPanel(
+      plotOutput(outputId = "plot")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  output$plot <- renderPlot({
+    p <- ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+      # Use the size input as the plot point size
+      geom_point(size = input$size) + 
+      scale_x_log10() + 
+      # Use the input value as the plot's title
+      ggtitle(input$title)
+    
+    # When the "fit" checkbox is checked, add a line of best fit
+    if(input$fit) {
+      p <- p + geom_smooth(method = "lm")
+    }
+    
+    p
+    
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
