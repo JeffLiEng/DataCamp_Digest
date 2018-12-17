@@ -414,12 +414,14 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   output$plot <- renderPlot({
-    ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+    p <- ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
       # Use the size input as the plot point size
       geom_point(size = input$size) + 
       scale_x_log10() + 
       # Use the input value as the plot's title
       ggtitle(input$title)
+    
+    p 
     })
 }
 
@@ -427,7 +429,15 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 ```
 
-## 2.4 Fit a smooth curve: checkbox input
+## 2.4 Fit a smooth curve: checkbox input 
+
+Also add: 
+
+* radio buttons -  present several options and let user to choice one
+
+* select input - "dropdown lists", let user to choose from a list of choices, even allows the user to select more than one value
+
+* slider input - is similar to numeric inputs, as they both provide the user with a way to select a number
 
 ```{r}
 # Load the ggplot2 package for plotting
@@ -442,7 +452,13 @@ ui <- fluidPage(
       # Add a size numeric input
       numericInput(inputId = "size", label = "Point size", value = 1, min = 1, max = 5), 
       # Add a checkbox for line of best fit
-      checkboxInput(inputId = "fit", label = "Add line of best fit", value = FALSE)
+      checkboxInput(inputId = "fit", label = "Add line of best fit", value = FALSE), 
+      # Add radio buttons for color
+      radioButtons(inputId = "colour", label = "Point colour", choices = c("blue", "red", "green", "black"), selected = "green"), 
+      # Add a continenet dropdown selector
+      selectInput(inputId = "continents", label = "Continents", choices = levels(gapminder$continent), multiple = TRUE, selected = "Asia"), 
+      # Add a slider selector for years to filter
+      sliderInput(inputId = "years", label = "Years", value = c(1977, 2002), min = min(gapminder$year), max = max(gapminder$year))
     ), 
     
     mainPanel(
@@ -454,9 +470,12 @@ ui <- fluidPage(
 # Define the server logic
 server <- function(input, output) {
   output$plot <- renderPlot({
-    p <- ggplot(gapminder, aes(x = gdpPercap, y = lifeExp)) +
+    p <- gapminder %>%
+      # subset the data by the chosen continents and years 
+      filter(continent %in% input$continents & between(year, input$years[1], input$years[2])) %>%
+      ggplot(aes(x = gdpPercap, y = lifeExp)) +
       # Use the size input as the plot point size
-      geom_point(size = input$size) + 
+      geom_point(size = input$size, col = input$colour) + 
       scale_x_log10() + 
       # Use the input value as the plot's title
       ggtitle(input$title)
@@ -472,6 +491,201 @@ server <- function(input, output) {
 }
 
 # Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+## 2.5 Add colours to your plot: color input; size of plot
+
+* The *colourInput()* function in the *colourpicker* package privies a colour input. 
+
+* the plotOutput() has some parameters that can be used to modify the height or width of a plot.
+
+```{r}
+# Load the colourpicker package
+library(colourpicker)
+
+# Load the ggplot2 package for plotting
+library(ggplot2)
+
+# Define UI for the application
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Add a title text input
+      textInput(inputId = "title", label = "Title", value = "GDP vs life exp"), 
+      # Add a size numeric input
+      numericInput(inputId = "size", label = "Point size", value = 1, min = 1, max = 5), 
+      # Add a checkbox for line of best fit
+      checkboxInput(inputId = "fit", label = "Add line of best fit", value = FALSE), 
+      # Add a colour input - which gives the user a lot more choice in selecting colours
+      colourInput(inputId = "colour", label = "Point colour", 
+                  value = "blue"), 
+      # Add a continenet dropdown selector
+      selectInput(inputId = "continents", label = "Continents", 
+                  choices = levels(gapminder$continent), 
+                  multiple = TRUE, 
+                  selected = "Asia"), 
+      # Add a slider selector for years to filter
+      sliderInput(inputId = "years", label = "Years", 
+                  value = c(1977, 2002), 
+                  min = min(gapminder$year), 
+                  max = max(gapminder$year))
+    ), 
+    
+    mainPanel(
+      # Make the plot 600 pixels wide and 600 pixels tall 
+      plotOutput(outputId = "plot", width = 600, height = 600)
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  output$plot <- renderPlot({
+    p <- gapminder %>%
+      # subset the data by the chosen continents and years 
+      filter(continent %in% input$continents & between(year, input$years[1], input$years[2])) %>%
+      ggplot(aes(x = gdpPercap, y = lifeExp)) +
+      # Use the size input as the plot point size
+      geom_point(size = input$size, col = input$colour) + 
+      scale_x_log10() + 
+      # Use the input value as the plot's title
+      ggtitle(input$title)
+    
+    # When the "fit" checkbox is checked, add a line of best fit
+    if(input$fit) {
+      p <- p + geom_smooth(method = "lm")
+    }
+    
+    p
+    
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+## 2.6 Make teh plot interactive
+
+The function of *ggplotly()* in the **plotly** package can convert a *ggplot2* plot into an interactive one. 
+
+```{r}
+# Load the colourpicker package
+library(colourpicker)
+
+# Load the ggplot2 package for plotting
+library(ggplot2)
+
+# Load the plotly package
+library(plotly)
+
+# Define UI for the application
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      # Add a title text input
+      textInput(inputId = "title", label = "Title", value = "GDP vs life exp"), 
+      # Add a size numeric input
+      numericInput(inputId = "size", label = "Point size", value = 1, min = 1, max = 5), 
+      # Add a checkbox for line of best fit
+      checkboxInput(inputId = "fit", label = "Add line of best fit", value = FALSE), 
+      # Add a colour input - which gives the user a lot more choice in selecting colours
+      colourInput(inputId = "colour", label = "Point colour", 
+                  value = "blue"), 
+      # Add a continenet dropdown selector
+      selectInput(inputId = "continents", label = "Continents", 
+                  choices = levels(gapminder$continent), 
+                  multiple = TRUE, 
+                  selected = "Asia"), 
+      # Add a slider selector for years to filter
+      sliderInput(inputId = "years", label = "Years", 
+                  value = c(1977, 2002), 
+                  min = min(gapminder$year), 
+                  max = max(gapminder$year))
+    ), 
+    
+    mainPanel(
+      # use the plotlyOutput() 
+      plotlyOutput(outputId = "plot")
+    )
+  )
+)
+
+# Define the server logic
+server <- function(input, output) {
+  # Replace the 'renderPlot()' to "rederPlotly()" 
+  output$plot <- renderPlotly({
+   # convert the ggplot to a plotly plot
+    ggplotly({
+      
+      p <- gapminder %>%
+      # subset the data by the chosen continents and years 
+      filter(continent %in% input$continents & between(year, input$years[1], input$years[2])) %>%
+      ggplot(aes(x = gdpPercap, y = lifeExp)) +
+      # Use the size input as the plot point size
+      geom_point(size = input$size, col = input$colour) + 
+      scale_x_log10() + 
+      # Use the input value as the plot's title
+      ggtitle(input$title)
+    
+    # When the "fit" checkbox is checked, add a line of best fit
+    if(input$fit) {
+      p <- p + geom_smooth(method = "lm")
+    }
+    
+    p
+    
+    }) # close of ggplotly 
+    
+    
+    })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+```
+
+
+# 3. Explore a dataset with Shiny 
+
+View the data, filter it, and download it.
+
+## 3.1 See the data in a table, filter
+
+```{r}
+# define ui
+ui <- fluidPage(
+  
+  h1("Gapminder"), 
+  
+  # Add a slider for life expectancy filter
+  sliderInput(inputId = "life",label = "Life expectancy", min = 0, max = 120, value = c(30, 50)), 
+  
+  # Add a continent selector dropdown with an "All" value 
+  selectInput(inputId = "continent", label = "Continent", choices = c("All", levels(gapminder$continent)) ), 
+  
+  # Add a placehoder for a table output
+  tableOutput(outputId = "table")
+)
+
+# define server
+server <- function(input, output) {
+  # Call the render function
+  output$table <- renderTable({
+    # Show the gapminder object in the table
+    if (input$continent == "All") {
+      gapminder %>% filter(between(lifeExp, input$life[1], input$life[2])) } else {
+          gapminder %>% 
+      filter(between(lifeExp, input$life[1], input$life[2]) & continent %in% input$continent)
+        
+      }
+  
+  })
+}
+
+# run the app
 shinyApp(ui = ui, server = server)
 ```
 
