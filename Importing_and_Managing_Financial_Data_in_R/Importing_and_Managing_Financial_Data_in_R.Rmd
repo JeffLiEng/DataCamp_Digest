@@ -215,10 +215,10 @@ plot(GBPCAD)
 
 # USD to RMB
 getSymbols("USD/CNY", src = "oanda", auto.assign = TRUE)
+tail(USDCNY)
+
 plot(USDCNY)
 
-# Try to load data from 190 days ago
-getSymbols("USD/CNY", from = Sys.Date() - 180, to = Sys.Date(), src = "oanda", auto.assign = TRUE)
 ```
 
 ## 1.8 Find and import Unemployment Rate data from FRED
@@ -244,3 +244,64 @@ tail(unemploy_rate)
 ```
 
 **FRED** contains a huge number of economic data series. 
+
+
+# 2. Extracting and transforming data
+
+You've learned how to import data from online sources, now it's time to see how to extract columns from the imported data. After you've learned how to extract columns from a single object, you will explore how to import, transform, and extract data from multiple instruments.
+
+## 2.1 Extract one column from one instrument
+
+The *quantmod* package provides several helpful functions: 
+Op(), Hi(), Lo(), Cl(), Vol(), and Ad().
+
+```{r}
+# Amyris company stock 
+getSymbols(Symbols = "AMRS", src = "yahoo", auto.assign = TRUE)
+
+plot(AMRS$AMRS.Adjusted)
+head(AMRS)
+tail(AMRS)
+
+# Extract the close column
+AMRS_close <- Cl(AMRS)
+head(AMRS_close)
+plot(AMRS_close)
+
+AMRS_volume <- Vo(AMRS)
+head(AMRS_volume)
+plot(AMRS_volume)
+```
+
+## 2.2 Extract multiple columns from one instrument
+The *quantmod* package provides: OHLC(), HLC(), OHLCV()
+
+```{r}
+# Extract the high, low, and close columns of Amyris 
+HLC(AMRS) %>% tail()
+
+# Extract open,high, low, close, and volume
+OHLCV(AMRS) %>% tail()
+```
+
+## 2.3 Use getPrice to extract other columns
+
+```{r, eval=FALSE}
+# Download CME data for CL and BZ as an xts object
+# set Quandl API key
+Quandl.api_key(Sys.getenv("quandl_api_key"))
+
+codes <- c("CME/CLH2016", "CME/BZH2016")
+
+oil_data <- Quandl(code = codes, type = "xts")
+
+# Look at the column names of the oil_data object
+colnames(oil_data)
+
+# Extract the Open price for CLH2016
+cl_open <- getPrice(oil_data, symbol = "CLH2016", prefer = "Open")
+
+# Look at January, 2016 using xts' ISO-8601 subsetting
+cl_open["2016-01"]
+```
+

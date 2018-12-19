@@ -245,3 +245,160 @@ length(dx)
 
 ```
 
+
+## 2.4 Simulate the white noise model
+The white noise (WN) model is a basic time series model. 
+
+The **arima.sim()** function can be used to simulated data from a variety of time series models. ARIMA: autoregressive integrated moving average class of model. 
+
+```{r}
+# Simulate a WN model with list(order = c(0, 0, 0))
+white_noise <- arima.sim(model = list(order= c(0,0,0)), n = 100)
+
+# Plot the white noise data
+ts.plot(white_noise)
+
+# Simulate form the WN moel with: mean = 100, sd = 10
+white_noise_2 <- arima.sim(model = list(order = c(0,0,0)), n = 100, mean = 100, sd = 10)
+
+# Plot white noise 2 data
+ts.plot(white_noise_2)
+```
+
+## 2.5 Estimate the white noise model
+The WN model is an ARIMA(0, 0, 0) model. 
+
+Fit a white noise (wN) model using the arima(..., order = c(0, 0, 0))
+
+```{r}
+# create a y
+y <- arima.sim(model = list(order = c(0,0,0)), n = 100, mean = 95, sd = 10)
+mean(y)
+var(y)
+
+# Fit the WN model to y using the arima command
+arima(y, order = c(0, 0, 0))
+
+```
+
+From the comparisons, we can see that the *arima()* function estimates are very close to the sample mean and variance estiamtes. 
+
+
+## 2.6 Simulate the random walk model
+
+The random walk(RW) model is an **ARIMA(0, 1, 0)** model, in which middle entry of 1 indicates that the model's order of integration is 1. 
+
+The *arima.sim()* function can simulate the RW by including model = list(order = c(0, 1, 0))
+
+```{r}
+# Generate a RW model using arima.sim
+random_walk <- arima.sim(model = list(order = c(0, 1, 0)), n = 100)
+
+# Plot random_walk
+ts.plot(random_walk)
+
+# Calculate the first difference series
+random_walk_diff <- diff(x = random_walk, lag = 1)
+
+# Plot random_walk_diff 
+ts.plot(random_walk_diff)
+```
+
+The first difference of the *random_walk* daa is white noise data. The random walk is simply recursive white noise data. 
+
+
+## 2.7 Simulate the random walk model with a drift
+
+A random walk (RW) can have an upward or downward trajectory. This is done by including an intercept in the RW model . 
+
+```{r}
+# Generate a RW model with a drift using arima.sim
+rw_drift <- arima.sim(model = list(order = c(0, 1, 0)), n = 100, mean = 1)
+
+# Plot 
+ts.plot(rw_drift)
+
+# Calculate the first difference series
+rw_drift_diff <- diff(rw_drift, lag = 1)
+
+# Plot rw_drift_diff
+ts.plot(rw_drift_diff)
+
+```
+
+Taking the first difference of the random walk data transformed it back into white noise data, regardless of the presence of the long-term drift. 
+
+
+## 2.8  Estimate the random walk model 
+
+For a given time series *y*, we can fit the random walk model with a drift by first difference the data, the fitting the white noise (WN) model to the differenced data using the arima() with order = c(0, 0, 0). 
+
+```{r}
+# generate a random walk time seris
+rw_drift <- arima.sim(model = list(order = c(0, 1, 0)), n = 100, mean = 1)
+
+#  Difference the random_walk data
+rw_diff <- diff(rw_drift, lag = 1)
+
+# Plot rw_diff
+ts.plot(rw_diff)
+
+# Now fit the WN model to the difference data
+model_wn <- arima(x = rw_diff, order = c(0, 0, 0))
+model_wn
+
+# Store the value of the estimated time trend (intercept)
+int_wn <- model_wn$coef
+
+# Plot the original random_walk data
+ts.plot(rw_drift)
+
+# Use abline(0, ...) to add time trend to the figure
+abline(a = 0, b = int_wn)
+
+```
+
+As shown in the figure, the arima() command correctly identified the time trend in the original random-walk data. 
+
+
+## 2.9 Stationary 
+
+Commonly departures from stationarity, including time trends, periodicity, and a lack of mean reversion. 
+
+Are the white noise model or the random walk model stationary? 
+
+The RW is always non-stationary, both with and without a drift term. 
+
+* Start with a mean zero WN process and compute its running or cumulative sum, the result is a RW process. 
+
+* Start with a mean no-zero WN process and compute its running or cumulative sum, the result is a RW process with a drift. 
+
+
+```{r}
+# Use arima.sim() to generate WN data
+white_noise <- arima.sim(model = list(order = c(0, 0, 0)), n = 100)
+
+# use cumsum() to convert the WN data to RW
+random_walk <- cumsum(white_noise)
+
+# Use arima.sim() to generate WN drift data
+wn_drift <- arima.sim(model = list(order = c(0, 0, 0)), n = 100, mean = 0.4)
+
+# Use cumsum() to convert the WN drift data to RW 
+rw_drift <- cumsum(wn_drift)
+
+# Plot all four data objects
+plot.ts(cbind(white_noise, random_walk, wn_drift, rw_drift))
+
+```
+
+
+# 3. Correlation analysis and the autocorrelation function
+
+"In this chapter, you will review the correlation coefficient, use it to compare two time series, and also apply it to compare a time series with its past, as an autocorrelation. You will discover the autocorrelation function (ACF) and practice estimating and visualizing autocorrelations for time series data."
+
+## 3.1 Asset prices vs. asset returns
+```{r}
+
+```
+
