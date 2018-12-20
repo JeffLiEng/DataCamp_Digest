@@ -399,6 +399,163 @@ plot.ts(cbind(white_noise, random_walk, wn_drift, rw_drift))
 
 ## 3.1 Asset prices vs. asset returns
 ```{r}
+# Plot eu_stocks
+plot(eu_stocks)
+
+# Convert prices to returns: ( a2 - a1)/a1 
+returns <- (eu_stocks[-1, ] - eu_stocks[-nrow(eu_stocks), ] )/eu_stocks[-nrow(eu_stocks),]
+
+
+# Convert return to ts
+returns <- ts(returns, start = c(1991, 130), frequency = 260)
+
+# Plot returns
+plot(returns)
+
+
+# Convert prices to log returns
+logreturns <- diff(log(eu_stocks))
+
+# Plot logreturns
+plot(logreturns)
 
 ```
+
+Daily net returns and daily log returns are two valuable metrics for financial data. 
+
+
+## 3.2 Characteristics of financial time series
+
+```{r}
+# Convert prices to returns: ( a2 - a1)/a1 
+returns <- (eu_stocks[-1, ] - eu_stocks[-nrow(eu_stocks), ] )/eu_stocks[-nrow(eu_stocks),] *100
+# Convert return to ts
+returns <- ts(returns, start = c(1991, 130), frequency = 260)
+
+# Generate means 
+colMeans(returns)
+
+# Calculate sample variance 
+returns %>% as.data.frame() %>%
+  gather(key = "key", value = "value", DAX:FTSE) %>%
+  group_by(key) %>%
+  summarize(mean = mean(value), 
+            var = var(value),
+            sd = sd(value))
+
+apply(returns, MARGIN = 2, FUN = var)
+
+# Calculate sample standard deviation 
+apply(returns, MARGIN = 2, FUN = sd)
+
+# Display a histogram of percent returns for each index
+par(mfrow = c(2, 2)) 
+apply(returns, MARGIN = 2, FUN = hist, main = "", xlab = "Percentage Return")
+
+# Display a histogram 
+returns %>% as.data.frame() %>%
+  gather(key = "key", value = "value", DAX:FTSE) %>% 
+  ggplot(aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~key)
+
+# Display a q-q plot 
+returns %>% as.data.frame() %>%
+  gather(key = "key", value = "value", DAX:FTSE) %>% 
+  ggplot(aes(sample = value)) +
+  stat_qq() +
+  facet_wrap(~key)
+
+```
+
+
+## 3.3 Plotting pairs of data
+```{r}
+# Make a scatterplot of Germany major stock (DAX) and UK (FTSE )
+plot(eu_stocks[ ,1], eu_stocks[, 2])
+
+
+# Make a scatterplot matrix of eu_stocks
+pairs(eu_stocks)
+
+# Convert eu_stocks to log returns
+logreturns <- diff(log(eu_stocks))
+head(logreturns)
+class(logreturns)
+
+# Make a scatterplot matrix of logreturns
+pairs(logreturns)
+
+```
+
+Pairs of data drawn from a multivariate normal distribution form a roughly elliptically shaped point cloud. 
+
+
+## 3.4 Calculating sample covariances and correlations
+
+```{r}
+# Use covariance and variance of logreturn
+cov(logreturns) 
+
+# Correlation 
+cor(logreturns)
+
+```
+
+The cor() and scatterplot matrix are intuitive outputs. 
+
+
+## 3.5 Calculating Autocorrelations
+
+Autocorrelations or lagged correlations are used to assess whether a time series is dependent on its past. 
+
+```{r}
+# Create x 
+x <- eu_stocks[, 1] 
+class(x)
+n <- length(x)
+
+# Define x_to  and x_t1
+x_t1 <- x[-1]
+x_t0 <-  x[-n]
+
+# Plot x_to and x_t1
+plot(x_to, x_t1)
+
+# correlation
+cor(x_to, x_t1)
+
+# Use acf with x
+acf(x, lag.max = 1, plot = FALSE)
+
+
+```
+
+
+## 3.7 Autocorrelation function
+
+Autocorrelations can be estimated at many lags to better assess how a time series relats to its past. 
+```{r}
+# Generate ACF estiamtes for x up ot lag -10
+acf(x, lag.max = 10, plot = FALSE)
+```
+
+## 3.8 Visulizing the autocorrelation function
+```{r}
+# x random number 
+x <- rnorm(100)
+acf(x)
+
+# 
+x <- 1:100 + rnorm(100, mean = 5, sd = 10)
+acf(x)
+```
+
+
+
+# 4. Autoregression 
+
+Learn autogressive (AR) model. Compare AR model with the random walk (RW) model. 
+
+
 
