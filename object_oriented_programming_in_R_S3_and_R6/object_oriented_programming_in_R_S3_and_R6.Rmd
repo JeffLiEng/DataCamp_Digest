@@ -1,0 +1,411 @@
+---
+title: "Object-Oriented Programming in R: S3 and R6"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+"Object-oriented programming (OOP) lets you specify relationships between functions and the objects that they can act on, helping you manage complexity in your code. This is an intermediate level course, providing an introduction to OOP, using the S3 and R6 systems. S3 is a great day-to-day R programming tool that simplifies some of the functions that you write. R6 is especially useful for industry-specific analyses, working with web APIs, and building GUIs. The course concludes with an interview with Winston Chang, creator of the R6 package.."
+
+Ref: Cotton, Richie, (2018) Introduction to Time Series Analysis, https://www.datacamp.com/courses/introduction-to-time-series-analysis, 2018.
+
+
+Note: Some course materials and data have beem revised for training by Jeff Li. 
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(pryr)
+
+```
+
+# 1. Introduction to Object-Oriented Programming 
+
+Learn what object-oriented programming (OOP) consists of, when to use it, and what OOP systems are available in R. You'll also learn how R identifies different types of variable, using classes, types, and modes.
+
+
+# 2. Using S3 
+
+S3 is a very simple object-oriented system that lets you define different behavior for functions, depending upon their input argument. This chapter explains how to use S3, and how generics and methods work.
+
+
+## 2.1 Generics and methods
+
+Function overloading: input-dependent function behavior
+
+function: generic + method. Methods are named generic.class. For example: print.Date, summary.factor, unique.array. 
+
+```{r}
+args(print)
+args(print.Date)
+print.function
+print.Date
+```
+
+
+## 2.2 What's in a Name? 
+
+S3 uses a strict naming convension: all S3 methods have a name of the form: **generic.class**. 
+
+Early days of the S language, many of the functions have a name containing a dot without being an S3 method. For example, all.equal() is actually an S3 generic, not a method. 
+
+Two methods to check if a function is an S3 generic by calling *is_s3_generic()* from the pryr package, and just print it. 
+
+Check if a function is an S3 method by calling *is_s3_method()*. 
+
+```{r}
+is_s3_generic("t")
+t
+
+is_s3_method("t")
+is_s3_method("t.matrix")
+is_s3_method("t.test")
+is_s3_generic("t.test") # early days of the S languange code. 
+
+is_s3_method("is.complex")
+is_s3_generic("is.complex")
+is.complex
+
+is_s3_method('seq.Date')
+is_s3_generic("seq")
+seq
+
+is_s3_method("is.na.data.frame")
+is_s3_generic("is.na")
+is.na
+
+is_s3_generic("sort")
+is_s3_generic("order")
+is_s3_method("order")
+```
+
+
+## 2.3 Creating a Generic Function  and an S3 metehod 
+
+To create an S3 functions, the first step is to write the generic. 
+
+```{r}
+# Create get_n_elements
+get_n_elements <- function(x, ...) {
+  UseMethod("get_n_elements")
+}
+
+# Create a data.frame method for get_n_elements
+get_n_elements.data.frame <- function(x, ...) {
+  length(unlist(x))
+}
+
+# Call the method on the sleep dataset
+get_n_elements(sleep)
+
+# Create a default method for get_n_elements
+get_n_elements.default <- function(x, ...) {
+  length(unlist(x))
+}
+
+# create  a vector
+v <- 1:10
+get_n_elements(v)
+
+# test a matrix
+mat <- matrix(1:10, nrow =2)
+get_n_elements(mat)
+
+```
+
+## 2.4 Finding available methods for an S3 generic and for a class 
+
+to find all the avialable methods for an S3 generic, call the *methods()* function
+
+```{r}
+is_s3_generic("wilcox.test")
+wilcox.test
+
+# Avialable for "wilcox.text"
+methods(generic.function = "wilcox.test")
+
+
+# available methods for a class "lm"
+methods(class = "lm")
+is_s3_method("summary.lm")
+is_s3_method(   "plot.lm")
+is_s3_method(  "anova.lm")
+
+.S3methods(class = "lm")
+.S4methods(class = "lm")
+```
+
+
+## 2.5 Method lookup for primitive generics
+
+Some core functionality of R is defined using *primitive* functions, which use a special technique for accessing C-code. 
+
+```{r}
+exp
+sin
+
+`+`
+`*`
+
+`if`
+
+`for`
+
+# list S3 primitive generics
+.S3PrimitiveGenerics
+
+methods(generic.function = "dim")
+methods(generic.function = "names<-")
+
+is_s3_generic("as.Date") # "as.Date" is not an S# primitive generics
+
+```
+
+Primitive generics don't throw an error when no method is found.  A primitive S3 generics lookup process to find methods: first using the *class* as normal, but nothing is found, the internal C-code function will be called.  
+
+```{r}
+methods(generic.function = "length")
+length
+```
+
+```{r}
+# is.na() is  a primitive generic. 
+methods(generic.function = "is.na")
+
+is.na(list(TRUE, FALSE, NA))
+```
+
+## 2.6 Too much class
+```{r}
+# define multiple classes
+x <- c(1, 3, 6, 10, 15)
+
+# set multiple classes by assigning a character vector to class(). Order from more specific to more general as moving from left to right, so we begin with the behavior most targetted to the object
+
+class(x) <- c("triangular_numbers", "natural_numbers", "numeric") # Triangular number obtained by continued summation of the natural numbers 1, 2, 3, 4, 5, etc. 
+
+# class of x
+class(x)
+
+# 
+
+is.numeric
+
+is.numeric(x)
+
+# Use inherits() to test for arbitrary classes
+inherits(x = x, what = "triangular_numbers")
+inherits(x = x, what = "natural_numbers")
+inherits(x = x, what = "numeric")
+
+# Use NextMethod() to chain method calls
+
+# define a generic function
+what_am_i <- function(x, ...) {
+  UseMethod("what_am_i")
+}
+
+# defined chain method calls
+what_am_i.triangular_numbers <- function(x, ...) {
+  message("I'am triangular numbers")
+  NextMethod("what_am_i")
+}
+
+what_am_i.natural_numbers <- function(x, ...) {
+  message("I'm natural numbers")
+  NextMethod("what_am_i")
+}
+
+what_am_i.numeric <- function(x, ...) {
+  message("I'm numeric")
+}
+
+# use the defined chain method
+what_am_i(x)
+
+```
+
+Very Classy Exercise 
+```{r}
+# define kitty
+kitty <- "Miaow!"
+
+# Assign classes
+class(kitty) <- c("cat", "mammal", "character")
+
+# Does kitty inherit from cat/mammal/character vector?
+inherits(kitty, "cat")
+inherits(x = kitty, what = "mammal")
+inherits(x = kitty, what = "character")
+
+is.character(kitty)
+
+# Does kitty inherit from dog? 
+inherits(x = kitty, what = "dog")
+```
+
+## 2.7 Writing the Next Method
+
+when objects have multiple classes, we can call methods for several of these classes using *NextMethod()*. 
+
+
+```{r}
+# Inpect the workspace
+ls.str()
+
+# cat method
+what_am_i <- function(x, ...) {
+  UseMethod("what_am_i")
+}
+
+# cat method 
+what_am_i.cat <- function(x, ...) {
+  message("I'm a cat")
+  NextMethod("what_am_i")
+}
+
+# mammal method
+what_am_i.mammal <- function(x, ...) {
+  message("I'm a mammal")
+  NextMethod("what_am_i")
+}
+
+# character method
+what_am_i.character <- function(x, ...) {
+  message("I'm a character vector")
+}
+
+# call what_am_i()
+what_am_i(kitty)
+
+```
+
+We can call multiple methods by using NextMethod(). 
+
+
+# 3. Using R6 
+
+* How to define R6 classes and create R6 objects. 
+
+* Learn the structure of R6 classes
+
+* How to seperate the user interface from the implementation details
+
+
+## 3.1 The Object Factory
+
+**class generators** are templates for objects. a.k.a factories
+
+```{r}
+# Load the R6 package ot work with R6!
+library(R6)
+
+# Define class generator with R6Class()
+thing_factory <- R6Class(classname = "Thing", 
+  # Data fields stored in private list
+  private = list(
+    a_field = "a value", 
+    another_field = 123
+  )
+)
+
+class(thing_factory)
+
+# Create objects with factory's new() method
+a_thing <- thing_factory$new()
+another_thing <- thing_factory$new()
+yet_another_thing <- thing_factory$new()
+
+class(a_thing)
+
+```
+
+
+## 3.2 Specifying the Microwave Oven Class
+
+To create R6 objects, first create a class generator, sometimes known as a factory. 
+
+```{r}
+# Define microwave_oven_factory 
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven",
+  private = list(power_rating_watts = 800))
+
+class(microwave_oven_factory)
+
+# view the microwave_oven_factory
+microwave_oven_factory
+
+# Make a new microwave oven  (a new object)
+microwave_oven <- microwave_oven_factory$new()
+
+
+```
+
+## 3.3 Hiding Complexity with encapsulation
+
+* Encapsulation = Separating  "implementation"  || "user interface "
+
+* Store data in private list
+
+* Store methods in public list
+
+* Use private$ to access private elements
+
+* Use self$ to access public elements
+
+
+```{r}
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven", 
+  private = list(
+    power_rating_watts = 800, 
+    door_is_open = FALSE
+  ), 
+  public = list(
+    open_door = function() {
+      private$door_is_open <- TRUE
+    }
+  )
+)
+```
+
+## 3.4 Leaning to Cook 
+
+```{r}
+# Add a cook method to the factory definition
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven", 
+  
+  private = list(
+    power_rating_watts = 800
+  ), 
+  
+  # User-facing functionality is added to the public element
+  public = list(
+    cook = function(time_seconds) {
+      Sys.sleep(time_seconds)
+      print("Your food is cooked!")
+    }
+  )
+)
+
+# Create microwave oven object
+a_microwave_oven <- microwave_oven_factory$new()
+a_microwave_oven
+
+# Call cook method for 1 second
+a_microwave_oven$cook(time_seconds = 1)
+```
+
