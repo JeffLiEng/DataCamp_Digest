@@ -1,0 +1,233 @@
+---
+title: "Survival Analysis/Time-to-Event in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description**
+
+
+"Do patients taking the new drug survive longer than others? How fast do people get a new job after getting unemployed? What can I do to make my friends stay on the dancefloor at my party? All these questions require the analysis of time-to-event data, for which we use special statistical methods. This course introduces basic concepts of time-to-event data analysis, also called survival analysis. Learn how to deal with time-to-event data and how to compute, visualize and interpret survivor curves as well as Weibull and Cox models." 
+
+Ref: Seibold, Heidi, 2018. "Survival Analysis in R". https://www.datacamp.com/courses/survival-analysis-in-r. 2018.
+
+Note: Some course materials have been revised for training by Jeff Li. 
+
+# (I) Setup and load required libraries 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(purrr)
+library(broom)
+library(Metrics)
+
+library(TH.data)
+library(survival)
+library(survminer)
+
+```
+
+# 1. What is Survival Analysis? 
+
+This course will cover that Time-to-event analysis (type of the event does not matter, just the fact that we are looking at the times until the event happens). 
+
+"In the first chapter, we introduce the concept of survival analysis, explain the importance of this topic, and provide a quick introduction ot the theory behind survival curves. We discuss why special methods are needed when dealing with time-to-event data and introduce the concept of censoring. We also discuss how we describe the distribution of the elapsed time until an event."
+
+
+Why survival analysis: 
+
+* Times are always *positive*
+
+* Different *measures* are of interest
+
+* *Censoring* almost always an issue
+
+
+Datasets: 
+
+* **GBSG2**: time to death of 686 breast cancer patients. data(GBSG2, package = "TH.data")
+
+* **UnempDur**: time to re-employment of 3343 unemployed people. data(UnempDur, packagee = "Ecdata")
+
+## 1.1 Introducing the GBSG2 dataset
+
+```{r}
+# Load the data
+data(GBSG2, package = "TH.data")
+class(GBSG2)
+
+# Look at the summary of the dataset
+summary(GBSG2)
+```
+
+
+
+```{r}
+# Creating Surv objects
+time <- c(5, 6, 2, 4, 4)
+event <- c(1, 0, 0, 1, 1)
+surv_df <- Surv(time, event)
+
+surv_df
+class(surv_df)
+```
+
+## 1.2 Digging into the GBSG2 dataset 
+
+* The *cens* variable indicates whether or not a person in the study has died. 
+
+```{r}
+# Count censored and uncensored data
+num_cens <- table(GBSG2$cens)
+num_cens
+
+# Create barplot of censored and uncensored data
+barplot(height = num_cens)
+
+```
+
+The convention is that the censoring indicator is 1 if the event of interest happened. 
+
+
+## 1.3 Using the Surv() function for GBSG2
+
+```{r}
+# Create Surv-Object
+sobj <- Surv(GBSG2$time, GBSG2$cens)
+
+# Look at 10 first elements
+sobj[1:10]
+
+# Look at summary
+summary(sobj)
+
+# Look at structure
+str(sobj)
+```
+
+
+## 1.4 The UnempDur dataset
+The *UnempDur* dataset contains information on how long people stay unemployed. In this case, the event (finding a job) is something positive (censor1 = 1, re-employed at a full-time job). The *spell* variable indicates the length of time an individual was unemployed in number of two-week intervals. 
+
+```{r}
+# Load the UnempDur data
+data(UnempDur, package = "Ecdat")
+summary(UnempDur)
+
+# Count censored and uncensored data
+cens_employ_ft <- table(UnempDur$censor1)
+cens_employ_ft
+
+# Create barplot of censored and uncensored data
+barplot(cens_employ_ft)
+
+# Create Surv-Object
+sobj <- Surv(UnempDur$spell, event = UnempDur$censor1)
+
+# Look at 10 first elements
+head(sobj)
+```
+
+
+# 2. Estimation of survival curves 
+
+Study two different methods to estimate survival curves: Kaplan-Meier and Weibull model. 
+
+**Survival function**
+
+$$S(t) = 1 - F(t) = P(T>t)$$
+
+The survival function is the same as $1-distribution function$, but with special case of censoring. 
+
+
+**Estimation**
+
+$$\hat{S}(t) = \prod_{i:t_i\le{t}}\frac{n_i-d_i}{n_i}$$
+
+## 2.1 First Kaplan-Meier estimate
+
+```{r}
+# Create time adn event data
+time <- c(5, 6,2, 4, 4)
+event <- c(1, 0, 0, 1, 1)
+
+# Compute Kaplan_Meier estimate
+km <- survfit(Surv(time, event) ~ 1)
+class(km)
+km
+
+# Take a look at the structure
+str(km)
+
+# Create data.frame (extract relevent information from a *survfit* object)
+data.frame(time = km$time, 
+           n.risk = km$n.risk,
+           n.event = km$n.event, 
+           n.censor = km$n.censor, 
+           surv = km$surv)
+
+
+```
+
+
+## 2.2 Exercise ignoring censoring
+
+You throw a party and at 1 a.m. guests suddenly start dancing. You are curious to analyze how long your guests will dance for and start collecting data. The problem is that you get tired and go to bed after a while.
+
+You obtain the following right censored dancing times data given in dancedat:
+
+* name is the name of your friend.
+
+* time is the right-censored dancing time.
+
+* obs_end indicates if you observed the end of your friends dance (1) or if you went to sleep before they stopped dancing (0).
+
+You start analyzing the data in the morning, but you are tired and, at first, ignore the fact that you have censored observations. Then you remember this course on DataCamp and do it correctly.
+
+```{r}
+# Create dancedat data
+dancedat <- data.frame(
+  name = c("Chris", "Martin", "Conny", "Desi", "Reni", "Phil", "Flo", "Andrea", "Isaac", "Dayra", "Caspar"), 
+  time = c( 20, 2, 14, 22, 3, 7, 4, 15, 25, 17, 12), 
+  obs_end = c(1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0))
+
+# Estimate the survivor function pretending that all censored observations are actual observations
+km_wrong <- survfit(Surv(time) ~ 1, data = dancedat)
+
+# Estimate the survivor function from this dataset via kaplan-meier
+km <- survfit(Surv(time, event = obs_end) ~ 1, data = dancedat)
+
+# Plot the two and compare
+ggsurvplot_combine(list(correct = km, wrong = km_wrong))
+```
+
+Ignoring censoring underestimates your friends' dancing stamina. The correct analysis (red curve) shows that your friends actually dance longer than the incorrect blue curve suggests. 
+
+
+## 2.3 Estimating and visualizing a survival curve
+
+```{r}
+# Kaplan-Meier estimate
+km <- survfit(Surv(time = time, event = cens) ~ 1, data = GBSG2)
+
+# plot of the Kaplan-Meier estimate
+ggsurvplot(fit = km)
+
+# add the risk table to plot
+ggsurvplot(fit = km, risk.table = TRUE)
+
+# add a line showing the median survival time
+ggsurvplot(fit = km, risk.table = TRUE, surv.median.line = "hv")
+
+```
+

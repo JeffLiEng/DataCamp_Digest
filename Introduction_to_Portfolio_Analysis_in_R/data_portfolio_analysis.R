@@ -1,7 +1,9 @@
-# Data for the Apple and Microsoft Stock (used in chapter 1)
+
 library(tseries)
 library(xts)
 
+
+# Data for the Apple and Microsoft Stock (used in chapter 1)
 # Download historical finance data
 aapl <- get.hist.quote(instrument="AAPL",
                        start=as.Date("2005-12-31"),
@@ -14,6 +16,7 @@ msft <- get.hist.quote(instrument="MSFT",
                        end=Sys.Date(),
                        quote="AdjClose",
                        quiet=TRUE)
+
 
 
 # Data for S&P 500 (used in chapter 2)
