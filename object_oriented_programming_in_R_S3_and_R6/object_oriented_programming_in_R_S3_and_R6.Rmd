@@ -27,7 +27,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(pryr)
-
+library(R6)
+library(assertive)
 ```
 
 # 1. Introduction to Object-Oriented Programming 
@@ -383,29 +384,267 @@ microwave_oven_factory <- R6Class(
 
 ## 3.4 Leaning to Cook 
 
+Using *initialize()*, we can set private fields when objects are created. 
+
 ```{r}
 # Add a cook method to the factory definition
 microwave_oven_factory <- R6Class(
   classname = "MicrowaveOven", 
   
   private = list(
-    power_rating_watts = 800
+    power_rating_watts = 800,
+    door_is_open = FALSE
   ), 
   
   # User-facing functionality is added to the public element
   public = list(
+    # cook function
     cook = function(time_seconds) {
       Sys.sleep(time_seconds)
       print("Your food is cooked!")
+    }, 
+    # open door function
+    open_door = function() {
+      private$door_is_open = TRUE
+    }, 
+    # close door function
+    close_door = function() {
+      private$door_is_open = FALSE
+    }, 
+    
+    # add initializa() method
+    initialize = function(power_rating_watts, door_is_open) {
+      if(!missing(power_rating_watts)) {
+        private$power_rating_watts = power_rating_watts
+      }
+      if(!missing(door_is_open)) {
+        private$door_is_open = door_is_open
+      }
+  
     }
   )
 )
 
 # Create microwave oven object
-a_microwave_oven <- microwave_oven_factory$new()
+a_microwave_oven <- microwave_oven_factory$new(power_rating_watts = 650, 
+                                               door_is_open = TRUE)
 a_microwave_oven
 
 # Call cook method for 1 second
 a_microwave_oven$cook(time_seconds = 1)
+```
+
+## 3.5 Getting and Setting with Active Bindings
+
+* getting = read the data field
+
+* setting = write the data field
+
+* Active Bindings: defined like functions; accessed like data variables
+
+
+Control private access with active bindings.  Use assertive to check binding inputs. 
+
+
+## 3.6 Read the Rating
+
+The data stored by an R6 object is deliberately hidden away from teh user by keeping it in the *private* element. This is the principle of *encapsulation*. 
+
+If we want ot provide access to any of the data values (private), we can use an active binding. These are functions that behave like variables. 
+
+Active bindings are stored in the *active* element of an R6 object. To create an active bindings to get a private data fields (i.e.a "read-only" binding), we can create a function with no arguments that simply returns the private element. 
+
+The active binding is called like a data variable, not a function. 
+
+```{r}
+# Add a binding for power rating
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven", 
+  
+  private = list(
+    ..power_rating_watts = 750
+  ),
+  
+  active = list(
+    # add the binding here
+    power_rating_watts = function() {
+      private$..power_rating_watts
+    }
+  )
+)
+
+# Make a microwave
+a_microwave_oven <- microwave_oven_factory$new()
+
+# Get the power rating 
+a_microwave_oven$power_rating_watts   # active bindings let users examine data fields
+```
+
+## 3.7 Control the Power
+
+Active bindings can also be used to set private fields. In this case, the binding functions shoudl accept a single argument, names "value". 
+
+```{r}
+# Add a binding for power rating
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven", 
+  private = list(
+    ..power_rating_watts = 800, 
+    ..power_level_watts = 800
+  ),
+  
+  # add active list containing an active binding
+  active = list(
+    power_level_watts = function(value) {
+      if(missing(value)) {
+        private$..power_level_watts
+      } else {
+        assert_is_a_number(value)
+        assert_all_are_in_closed_range(value, lower = 0, upper = private$..power_rating_watts)
+        private$..power_level_watts <- value
+      }
+    }
+  )
+  
+  )
+
+# Make a microwave
+a_microwave_oven <- microwave_oven_factory$new()
+
+# Get the power level
+a_microwave_oven$power_level_watts
+
+# Try to set the power level to "400"
+a_microwave_oven$power_level_watts <- "400"
+
+# Try to set the power level to 1600 watts
+a_microwave_oven$power_level_watts <- 1600
+
+# Set the power level to 400 watts
+a_microwave_oven$power_level_watts <- 400
+
+a_microwave_oven$power_level_watts
+```
+
+
+# 4. R6 Inheritance
+
+Learn how to inherit from an R6 class, and how the relationship between parent and child classes works.
+
+## 4.1 Propagating Functionality with Inheritance 
+
+* Propagate functionality using inheritance
+
+* Use the inherit arg to R6Class()
+
+* Children get their parent's functionality
+
+*...but the converse is not true
+
+
+## 4.2 Specifying a fancy microwave oven
+
+Inheritance is used to propagate - this is, copy - functionality from one class to another. 
+
+```{r}
+# Define the microwave oven class 
+microwave_oven_factory <- R6Class(
+  classname = "MicrowaveOven", 
+  
+  private = list(
+    ..power_rating_watts = 800, 
+    ..power_level_watts = 800, 
+    ..door_is_open = FALSE
+  ),
+  
+  
+   # User-facing functionality is added to the public element
+  public = list(
+    # cook function
+    cook = function(time_seconds) {
+      Sys.sleep(time_seconds)
+      print("Your food is cooked!")
+    }, 
+    # open door function
+    open_door = function() {
+      private$door_is_open = TRUE
+    }, 
+    # close door function
+    close_door = function() {
+      private$door_is_open = FALSE
+    } 
+    
+     # add initializa() method
+    # ,initialize = function(power_rating_watts, door_is_open) {
+    #   if(!missing(power_rating_watts)) {
+    #     private$power_rating_watts = power_rating_watts
+    #   }
+    #   if(!missing(door_is_open)) {
+    #     private$door_is_open = door_is_open
+    #   } }
+    ), 
+  
+
+  # add active list containing an active binding
+  active = list(
+    power_level_watts = function(value) {
+      if(missing(value)) {
+        private$..power_level_watts
+      } else {
+        assert_is_a_number(value)
+        assert_all_are_in_closed_range(value, lower = 0, upper = private$..power_rating_watts)
+        private$..power_level_watts <- value
+      }
+    }, 
+    
+    power_rating_watts = function(){
+      private$..power_rating_watts
+    }
+  )
+  
+  )
+
+# Explore the microwave oven class
+microwave_oven_factory
+
+# Define a fancy microwave class inheriting from microwave oven
+fancy_microwave_oven_factory <- R6Class(
+  classname = "FancyMicrowaveOven", 
+  inherit = microwave_oven_factory
+)
+
+fancy_microwave_oven_factory
+
+# Ceate two objects
+a_microwave_oven <- microwave_oven_factory$new()
+a_fancy_microwave_oven <- fancy_microwave_oven_factory$new()
+a_microwave_oven
+a_fancy_microwave_oven
+
+inherits(a_fancy_microwave_oven, "MicrowaveOven")
+inherits(a_fancy_microwave_oven, "R6")
+inherits(a_microwave_oven, "R6")
+```
+
+
+## 4.3 Making a Fancy Microwave Oven
+Inheritance means that the methods of the child class are exact copies of those in the parent class. 
+
+```{r}
+# Instantiate both types of microwave
+a_microwave_oven <- microwave_oven_factory$new()
+a_fancy_microwave_oven <- fancy_microwave_oven_factory$new()
+
+# Get power rating for each microwave
+microwave_power_rating <- a_microwave_oven$power_rating_watts
+fancy_microwav_power_rating <- a_fancy_microwave_oven$power_rating_watts
+
+# Verify that these are the same
+identical(microwave_power_rating, fancy_microwav_power_rating)
+
+# Cook with each microwave
+a_microwave_oven$cook(time_seconds = 1)
+a_fancy_microwave_oven$cook(time_seconds = 1)
+
 ```
 

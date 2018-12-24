@@ -1,5 +1,5 @@
 ---
-title: "Visualizing Time Series Data in R"
+title: "xx"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -14,34 +14,23 @@ output:
 
 **Course Description**
 
-"As the saying goes, “A chart is worth a thousand words”. This is why visualization is the most used and powerful way to get a better understanding of your data. After this course you will have a very good overview of R time series visualisation capabilities and you will be able to better decide which model to choose for subsequent analysis. You will be able to also convey the message you want to deliver in an efficient and beautiful way."
+"xx"
 
-Ref: Amsellem, Arnaud (2018) Visualizing Time Series Data in R, https://www.datacamp.com/courses/visualizing-time-series-data-in-r, 2018.
+Ref: xx.
 
 
-Note: Some course materials and data have beem revised for training by Jeff Li. 
+Note: Some course materials and data have been revised for training by Jeff Li. 
 
 # (I) Load required libraries
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(gmodels)
 
 
 ```
-
-
-# 1.  R Time Series Visualization Tools 
-
-Refresher on xts
-
-* A special class of object to handle time series
-
-* eXtensible Time series
-
-* xts = Time Index + Matrix
-
-* The index is a time object: Date, POSIX Time, tiemDate, chron
-
-
-
