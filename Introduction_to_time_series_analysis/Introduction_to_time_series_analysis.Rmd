@@ -520,10 +520,10 @@ x_t1 <- x[-1]
 x_t0 <-  x[-n]
 
 # Plot x_to and x_t1
-plot(x_to, x_t1)
+plot(x_t0, x_t1)
 
 # correlation
-cor(x_to, x_t1)
+cor(x_t0, x_t1)
 
 # Use acf with x
 acf(x, lag.max = 1, plot = FALSE)
@@ -557,5 +557,214 @@ acf(x)
 
 Learn autogressive (AR) model. Compare AR model with the random walk (RW) model. 
 
+**The Autoregressive Model**
+
+The Autoregressive (AR) recursion: 
+
+$$Today = Constant + Slope * Yesterday + Noise$$
+
+
+Mean centered version:
+
+$$(Today - Mean) = Slope * (Yesterday - Mean) + Noise$$
+
+More formally: 
+
+$$Y_t-\mu = \phi(Y_{t-1} - \mu) + \epsilon_t$$
+Where $\epsilon_t$ is mean zero white noise (WN). 
+
+
+Three paramters: 
+
+* The mean $\mu$
+
+* The slop $\phi$
+
+* The WN variance $\sigma^2_{\epsilon}$
+
+
+* If slope $\phi = 0$ then: $Y_t = \mu + \epsilon_t$ and $Y_t$ is White Noise($\mu$, $\sigma^2_{\epsilon}$) 
+
+* If slope $\phi \neq 0$ then $Y_t$ depends on both $\epsilon_t$ and $Y_{t-1}$. And the process $\{Y_t\}$ is autocorrelated. 
+
+* Large values of $\phi$ lead to greater autocorrelation
+
+* Nagative values of $\phi$ result in oscillatory time series. 
+
+
+Random Walk: 
+
+if $\mu = 0$ and slope $\phi = 1$, then: 
+$$Y_t = Y_{t-1} + \epsilon_t$$
+
+
+## 4.1 Simulate the autoregressive model 
+
+The autoregressive (AR) model is arguably the most widely used time series model. It shares the very familiar interprepation of a simple linear regression, but here each observation is regressed on the previous observation. The AR model also includes the white noise (WN) and random walk (RW) models. 
+
+Exercise: using arima.sim() to simulate and plot three different AR models with lsope paramters equal to 0.5, 0.9 and -0.75, respectively. 
+
+```{r}
+# Simulate an AR model with 0.5 slope
+x <- arima.sim(model = list(ar = 0.5), n = 100)
+
+# Simulate an AR model with 0.9 slope
+y <- arima.sim(model = list(ar = 0.9), n = 100)
+
+
+# Simulate an AR model with -0.75 slope
+z <- arima.sim(model = list(ar = -0.75), n = 100)
+
+# Plot the simulated data of z, y and z
+plot.ts(cbind(x, y, z))
+
+```
+
+As shown in the plot, x data show a just a moderate amount of autocorrelation, while y data show a larger amount of autocorrelation. Alternatively, z data tends to oscillate considerably from one observation to the next. 
+
+
+## 4.2 Estimate the autocorrelation function (ACF)
+
+```{r}
+# Calculate the ACF for x
+acf(x)
+
+# Calculate the ACF for y
+acf(y)
+
+# Calculate the ACF for z
+acf(z)
+```
+
+## 4.3 compare the random walk (RW) and autoregression (AR) models
+
+The random walk (RW) model is a special case of the autoregressive (AR) model, in which the slope paramter equals to 1. The RW model is not stationary and exhibits very strong persistance. Its sample autocovariance function (ACF) also decays to zero very slowly, meaning past values have a long lasting impact on current values. 
+
+```{r}
+# Simulate and plot AR model with slope 0.9
+x <- arima.sim(model = list(ar = 0.9), n = 200)
+ts.plot(x)
+acf(x)
+
+# Simulate and plot AR model with slope 0.98
+y <- arima.sim(model = list(ar = 0.98), n = 200)
+ts.plot(y)
+acf(y)
+
+# Simulate and plot RW model
+z <- arima.sim(model = list(order = c(0, 1, 0)), n = 200)
+ts.plot(z)
+acf(z)
+
+```
+
+
+## 4.4 AR Model Estimation and Forecasting
+
+* One-month US infaltion rate (in percent, annual rate)
+
+* Monthly observatons from 1950 through 1990
+
+```{r}
+data(Mishkin, package = "Ecdat")
+summary(Mishkin)
+
+# creat time series 
+inflation <- as.ts(Mishkin[, 1])
+
+# plot
+ts.plot(inflation)
+
+acf(inflation)
+```
+
+
+**AR Model: Inflation Rate**
+
+$$(Today - Mean) = Slope * (Yesterday - Mean) + Noise$$
+
+$$Y_t - \mu = \phi(Y_{t-1} - \mu) + \epsilon_t$$
+
+$$\epsilon_t \sim {\sf White Noise(0, \sigma^2_{\epsilon})}  $$
+
+
+```{r}
+AR_inflation <- arima(inflation, order = c(1, 0, 0))
+AR_inflation
+```
+
+$ar1 = \hat{\phi}$, $intercpt = \hat{\mu}$, $sigma^2 = \hat{\sigma}^2_{\epsilon}$
+
+* AR fitted vlaues: $\hat{Today} = \hat{Mean} + \hat{Slope} * (Yesterday - \hat{Mean})$
+
+$$\hat{Y_t} = \hat{\mu} + \hat{\phi} (Y_{t-1} - \hat{\mu})$$
+
+* $Residuals = Today - \hat{Today}$
+
+$$\hat{\epsilon_t} = Y_t - \hat{Y_t$$
+
+```{r}
+## add fitted values
+AR_inflation_fitted <- inflation - residuals(AR_inflation)
+
+ts.plot(inflation)
+points(AR_inflation_fitted, type = "l", col = "red", lty = 2)
+```
+
+
+**Forecasting**
+
+```{r}
+predict(AR_inflation)
+predict(AR_inflation, n.ahead = 6)
+```
+
+
+## 4.5 Estimate the autoregression (AR) model (exercise) 
+
+```{r}
+# Fit the AR model to AirPassengers
+
+AR <- arima(AirPassengers, order = c(1, 0, 0))
+print(AR)
+
+## plot the series and fitted values 
+AR_fitted <- AirPassengers - residuals(AR)
+ts.plot(AirPassengers)
+points(AR_fitted, type = "l", col = 2, lty = 2)
+
+```
+
+## 4.6 Simple forecasts from an estimated AR model
+
+```{r}
+# Fit an AR model to Nile
+ts.plot(Nile)
+acf(Nile)
+
+AR_fit <- arima(Nile, order = c(1, 0, 0))
+AR_fit
+
+# Use predict() to make a 1-step forecast
+predict_AR <- predict(AR_fit)
+
+# Obtain the 1-step forecast using $pred[1]
+predict_AR$pred[1]
+
+# Use predict to make 1-step through 10-step forecasts
+predict(AR_fit, n.ahead = 10)
+
+# Plot the Nile series plus the forecast and 95% prediction intervals
+ts.plot(Nile, xlim = c(1871, 1980))
+AR_forecast <- predict(AR_fit, n.ahead = 10)$pred
+AR_forecast_se <- predict(AR_fit, n.ahead = 10)$se
+points(AR_forecast, type = "l", col = 2)
+points(AR_forecast - 2 * AR_forecast_se, type = "l", col = 2, lty = 2)
+points(AR_forecast + 2 * AR_forecast_se, type = "l", col = 2, lty = 2)
+
+# add fitted 
+AR_fitted <- Nile - residuals(AR_fit)
+points(AR_fitted, type = "l", col = 2, lty = 2)
+```
 
 
