@@ -1,5 +1,5 @@
 ---
-title: "Credit Risk Modeling in R"
+title: "Multivariate Probability Distributions in R"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -14,11 +14,9 @@ output:
 
 **Course Description**
 
-"This hands-on-course with real-life credit data will teach you how to model credit risk by using logistic regression and decision trees in R.
+"When working with data that contains many variables, we are often interested in studying the relationship between these variables using multivariate statistics. In this course, you'll learn ways to analyze these datasets. You will also learn about common multivariate probability distributions, including the multivariate normal, the multivariate-t, and some multivariate skew distributions. You will then be introduced to techniques for representing high dimensional data in fewer dimensions, including principal component analysis (PCA) and multidimensional scaling (MDS)."
 
-Modeling credit risk for both personal and company loans is of major importance for banks. The probability that a debtor will default is a key component in getting to a measure for credit risk. While other models will be introduced in this course as well, you will learn about two model types that are often used in the credit scoring context; logistic regression and decision trees. You will learn how to use them in this particular context, and how these models are evaluated by banks."
-
-Ref: Dirick, Lore (2018) Credit Risk Modeling in R, https://www.datacamp.com/courses/introduction-to-credit-risk-modeling-in-r, 2018.
+Ref: Ray, Surajit (2018) Multivariate Probability Distributions in R, https://www.datacamp.com/courses/, 2018.
 
 
 Note: Some course materials and data have beem revised for training by Jeff Li. 
@@ -33,386 +31,98 @@ library(rpart.plot)
 library(RColorBrewer)
 library(rattle)
 library(gmodels)
-
-
 ```
 
-# 1. Introduction and data preprocessing 
+# 1. Reading and plotting multivariate data
 
-This chapter begins with a general introduction to credit risk models. We'll explore a real-life data set, then preprocess the data set such that it's in the appropriate format before applying the credit risk models.
+In this introduction to multivariate data, you will learn how to read and summarize it. You will learn how to summarize multivariate data using descriptive statistics, such as the mean vector, variance-covariance, and correlation matrices. You'll then explore plotting techniques to provide insights into multivariate data.
 
-What is loan default? 
-
-bank \$\$\$\$ -> borrower.  then borrower \$-> \$-> to bank
-
-Components of expected loss (EL): 
-
-* Probability of default (PD)
-
-* Exposure at default (EAD)
-
-* Loss given default (LGD)
-
-$$EL = PD * EAD * LGD$$ 
-
-
-## 1.1 Exploring the credit data 
+## 1.1 Reading multivariate data
 
 ```{r}
-# read the loan data 
-loan_data <- read_rds("data/loan_data_ch1.rds") %>% mutate(loan_status = factor(loan_status))
-glimpse(loan_data)
-dim(loan_data)
+# Read in the wine dataset
+wine_url <- "http://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data"
+wine <- read.table(wine_url, sep = ",")
 
-# Call CrossTable() on loan_status
-CrossTable(loan_data$loan_status)
+# Print the first four entries
+head(wine, n = 4)
 
-# Call CrossTable() on grade and loan_status
-CrossTable(x = loan_data$grade, 
-           y = loan_data$loan_status, 
-           prop.r = TRUE, 
-           prop.c = FALSE, 
-           prop.t = FALSE, 
-           prop.chisq = FALSE)
+# Find the dimensions of the data
+dim(wine)
 
+# Check the names of the wine dataset
+names(wine)
+
+# Assign new names 
+names(wine) <- c('Type', 'Alcohol', 'Malic', 'Ash', 'Alcalinity', 'Magnesium', 'Phenols', 'Flavanoids', 'Nonflavanoids','Proanthocyanins', 'Color', 'Hue', 'Dilution', 'Proline')
+
+# Check the new column names
+names(wine)
+
+# Check data type/structure of each variable 
+str(wine)
+
+# change the Type variable data type
+wine$Type <- factor(wine$Type)
+str(wine)
 ```
 
-The proportion of defaults increases when the credit rating moves from A (best credit rating score) to G (worst credit score). 
+## 1.2 Calculating the mean vector
+```{r}
+# Calculate the mean of the Alcohol, Malic, Ash, and Alcalinity variables
+colMeans(wine[, 2:5])
 
+# Calculate the mean of the variables by wine type
+by(data = wine[, 2:5], INDICES = wine$Type, FUN = colMeans)
+```
 
-## 1.2 Histograms
+## 1.3 Calculating the variance-covariance matrix
 
-To understand the distribution of the number of loans for different customers
+Along with the mean, an equally important statistic for a multivariate observation is its variance-covariance matrix. The variance-covariance matrix generalizes the concept of variance to multiple dimensions. 
 
 ```{r}
-# Create histogram of loan_amnt: 
-hist_1 <- hist(loan_data$loan_amnt)
-class(hist_1)
-hist_1
+# Calculate the variance-covariance matrix of the variables Alcohol, Malic, Ash, Alcalinity
+var_wine <- var(wine[, 2:5])
 
-# print locations of the breadks in hist_1
-hist_1$breaks
-
-# Change number of breaks and add labels: hist_2
-hist_2 <- hist(x = loan_data$loan_amnt, 
-               breaks = 200, 
-               xlab = "Loan amount", 
-               main = "Histogram of the loan amount")
+# Round the matrix values to two decimal places
+round(var_wine, digits = 2)
 ```
 
-
-## 1.3 Outliers
-
-**When is a value an outlier?**
-
-* expert judgement
-
-* rule of thumb: $Q_1 - 1.5*IQR, Q_3 + 1.5*IQR$
-
-* mostly: combination of both
-
+## 1.4 Calculating the correlation matrix
+A correlation matrix is a generalization of the concept of correlation between two variables. If we are looking at a large number of variables, it can also be useful to visualize the correlation matrix to understand the relationship of the variables on each other. 
 
 ```{r}
-# plot the age variable
-plot(loan_data$age, ylab = "Age")
+# calculate the correlation matrix
+cor_wine <- cor(wine[, 2:5])
 
-# save the outlier's index to index_highage
-index_highage <- which(x = loan_data$age > 122)
+# Round the matrix to two decimal places
+round(cor_wine, digits = 2)
 
-# Create data set new-data which outlier deleted
-new_data <- loan_data[-index_highage, ]
-
-# Make bivariate scatterplot of age and annual income
-plot(x = loan_data$age, y = loan_data$annual_inc, xlab = "Age", ylab = "Annual Income")
+# Plot the correlations 
+corrplot::corrplot(corr = cor_wine, method = "ellipse")
 ```
 
-There is a bivariate outlier. The person with the huge annual wage of $6 million appeared to be 144 years old. This must be a mistake. 
+## 1.5 Pairs plot using base graphics and lattice
+```{r, message=FALSE}
+# Scatter plot matrix using the base R plot function
+pairs(wine[, 2:5])
+plot(wine[,2:5])
 
+# Scatter plot matrix with lattice
+lattice::splom(~wine[,2:5], pch = 16, col = wine$Type)
+```
 
-## 1.4 Outlier dection: 1.5*IQR
+## 1.6 Plotting multivariate data using ggplot
+```{r, message=FALSE}
+# Produce a matrix of plots for the first four variables
+wine_gg <- GGally::ggpairs(data = wine, columns = 2:5, mapping = aes(color = Type))
+wine_gg
+```
+
+## 1.7 3D plotting techniques
 
 ```{r}
-# Use of a rule of thumb: outlier if bigger than Q3 + 1.5*IQR
-
-outlier_cutoff <- quantile(loan_data$annual_inc, 0.75) + 1.5 * IQR(loan_data$annual_inc)
-
-index_outlier_ROT <- which(loan_data$annual_inc > outlier_cutoff)
-loan_data_ROT <- loan_data[-index_outlier_ROT, ]
-
-hist(loan_data_ROT$annual_inc)
+# plot the three variables
+scatterplot3d::scatterplot3d(x = wine$Alcohol, y =wine$Malic, z = wine$Alcalinity, color = wine$Type)
 ```
-
-
-## 1.5 Missing data and coarse classification
-
-```{r}
-summary(loan_data)
-```
-
-**Missing inputs: strategies**
-
-* Delete row/column
-
-* Replace
-
-* Keep
-
-```{r}
-# Delete rows with NA for emp_length
-index_NA <- which(is.na(loan_data$emp_length))
-loan_data_no_NA <- loan_data[-c(index_NA), ]
-
-# original vs clean
-data.frame(orig = dim(loan_data), 
-           clean_na = dim(loan_data_no_NA))
-
-summary(loan_data_no_NA)
-
-
-# Delete column
-loan_data_delete_employ <- loan_data %>%
-  mutate(emp_length = NULL)
-
-summary(loan_data_delete_employ)
-
-
-# Replace with median imputation
-loan_data_replace <- loan_data %>%
-  mutate(emp_length = ifelse(is.na(emp_length), median(emp_length, na.rm = TRUE), emp_length))
-
-summary(loan_data_replace$emp_length)
-
-
-# Keep: Coarse classification
-loan_data_emp_length_bin <- loan_data %>%
-  mutate(emp_length_bin = cut(emp_length, breaks = c(0, 15, 30, 45, 60, 80), right = FALSE )) %>%
-  # convert NA into a factor level
-  mutate(emp_length_bin = factor( ifelse(is.na(emp_length_bin), "missing", as.character(emp_length_bin))) )
-
-summary(loan_data_emp_length_bin$emp_length_bin)
-levels(loan_data_emp_length_bin$emp_length_bin)
-
-
-plot(loan_data_emp_length_bin$emp_length_bin)
-```
-
-
-## 1.6 Deleting missing data (exercise)
-
-```{r}
-# Look at summary of loan_data
-summary(loan_data$int_rate)
-
-# Get indices of missing interest rates: na_index
-na_index <- which(is.na(loan_data$int_rate))
-
-# Remove observations with missing interest rates: loan_data_delrow_na
-loan_data_delrow_na <- loan_data[-na_index, ]
-
-# Make copy of loan_data
-loan_data_delcol_na <- loan_data
-
-# Delete interest rate column from loan_data_delcol_na
-loan_data_delcol_na$int_rate <- NULL
-```
-
-## 1.7 Replacing missing data (exercise)
-
-```{r}
-# Compute the median of int_rate
-median_ir <- median(loan_data$int_rate, na.rm = TRUE)
-
-# Make copy of loan_data
-loan_data_replace <- loan_data
-
-# Replace missing interest rates with median
-na_index <- which(is.na(loan_data$int_rate))
-loan_data_replace$int_rate[na_index] <- median_ir
-
-# Check if the NAs are gone
-summary(loan_data_replace$int_rate)
-```
-
-## 1.8 Keeping missing data 
-
-In some situations, the fact that an iput is missing is important information in itself. NA can be kept in a seperate "missing" category using coarse classification. 
-
-```{r}
-loan_data$emp_cat <- rep(NA, length(loan_data$emp_length))
-
-loan_data$emp_cat[which(loan_data$emp_length <= 15)] <- "0-15"
-loan_data$emp_cat[which(loan_data$emp_length > 15 & loan_data$emp_length <= 30)] <- "15-30"
-loan_data$emp_cat[which(loan_data$emp_length > 30 & loan_data$emp_length <= 45)] <- "30-45"
-loan_data$emp_cat[which(loan_data$emp_length > 45)] <- "45+"
-loan_data$emp_cat[which(is.na(loan_data$emp_length))] <- "Missing"
-
-loan_data$emp_cat <- as.factor(loan_data$emp_cat)
-
-# Look at your new variable using plot()
-plot(loan_data$emp_cat )
-```
-
-
-```{r}
-# Make the necessary replacements in the coarse classification example below 
-loan_data$ir_cat <- rep(NA, length(loan_data$int_rate))
-
-loan_data$ir_cat[which(loan_data$int_rate <= 8)] <- "0-8"
-loan_data$ir_cat[which(loan_data$int_rate > 8 & loan_data$int_rate <= 11)] <- "8-11"
-loan_data$ir_cat[which(loan_data$int_rate > 11 & loan_data$int_rate <= 13.5)] <- "11-13.5"
-loan_data$ir_cat[which(loan_data$int_rate > 13.5)] <- "13.5+"
-loan_data$ir_cat[which(is.na(loan_data$int_rate))] <- "Missing"
-
-loan_data$ir_cat <- as.factor(loan_data$ir_cat)
-
-# Look at your new variable using plot()
-plot(loan_data$ir_cat)
-
-# Note: using "case" and "%>%" will be a good option. 
-```
-
-
-
-## 1.9 Splitting the data set
-
-```{r}
-# clean data 
-
-loan_data_cleaned <- loan_data %>%
-  # filter the outlier
-  filter(age < 122) %>% 
-  mutate(emp_cat = cut(emp_length, breaks = c(0, 15, 30, 45,80), include.lowest = TRUE, right = TRUE),
-         ir_cat = cut(int_rate, breaks = c(0, 8, 11, 13.5, 23.22), include.lowest = TRUE, right = TRUE)) %>%
-  # convert NA into a factor level
-  mutate_at(.vars = vars(emp_cat, ir_cat),  function(x) factor(ifelse(is.na(x), "missing", as.character(x)))) %>%
-  select(-c(emp_length, int_rate))
-
-summary(loan_data_cleaned)          
-
-# set seed of 567
-set.seed(567)
-
-# Store row numbers for training set: index_train
-index_train <- sample(1:nrow(loan_data_cleaned), size = round(2/3 * nrow(loan_data_cleaned), 0), replace = FALSE)
-
-# Create training set: training set 
-training_set <- loan_data_cleaned[index_train, ]
-summary(training_set)
-
-# Create test set: test-set
-test_set <- loan_data_cleaned[-index_train, ]
-summary(test_set)
-
-
-```
-
-
-# 2. Logistic Regression 
-
-## 2.1 Logistic Regression: Introduction
-
-**What is logistic regression?**
-A regression model with output between 0 and 1
-$$P(loan\_status = 1|x_1, x_2, ..., x_n) = \frac{1}{1+e^{-(\beta_0 + \beta_1*x_1+...+\beta_n*x_m)}}$$
-
-```{r}
-# Fitting a logistic model in R
-log_model <- glm(loan_status ~ age, family = "binomial", data = training_set)
-class(log_model)
-log_model
-```
-
-$$P(loan\_status = 1|age) = \frac{1}{1+e^{\hat{\beta_0}+\hat{\beta_1}*age}}$$
-
-
-**Probabilities of default**
-
-$$P(loan\_status = 1|x_1,x_2,...,x_m) = \frac{1}{1+e^{-(\beta_0+\beta_1x_1+...+\beta_mx_m)}}=\frac{e^{(\beta_0+\beta_1x_1+...+\beta_mx_m)}}{1+e^{(\beta_0+\beta_1x_1+...+\beta_mx_m)}}  $$
-$$P(loan\_status = 0|x_1,x_2,...,x_m) =1- \frac{1}{1+e^{-(\beta_0+\beta_1x_1+...+\beta_mx_m)}}=\frac{1}{1+e^{(\beta_0+\beta_1x_1+...+\beta_mx_m)}}  $$
-
-$\frac{P(loan\_status = 1|x_1,x_2,...x_n)}{P(loan\_status = 0)|x_1,x_2,...x_n)} = e^{\beta_0+\beta_1x_1+...+\beta_mx_m}$   ---> odds in favor of loan_status = 1
-
-
-$$log(odds) = \beta_0+\beta_1x_1+...+\beta_mx_m$$
-
-
-## 2.2 Basic logistic regression (exercise)
-```{r}
-# Buiild a glm model with variable ir_cat as a predictor
-levels(training_set$ir_cat)
-table(training_set$ir_cat)
-table(loan_data_cleaned$ir_cat)
-training_set$ir_cat <- factor(training_set$ir_cat, levels = c("[0,8]", "(8,11]", "(11,13.5]", "(13.5,23.2]", "missing"), ordered = FALSE)
-
-
-log_model_cat <- glm(loan_status ~ ir_cat, family = "binomial", data = training_set)
-
-# print the parameter estimates
-log_model_cat
-
-```
-
-
-
-
-
-
-
-
-# 3. Decision Trees 
-
-Classification trees are another popular method in the world of credit risk modeling. Let's learn how to build classification trees using credit data in R. 
-
-# 3.1 computing the gain for a tree (Gini)
-
-```{r}
-# total cases and defaults
-total_cases <- 500
-defaults <- 89
-
-# the Gini-measure of the root node: 
-(gini_root <- 2* defaults/total_cases * (total_cases-defaults)/total_cases)
-gini_root
-
-# Compute the Gini measure for the left leaf node
-gini_ll <- 2 * (401/(401+45)*45/(401+45))
-gini_ll
-
-# Compute the Gini measure for the right leaf node
-gini_rl <- 2 * (10/(10+44) * 44/(10+44))
-gini_rl
-
-# Compute the gain
-gain <- gini_root - (401+45)/500 * gini_ll - (10+44)/500 * gini_rl
-gain
-
-# Improve 
-gain * 500
-```
-
-
-## 3.2 Building decision trees using the rpart() - package 
-
-Credit risk data are unbalanced data, it is hard building nice decision tree even using rpart() package. 
-```{r}
-# read the loan data 
-loan <- read_rds("data/loan_data_ch1.rds") %>% mutate(loan_status = factor(loan_status)) %>% filter(age < 100)
-glimpse(loan)
-
-# no-default  (0) vs default (1) 
-table(loan$loan_status)
-
-# plot
-loan %>%
-  ggplot(aes(x = age, y = annual_inc, color = loan_status)) + 
-  geom_point(alpha = 0.6)
-
-# fit a quick model with all data
-fit_default <- rpart(loan_status ~ ., method = "class", data = loan)
-class(fit_default)
-summary(fit_default)  # sorry, only one node
-
-# split data into training and test
-```
-
 
