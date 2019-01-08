@@ -126,3 +126,25 @@ wine_gg
 scatterplot3d::scatterplot3d(x = wine$Alcohol, y =wine$Malic, z = wine$Alcalinity, color = wine$Type)
 ```
 
+
+# 2. Multivariate Normal Distribution
+
+Multivariate normal is the most important and widely used multivariate probability distribution. This chapter covers how to generate random samples from a multivariate normal distribution and how to calculate and plot the densities and probabilities under this distribution. 
+
+## 2.1 Samples from multivariate normal distributions
+
+```{r}
+# Define mean and variance-covariance matrix
+mu_sim <- c(2, -2)
+sigma_sim <- matrix(c(9,5, 5, 4), nrow = 2)
+
+# Generate 100 bivariate normal samples
+library(mvtnorm)
+multnorm_sample <- mvtnorm::rmvnorm(n = 100, mean = mu_sim, sigma = sigma_sim)
+
+# Scatterplot of the bivariate samples
+cor(multnorm_sample)
+plot(multnorm_sample)
+
+```
+
