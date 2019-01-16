@@ -315,5 +315,70 @@ It is  easy and sensible to give files multi-word names like *July 2017.csv* in 
 
 # 5. Creating new tools 
 
+## 5.1 Edit a file
+
+Use a simple text editors *Nano* to edit.
+
+*nano names.txt* 
+
+* Ctrl-K: delete a line
+
+* Ctrl-U: un-delete a line
+
+* Ctrl-O: save the file ('O' stands for 'Output')
+
+* Ctrl-X: exit the editor
+
+
+*copy files to home directory*
+
+cp seasonal/s* ~ 
+
+
+## 5.2 Record the history
+
+1. Run *history*
+2. Pipe its output to *tail -n 10* (or however many recent steps you want to save)
+3. Redirect that to a file called somthing like *figure-5.history*
+
+This is better than writing things down in a lab notebook because it is guaranteed not to miss any steps. 
+
+## 5.3 Save commands to re-run later
+
+1. Use *nano dates.sh* to create a file called *dates.sh* that contain this command: *cut -d , -f seasonal/*.csv* 
+2. then *bash dates.sh*
+
+
+## 5.4 Re-use pipes 
+
+scripts can also contain pipes. For example, if *all-dates.sh* contains this line: 
+cut -d , -f 1 seasonal/*.csv | grep -v Date | sort | uniq
+
+then: 
+
+bash all-dates.sh > dates.out
+
+will extract the unique dates from the seasonal data files and save them in *dates.out*
+
+## 5.5 Pass filenames to scripts
+
+special expression $@ (dollar sign immediately followed by at-sign) to mean "all of the command-line paramters given to the script". For example, if *unique-lines.sh* contains this: 
+
+sort $@ | uniq
+
+then when you run: 
+
+bash unique-lines.sh seasonal/summer.csv 
+
+the shell replances $@ with seasonal/summer.csv adn processes one file. 
+
+## 5.6 How to process a single argument
+
+As well as $@, the shell lets you use $1, $2, and so on to refer to specific command-line parameters. We can use this to write commands that feel simpler or more natural than the shell's. 
+
+## 5.7 Use one shell script do many things
+
+A script can contain many lines of commands. For example, you can create one that tells you how many records are in the shortest and longest of your data files, i.e., the range of your datasets' lengths.
+
 
 

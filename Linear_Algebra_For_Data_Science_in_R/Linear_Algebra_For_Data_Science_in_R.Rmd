@@ -218,7 +218,40 @@ print(r)
 
 # 3. Eigenvalues and Eigenvectors
 
+Eigenvalues and eigenvectors are the basics of computing and mathematics. Eigenvalues and eigenvectors provide summary of a large matrix. 
+
+Eigenvectors can also be used to rank items in a dataset. Eigenvectors and eigenvalues are also used to reduce noise. They can help to improve efficiency in computational intensive tasks, and to eliminate features that have a strong correlation between them, and also to reduce over-fitting. 
+
+
 Matrix operations are complex. Eigenvalue/eigenvector analyses allow you to decompose these operations into simpler ones for the sake of image recognition, genomic analysis, and more!
+
+The aim is to find: Eigenvalue * EigenVector of A such that: 
+
+$A*Eigenvector - Eigenvalue * EigenVector$ 
+
+* The $Lamba * I$ is:
+
+$$\mathbf{Lambda * I} = \left[\begin{array}
+{rrr}
+LAMBDA & 0      & 0 \\
+0      & LAMBDA & 0 \\
+0      & 0      & LAMBDA
+\end{array}\right]
+$$
+
+If A is: 
+$$\left[\begin{array}
+{rrr}
+A & B & C \\
+D & E & F \\
+G & H & I]
+\end{array}\right]
+$$
+
+The $A-Lambda * I$ is: 
+
+
+
 
 ## 3.1 Scaling Different Axes
 
@@ -295,13 +328,16 @@ det(Lambda$values[2] * diag(2) - A)
 # print eigenvectors
 Lambda
 print(Lambda$vectors[, 1])
-print(Lambda$vectors[, 1])
+
 
 # Verify that these eigenvectors & their associated eigenvalues satisfy Av - lambda V = 0
 
 A %*% Lambda$vectors[, 1] - Lambda$values[1] * Lambda$vectors[, 1]
 A %*% Lambda$vectors[, 2] - Lambda$values[2] * Lambda$vectors[, 2]
 ```
+ 
+
+
  
 
 # 4.  Principal Component Analysis
