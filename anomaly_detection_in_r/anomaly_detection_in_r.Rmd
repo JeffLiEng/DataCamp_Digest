@@ -1,0 +1,33 @@
+---
+title: "Anomaly Detection in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+Course Description
+
+Are you concerned about inaccurate or suspicious records in your data, but not sure where to start? An anomaly detection algorithm could help! Anomaly detection is a collection of techniques designed to identify unusual data points, and are crucial for detecting fraud and for protecting computer networks from malicious activity. In this course, you'll explore statistical tests for identifying outliers, and learn to use sophisticated anomaly scoring algorithms like the local outlier factor and isolation forest. You'll apply anomaly detection algorithms to identify unusual wines in the UCI Wine quality dataset and also to detect cases of thyroid disease from abnormal hormone measurements.
+
+Ref: Rushworth, A. www.datacamp.com, 2019. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+
+```
+
+# 1. Statistical Outlier Detection 
+
+In this chapter, you'll learn how numerical and graphical summaries can be used to informally assess whether data contain unusual points. You'll use a statistical procedure called Grubbs' test to check whether a point is an outlier, and learn about the Seasonal-Hybrid ESD algorithm, which can help identify outliers when the data are a time series.
