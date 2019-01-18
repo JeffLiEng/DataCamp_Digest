@@ -1,5 +1,5 @@
 ---
-title: "Anomaly Detection in R"
+title: "Hyperparameter Tuning in R"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -12,11 +12,11 @@ output:
 "I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
 
 
-Course Description
+**Course Description:**
 
-Are you concerned about inaccurate or suspicious records in your data, but not sure where to start? An anomaly detection algorithm could help! Anomaly detection is a collection of techniques designed to identify unusual data points, and are crucial for detecting fraud and for protecting computer networks from malicious activity. In this course, you'll explore statistical tests for identifying outliers, and learn to use sophisticated anomaly scoring algorithms like the local outlier factor and isolation forest. You'll apply anomaly detection algorithms to identify unusual wines in the UCI Wine quality dataset and also to detect cases of thyroid disease from abnormal hormone measurements.
+For many machine learning problems, simply running a model out-of-the-box and getting a prediction is not enough; you want the best model with the most accurate prediction. One way to perfect your model is with hyperparameter tuning, which means optimizing the settings for that specific model. In this course, you will work with the caret, mlr and h2o packages to find the optimal combination of hyperparameters in an efficient manner using grid search, random search, adaptive resampling and automatic machine learning (AutoML). Furthermore, you will work with different datasets and tune different supervised learning models, such as random forests, gradient boosting machines, support vector machines, and even neural nets. Get ready to tune!
 
-Ref: Rushworth, A. www.datacamp.com, 2019. 
+Ref: Glander, Shirin. "Hyperparameter Tuning in R", www.datacamp.com, 2019. 
 
 
 ## (I) Load Required Libraries
@@ -24,10 +24,28 @@ Ref: Rushworth, A. www.datacamp.com, 2019.
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+```
 
+# 1. Introduction to hyperparameters 
+Why do we use the strange word "hyperparameter"? What makes it hyper? Here, you will understand what model parameters are, and why they are different from hyperparameters in machine learning. You will then see why we would want to tune them and how the default setting of caret automatically includes hyperparameter tuning.
+
+
+## 1.1 Parameters vs Hyperparameters
+
+* Model **parameters** are being fit (i.e. found) during training, and they are the result of model fitting or training
+
+* Model **hyperparameters** are being set before training, adn they specify **how** the training is supposed to happen
+
+In the linear model, coefficients were found during fitting. **method** was an option ot set **before** fitting. 
+
+In **machine learning**, weights and biases of neural nets that are optimized during training --> model parameters
+
+Options like learning rate, weight decay adn number of trees in a Random Forest model that can be tweeked --> hyperparamters
+
+
+```{r}
 
 ```
 
-# 1. Statistical Outlier Detection 
 
-In this chapter, you'll learn how numerical and graphical summaries can be used to informally assess whether data contain unusual points. You'll use a statistical procedure called Grubbs' test to check whether a point is an outlier, and learn about the Seasonal-Hybrid ESD algorithm, which can help identify outliers when the data are a time series.
+

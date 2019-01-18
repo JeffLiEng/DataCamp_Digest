@@ -1,5 +1,5 @@
 ---
-title: "Anomaly Detection in R"
+title: "Hyperparameter Tuning in R"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -12,11 +12,11 @@ output:
 "I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
 
 
-Course Description
+**Course Description:**
 
-Are you concerned about inaccurate or suspicious records in your data, but not sure where to start? An anomaly detection algorithm could help! Anomaly detection is a collection of techniques designed to identify unusual data points, and are crucial for detecting fraud and for protecting computer networks from malicious activity. In this course, you'll explore statistical tests for identifying outliers, and learn to use sophisticated anomaly scoring algorithms like the local outlier factor and isolation forest. You'll apply anomaly detection algorithms to identify unusual wines in the UCI Wine quality dataset and also to detect cases of thyroid disease from abnormal hormone measurements.
+For many machine learning problems, simply running a model out-of-the-box and getting a prediction is not enough; you want the best model with the most accurate prediction. One way to perfect your model is with hyperparameter tuning, which means optimizing the settings for that specific model. In this course, you will work with the caret, mlr and h2o packages to find the optimal combination of hyperparameters in an efficient manner using grid search, random search, adaptive resampling and automatic machine learning (AutoML). Furthermore, you will work with different datasets and tune different supervised learning models, such as random forests, gradient boosting machines, support vector machines, and even neural nets. Get ready to tune!
 
-Ref: Rushworth, A. www.datacamp.com, 2019. 
+Ref: Glander, Shirin. "Hyperparameter Tuning in R", www.datacamp.com, 2019. 
 
 
 ## (I) Load Required Libraries
@@ -24,10 +24,373 @@ Ref: Rushworth, A. www.datacamp.com, 2019.
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(janitor)
+library(caret)
+library(tictoc)
+
+```
+
+# 1. Introduction to hyperparameters 
+Why do we use the strange word "hyperparameter"? What makes it hyper? Here, you will understand what model parameters are, and why they are different from hyperparameters in machine learning. You will then see why we would want to tune them and how the default setting of caret automatically includes hyperparameter tuning.
+
+
+## 1.1 Parameters vs Hyperparameters
+
+* Model **parameters** are being fit (i.e. found) during training, and they are the result of model fitting or training
+
+* Model **hyperparameters** are being set before training, adn they specify **how** the training is supposed to happen
+
+In the linear model, coefficients were found during fitting. **method** was an option ot set **before** fitting. 
+
+In **machine learning**, weights and biases of neural nets that are optimized during training --> model parameters
+
+Options like learning rate, weight decay adn number of trees in a Random Forest model that can be tweeked --> hyperparamters
+
+
+```{r}
+# read data 
+breast_cancer_data <- 
+  read_csv("data/breast_cancer_data.csv") %>%
+  clean_names()
+
+# Fit a linear model
+linear_model <- lm(concavity_mean ~ symmetry_mean, data = breast_cancer_data)
+
+# look at the summary of the lienar model
+summary(linear_model)
+
+# Extract the coefficients
+linear_model$coefficients
+
+# Plot linear relationship
+breast_cancer_data %>%
+  ggplot(aes(x = symmetry_mean, y = concavity_mean)) +
+  geom_point(color = "grey") + 
+  geom_abline(slope = linear_model$coefficients[2], 
+              intercept = linear_model$coefficients[1])
+
+```
+
+
+## 1.2 Machine Learning with caret - the basics
+
+* Splitting into trainig and test data
+
+* Set up cross-validation 
+
+The following code shows the basics of building models with caret
+```{r}
+# set seed 
+set.seed(42)
+
+# create partition index
+index <- createDataPartition(y = breast_cancer_data$diagnosis, 
+                             p = 0.70, 
+                             list = FALSE)
+
+# Suset data with index
+bc_train_data <- breast_cancer_data[index, ]
+bc_test_data <- breast_cancer_data[-index, ]
+
+# Define 3 x 5 folds repeated cross-validation
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 5, 
+                           repeats = 3)
+```
+
+
+
+3### 1.2.1 Train a Stochastic Gradient Boosting model
+```{r}
+# Hyperparameters in Stochastic Gradient Boosting
+modelLookup("gbm")
+
+# Train a Stochastic Gradient Boosting model
+tic()
+set.seed(42)
+gbm_model <- train(diagnosis ~ ., 
+                   data = bc_train_data, 
+                   method = "gbm", 
+                   trControl = fitControl, 
+                   verbose = FALSE)
+toc()
+
+# Look at the model
+gbm_model
+
+```
+
+### 1.2.2 Train a Random Forest model
+```{r}
+modelLookup("rf")
+# Train a Random Forest model
+tic()
+set.seed(42)
+rf_model <- train(diagnosis ~ ., 
+                  data = bc_train_data, 
+                  method = "rf", 
+                  trControl = fitControl, 
+                  verbose = FALSE)
+toc()
+
+# Look at the model
+rf_model
+```
+
+### 1.2.3 Support Vector Machines (SVM)
+
+```{r}
+# look up specific hyperparameters to model algorithms
+modelLookup("svmPoly")
+
+# Train model 
+tic()
+set.seed(42)
+svm_model <- train(diagnosis ~ ., 
+                  data = bc_train_data, 
+                  method = "svmPoly", 
+                  trControl = fitControl, 
+                  verbose = FALSE)
+toc()
+
+# Model
+svm_model
+```
+
+## 1.3 Hyperparameter tuning with caret
+
+* Automatic hyperparameter tuning in caret
+
+* Defining hyperparameters for automatic tuning
+
+* Manual hyperparameter tuning in caret
+
+The *caret* does some automatic hyperparameter tuning. By default, if *p* is the number of tuning parameters, the grid size is $3^p$. For sure, we can also specify the number of different values to each hyperparameter. 
+
+
+Stochastic Gradient Boosting model
+```{r}
+
+# set seed
+set.seed(42)
+
+# Start timer
+tic()
+
+# Train model  (4 different values for each hyperparameter)
+gbm_model <- train(diagnosis ~ ., 
+                   data = bc_train_data, 
+                   method = "gbm", 
+                   trControl = fitControl, 
+                   verbose = FALSE, 
+                   tuneLength = 5)
+
+# Stop timer
+toc()
+
+# look at model
+gbm_model
+```
+
+### 1.3.1 Tune hyperparameters manually
+
+We can also manually define hyperparameters as a **grid**. 
+
+
+```{r}
+# look up hyperparamters
+modelLookup("gbm")
+
+# Define hyperparamter grid
+hyperparams <- expand.grid(n.trees = 200, 
+                           interaction.depth = 1, 
+                           shrinkage = 0.1, 
+                           n.minobsinnode = 10)
+
+# Apply hyperparameter grid to train()
+tic()
+set.seed(42)
+gbm_model <- train(diagnosis ~ ., 
+                   data = bc_train_data, 
+                   method = "gbm", 
+                   trControl = fitControl, 
+                   verbose = FALSE, 
+                   tuneGrid = hyperparams)
+toc()
+
+# model
+gbm_model
+
+```
+
+
+# 2. Hyperparameter Tuning in Caret
+
+## 2.1 Dataset: Voter dataset from US 2016 Election 
+
+```{r}
+# voter dataset from US 2016 Election 
+voters_train_data <- read_csv("data/voters_train_data.csv") %>% clean_names()
+
+# data structure
+glimpse(voters_train_data)
 
 
 ```
 
-# 1. Statistical Outlier Detection 
 
-In this chapter, you'll learn how numerical and graphical summaries can be used to informally assess whether data contain unusual points. You'll use a statistical procedure called Grubbs' test to check whether a point is an outlier, and learn about the Seasonal-Hybrid ESD algorithm, which can help identify outliers when the data are a time series.
+## 2.2 Cartesian grid search in caret - Support Vector Machine With Polynomial Kernel 
+
+```{r}
+# hyperparameter of SVM
+modelLookup("svmPoly")
+
+# Define Cartesian Grid 
+man_grid <- expand.grid(degree = c(1, 2, 3), 
+                        scale = c(0.1, 0.01, 0.001), 
+                        C = 0.5)
+class(man_grid)
+
+# Start timer, set seed & train model
+tic()
+set.seed(42)
+svm_model_votes_grid <- train(turnout16_2016 ~ ., 
+                              data = voters_train_data, 
+                              method = "svmPoly", 
+                              trControl = fitControl, 
+                              verbose = FALSE, 
+                              tuneGrid = man_grid)
+toc()
+
+
+# model
+svm_model_votes_grid
+
+# Plot hyperparameter model output
+plot(svm_model_votes_grid)
+
+# Plot Kappa level 
+plot(svm_model_votes_grid, 
+     metric = "Kappa", 
+     plotType = "level")
+```
+
+## 2.3 Grid search with range of hyperparameters
+```{r}
+# Neural Network
+modelLookup("nnet")
+
+# Define the grid with hyperparameter ranges
+big_grid <- expand.grid(size = seq(from = 1, to =5, by =1), 
+                        decay = c(0, 1))
+
+big_grid
+
+# Train control with grid search 
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 5, 
+                           repeats = 3, 
+                           search = "grid")
+
+# Train neural net 
+tic()
+set.seed(42)
+nn_model_voters_big_grid <- train(turnout16_2016 ~ ., 
+                                  data = voters_train_data, 
+                                  method = "nnet", 
+                                  trControl = fitControl, 
+                                  verbose = FALSE, 
+                                  tuneGrid = big_grid)
+toc()
+
+# check the model
+nn_model_voters_big_grid
+```
+
+
+## 2.4 Random search with caret
+In *caret*, we can not perform a random search on a defined grid. 
+
+```{r}
+# Train control with random search 
+fitControl <- trainControl(method = "repeatedcv", 
+                           number = 5, 
+                           repeats = 3,
+                           search = "random")
+
+# Test 6 random hyperparameter combinations
+tic()
+set.seed(42)
+nn_model_voters_big_grid <- train(turnout16_2016 ~ ., 
+                                  data = voters_train_data, 
+                                  method = "nnet", 
+                                  trControl = fitControl, 
+                                  verbose = FALSE, 
+                                  tuneLength = 6)
+toc()
+
+# check the model 
+nn_model_voters_big_grid
+```
+
+
+## 2.5 Adaptive Resampling
+
+**Adaptive Resampling**: 
+
+* Hyperparameter combinations are resampled with values near combinations that performed well
+
+* Adaptive resampling is, there, faster and more efficinet! 
+
+Adaptive Resampling does not necessarilty find better hyperparameter combinations, it is just more efficient at searching. 
+
+```{r}
+library(plyr)
+library(dplyr)
+fitControl <- trainControl(method = "adaptive_cv", 
+                           adaptive = list(min = 2,  # min number of resamples per hyperparameter
+                                           alpha = 0.05, # confidence level to remove hyperparameters
+                                           method = "gls", # "gls" for linear model or "BT" for Bradley-Terry
+                                           complete = TRUE), # if TRUE generate full resampling set 
+                           search = "random")
+
+tic()
+set.seed(42)
+gbm_model_voters_adaptive <- train(turnout16_2016 ~ ., 
+                                   data = voters_train_data, 
+                                   method = "gbm", 
+                                   trControl = fitControl, 
+                                   verbose = FALSE,
+                                   tuneLength = 7)
+toc()
+```
+
+
+```{r}
+library(BradleyTerry2)
+# Define trainControl function
+fitControl <- trainControl(method = "adaptive_cv", 
+                           number = 3, 
+                           repeats = 3,
+                           adaptive = list(min = 3, 
+                                           alpha = 0.05, 
+                                           method = "BT", 
+                                           complete = FALSE), 
+                           search = "random")
+
+# Start timer & train model
+tic()
+svm_model_voters_ar <- train(turnout16_2016 ~ ., 
+                             data = voters_train_data, 
+                             method = "nnet", 
+                             trControl = fitControl, 
+                             verbose = FALSE, 
+                             tuneLength = 6)
+toc()
+
+# Check the model 
+svm_model_voters_ar
+5```
+
+
+
