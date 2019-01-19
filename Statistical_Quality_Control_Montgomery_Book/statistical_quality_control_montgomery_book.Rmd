@@ -1,0 +1,81 @@
+---
+title: "Statistical Quality Control Book - Montgomery"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(pdftools)
+```
+
+
+
+# 6. control Charts for Variables 
+
+The $\bar{x}$ and R control charts are widely used to monitor the mean and variability of variables. 
+
+
+## 6.1 Introduction
+
+When dealing with a quality characteristic that is a variable, it is usually necessay to monitor both the mean and variabilit. 
+
+```{r}
+# Define upper- and lower- specification limits
+upper_specification_limit <- 13
+lower_specification_limit <- 7
+
+# simulated data 
+set.seed(123)
+prod_x <- data.frame(x = rnorm(n = 10000, mean = 10, sd = 1))
+
+# plot
+prod_x %>%
+  ggplot(aes(x = x)) +
+  geom_histogram(bins = 100) + 
+  geom_histogram(aes(x = rnorm(n = 10000, mean = 12, sd = 1), alpha = 0.7), bins = 100) +
+   geom_histogram(aes(x = rnorm(n = 10000, mean = 10, sd = 2), alpha = 0.7), bins = 100) +
+  geom_vline(xintercept = c(upper_specification_limit, lower_specification_limit, 10, 12))
+
+```
+
+
+## 6.2 Control Charts for X_bar and R 
+
+$\bar{x}$
+
+
+
+# 9. Cumulative Sum and Exponentiallly Weighted Moving Averge Control Charts 
+
+
+
+
+
+# 11. Multivariate Process Monitoring and Control 
+
+
+## 11.1 T2 Chart
+
+```{r}
+# Get Table data 11.1 using a pdf file 
+pdf_list <- list.files(path = "./data", pattern = ".pdf$", full.names = TRUE)
+
+# Read PDF files into R via pdf_txt()
+pdf_info(pdf_list[2])
+pdf_fonts(pdf_list[2])
+txt <- pdf_text(pdf_list[2])
+```
+

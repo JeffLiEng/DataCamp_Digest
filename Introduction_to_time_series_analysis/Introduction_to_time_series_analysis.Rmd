@@ -19,7 +19,7 @@ output:
 Ref: matteson, David (2018) Introduction to Time Series Analysis, https://www.datacamp.com/courses/introduction-to-time-series-analysis, 2018.
 
 
-Note: Some course materials and data have beem revised for training by Jeff Li. 
+Note: Some course materials and data have been revised for training by Jeff Li. 
 
 # (I) Load required libraries
 ```{r setup, include = FALSE}
@@ -34,9 +34,9 @@ library(tidyverse)
 
 "This chapter will give you insights on how to organize and visualize time series data in R. You will learn several simplifying assumptions that are widely used in time series analysis, and common characteristics of financial time series."
 
-## 1.1 Exloring raw time series
+## 1.1 Exploring raw time series
 
-River Nile annual streamflow data. 
+River Nile annual stream flow data. 
 
 ```{r, eval=FALSE}
 # create the data
@@ -281,7 +281,7 @@ arima(y, order = c(0, 0, 0))
 
 ```
 
-From the comparisons, we can see that the *arima()* function estimates are very close to the sample mean and variance estiamtes. 
+From the comparisons, we can see that the *arima()* function estimates are very close to the sample mean and variance estimate. 
 
 
 ## 2.6 Simulate the random walk model
@@ -304,7 +304,7 @@ random_walk_diff <- diff(x = random_walk, lag = 1)
 ts.plot(random_walk_diff)
 ```
 
-The first difference of the *random_walk* daa is white noise data. The random walk is simply recursive white noise data. 
+The first difference of the *random_walk* data is white noise data. The random walk is simply recursive white noise data. 
 
 
 ## 2.7 Simulate the random walk model with a drift
@@ -491,7 +491,7 @@ pairs(logreturns)
 Pairs of data drawn from a multivariate normal distribution form a roughly elliptically shaped point cloud. 
 
 
-## 3.4 Calculating sample covariances and correlations
+## 3.4 Calculating sample co-variances and correlations
 
 ```{r}
 # Use covariance and variance of logreturn
@@ -502,12 +502,12 @@ cor(logreturns)
 
 ```
 
-The cor() and scatterplot matrix are intuitive outputs. 
+The cor() and scatter-plot matrix are intuitive outputs. 
 
 
-## 3.5 Calculating Autocorrelations
+## 3.5 Calculating Auto-correlations
 
-Autocorrelations or lagged correlations are used to assess whether a time series is dependent on its past. 
+Auto correlations or lagged correlations are used to assess whether a time series is dependent on its past. 
 
 ```{r}
 # Create x 
@@ -532,15 +532,15 @@ acf(x, lag.max = 1, plot = FALSE)
 ```
 
 
-## 3.7 Autocorrelation function
+## 3.7 Auto-correlation function
 
-Autocorrelations can be estimated at many lags to better assess how a time series relats to its past. 
+Auto-correlations can be estimated at many lags to better assess how a time series relates to its past. 
 ```{r}
 # Generate ACF estiamtes for x up ot lag -10
 acf(x, lag.max = 10, plot = FALSE)
 ```
 
-## 3.8 Visulizing the autocorrelation function
+## 3.8 Visualizing the auto-correlation function
 ```{r}
 # x random number 
 x <- rnorm(100)
@@ -574,7 +574,7 @@ $$Y_t-\mu = \phi(Y_{t-1} - \mu) + \epsilon_t$$
 Where $\epsilon_t$ is mean zero white noise (WN). 
 
 
-Three paramters: 
+Three parameters: 
 
 * The mean $\mu$
 
@@ -585,11 +585,11 @@ Three paramters:
 
 * If slope $\phi = 0$ then: $Y_t = \mu + \epsilon_t$ and $Y_t$ is White Noise($\mu$, $\sigma^2_{\epsilon}$) 
 
-* If slope $\phi \neq 0$ then $Y_t$ depends on both $\epsilon_t$ and $Y_{t-1}$. And the process $\{Y_t\}$ is autocorrelated. 
+* If slope $\phi \neq 0$ then $Y_t$ depends on both $\epsilon_t$ and $Y_{t-1}$. And the process $\{Y_t\}$ is auto-correlated. 
 
-* Large values of $\phi$ lead to greater autocorrelation
+* Large values of $\phi$ lead to greater auto-correlation
 
-* Nagative values of $\phi$ result in oscillatory time series. 
+* Negative values of $\phi$ result in oscillatory time series. 
 
 
 Random Walk: 
@@ -600,9 +600,9 @@ $$Y_t = Y_{t-1} + \epsilon_t$$
 
 ## 4.1 Simulate the autoregressive model 
 
-The autoregressive (AR) model is arguably the most widely used time series model. It shares the very familiar interprepation of a simple linear regression, but here each observation is regressed on the previous observation. The AR model also includes the white noise (WN) and random walk (RW) models. 
+The autoregressive (AR) model is arguably the most widely used time series model. It shares the very familiar interpretation of a simple linear regression, but here each observation is regressed on the previous observation. The AR model also includes the white noise (WN) and random walk (RW) models. 
 
-Exercise: using arima.sim() to simulate and plot three different AR models with lsope paramters equal to 0.5, 0.9 and -0.75, respectively. 
+Exercise: using arima.sim() to simulate and plot three different AR models with slope parameters equal to 0.5, 0.9 and -0.75, respectively. 
 
 ```{r}
 # Simulate an AR model with 0.5 slope
@@ -638,7 +638,7 @@ acf(z)
 
 ## 4.3 compare the random walk (RW) and autoregression (AR) models
 
-The random walk (RW) model is a special case of the autoregressive (AR) model, in which the slope paramter equals to 1. The RW model is not stationary and exhibits very strong persistance. Its sample autocovariance function (ACF) also decays to zero very slowly, meaning past values have a long lasting impact on current values. 
+The random walk (RW) model is a special case of the autoregressive (AR) model, in which the slope parameter equals to 1. The RW model is not stationary and exhibits very strong persistence. Its sample autocovariance function (ACF) also decays to zero very slowly, meaning past values have a long lasting impact on current values. 
 
 ```{r}
 # Simulate and plot AR model with slope 0.9
@@ -661,9 +661,9 @@ acf(z)
 
 ## 4.4 AR Model Estimation and Forecasting
 
-* One-month US infaltion rate (in percent, annual rate)
+* One-month US inflation rate (in percent, annual rate)
 
-* Monthly observatons from 1950 through 1990
+* Monthly observations from 1950 through 1990
 
 ```{r}
 data(Mishkin, package = "Ecdat")
@@ -695,7 +695,7 @@ AR_inflation
 
 $ar1 = \hat{\phi}$, $intercpt = \hat{\mu}$, $sigma^2 = \hat{\sigma}^2_{\epsilon}$
 
-* AR fitted vlaues: $\hat{Today} = \hat{Mean} + \hat{Slope} * (Yesterday - \hat{Mean})$
+* AR fitted values: $\hat{Today} = \hat{Mean} + \hat{Slope} * (Yesterday - \hat{Mean})$
 
 $$\hat{Y_t} = \hat{\mu} + \hat{\phi} (Y_{t-1} - \hat{\mu})$$
 
@@ -766,5 +766,132 @@ points(AR_forecast + 2 * AR_forecast_se, type = "l", col = 2, lty = 2)
 AR_fitted <- Nile - residuals(AR_fit)
 points(AR_fitted, type = "l", col = 2, lty = 2)
 ```
+
+# 5. A Simple Moving Average
+In this chapter, you will learn the simple moving average (MA) model and several of its basic properties. You will also practice simulating and estimating the MA model in R, and compare the MA model with the autoregressive (AR) model.
+
+The simple moving average (MA) model: 
+$$Today = Mean + Noise + Slope * NoiseOfYesterday$$
+
+More formally:
+$$Y_t = \mu + \epsilon_t + \theta*\epsilon_{t-1}$$ 
+
+where $\epsilon_t$ is mean zero white noise (WN). 
+
+Three parameters: 
+
+* The mean $\mu$
+
+* The slope $\theta$
+
+* The WN variance 
+
+## 5.1 Simulate the simple moving average model 
+
+For positive slope values, there are some very short-run persistence. For negative slope values, the series has a tendency to alternate. 
+
+```{r}
+# Generate MA model with slope 0.5
+x <- arima.sim(model = list(ma = 0.5), n = 100)
+
+# Generate MA model with slope 0.9
+y <- arima.sim(model = list(ma = 0.9), n = 100)
+
+# Generate MA model with slope -0.5
+z <- arima.sim(model = list(ma = -0.5), n = 100)
+
+# Plot all three models together
+plot.ts(cbind(x, y, z))
+```
+
+## 5.2 Estimate the autocorrelation function (ACF) for a moving average
+
+```{r}
+# Calculate ACF for x
+acf(x)
+
+# Calculate ACF for y
+acf(y)
+
+# Calculate ACF for z
+acf(z)
+```
+
+## 5.3 MA model estimation and forecasting
+
+**MA processes: Changes in inflation rate** 
+
+* one-month US inflation rate (in percent, annual rate)
+
+* Monthly observation from 1950 through 1990
+
+```{r}
+data(Mishkin, package = "Ecdat")
+
+inflation <- as.ts(Mishkin[, 1])
+
+inflation_changes <- diff(inflation)
+
+ts.plot(inflation)
+ts.plot(inflation_changes)
+
+# plot ACF
+acf(inflation_changes)
+
+
+# simulate
+MA_inflation_changes <- arima(inflation_changes, order = c(0, 0, 1))
+
+MA_inflation_changes
+
+# Calculate fitted
+MA_inflation_changes_fitted <- inflation_changes - residuals(MA_inflation_changes)
+
+# plot: true vs predict
+ts.plot(inflation_changes)
+points(MA_inflation_changes_fitted, type = "l", col = "red", lty = 2)
+
+
+# Forecasting 
+# 1-step ahead forecasts
+predict(MA_inflation_changes)
+
+# h-step ahead 
+predict(MA_inflation_changes, n.ahead = 6)
+```
+
+
+## 5.4 AR vs MA models
+
+How can we determine whether an AR or MA model is more appropriate in practice? 
+
+If all factors are equal, a model that  produces a  lower AIC or BIC than another model. 
+
+```{r}
+# Fit Nile data 
+AR <- arima(Nile, order = c(1, 0, 0))
+MA <- arima(Nile, order = c(0, 0, 1))
+
+# fitted values
+AR_fit <- Nile - residuals(AR)
+MA_fit <- Nile - residuals(MA)
+
+# Find the correlation between AR_fit and MA_fit
+cor(AR_fit, MA_fit)
+
+# Find AIC of AR
+AIC(AR)
+
+# Find AIC of MA
+AIC(MA)
+
+# Find BIC of AR
+BIC(AR)
+
+# Find BIC of MA
+BIC(MA)
+```
+
+AR model is a slightly better fit for Nile data. 
 
 
