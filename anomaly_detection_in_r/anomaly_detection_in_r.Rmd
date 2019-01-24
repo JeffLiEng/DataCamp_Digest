@@ -44,6 +44,10 @@ Options like learning rate, weight decay adn number of trees in a Random Forest 
 
 
 ```{r}
+library(AnomalyDetection)
+
+AnomalyDetectionTs(raw_data, max_anoms = 0.02, direction = "both", plot = TRUE)
+
 
 ```
 

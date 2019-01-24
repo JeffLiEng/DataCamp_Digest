@@ -57,25 +57,13 @@ prod_x %>%
 $\bar{x}$
 
 
-
-# 9. Cumulative Sum and Exponentiallly Weighted Moving Averge Control Charts 
-
-
-
-
-
-# 11. Multivariate Process Monitoring and Control 
-
-
-## 11.1 T2 Chart
-
 ```{r}
-# Get Table data 11.1 using a pdf file 
-pdf_list <- list.files(path = "./data", pattern = ".pdf$", full.names = TRUE)
+sim <- NULL
 
-# Read PDF files into R via pdf_txt()
-pdf_info(pdf_list[2])
-pdf_fonts(pdf_list[2])
-txt <- pdf_text(pdf_list[2])
+for (i in seq(1:1e9)) {
+  sim[i] = diff(range(rnorm(n = 5), mean = 0, sd = 1))
+}
+
+mean(sim)
+
 ```
-

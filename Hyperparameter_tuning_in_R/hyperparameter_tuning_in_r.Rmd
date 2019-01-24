@@ -25,8 +25,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(janitor)
+library(mlr)
 library(caret)
 library(tictoc)
+
 
 ```
 
@@ -390,7 +392,432 @@ toc()
 
 # Check the model 
 svm_model_voters_ar
-5```
+```
 
 
+# 3. Machine Leanring with mlr
 
+**mlr** provides an infrastructure to resample the models, optimize hyperparamters, select features, cope with pre- an post-processing of data an dcompare models in a statitically way. 
+
+**mlr** is another framework for **machine learning** in R, and model training follows three steps: 
+
+ * 1. Define the **task**: RegrTask() for regression, ClassifTask() for binary and multi-class classification, multilabelTask() for multi-label classification problems, and CostSensTask() for general cost-sensitive classification
+ 
+ * 2. Define the **learner**
+ 
+ * 3. Fit the **model**
+ 
+ 
+```{r}
+# Leaner in mlr
+learner_in_mlr <- listLearners()
+learner_in_mlr
+```
+ 
+ 
+```{r}
+# dataset: user knowledge data
+knowledge_train_data <- read_csv("data/knowledge_train_data.csv")
+glimpse(knowledge_train_data)
+
+# count the "UNS"
+knowledge_train_data %>%
+  count(UNS)
+
+# Model fitting in mlr
+tic()
+# 1. Define task
+task <- mlr::makeClassifTask(data = knowledge_train_data, 
+                             target = "UNS")
+
+# 2. Define learner
+lrn <- mlr::makeLearner("classif.h2o.deeplearning", 
+                        fix.factors.prediction = TRUE)
+
+# 3. Fit model
+model <- mlr::train(lrn, task)
+
+toc()
+
+# look at the model
+summary(model)
+```
+ 
+
+## 3.1 Modeling with mlr
+
+```{r}
+# create classification task
+task <- mlr::makeClassifTask(data = knowledge_train_data, 
+                             target = "UNS")
+
+# Call the list of learners
+listLearners() %>%
+  as.data.frame() %>%
+  select(class, short.name, package) %>%
+  filter(grepl("classif.", class))
+
+
+# Find the correct classification for Random Forest in the output and build a learner with the ranomForest classifer
+lrn <- makeLearner(cl = "classif.randomForest", 
+                   # output class probabilities
+                   predict.type = "prob",  
+                   # add a factor for missing data
+                   fix.factors.prediction = TRUE) 
+
+```
+
+
+## 3.2 Hyperparameter tuning with mlr - grid and random search
+
+Hyperparameter tuning iwth mlr, we need to define: 
+
+* 1. the search space for every hyperparameter
+
+* 2. the tuning method (e.g. grid or random search)
+
+* 3. the resampling method 
+
+```{r}
+# defining the search space
+
+getParamSet("classif.h2o.deeplearning")
+
+param_set <- makeParamSet(
+  makeDiscreteParam(id = "hidden", values = list(one = 10, two = c(10, 5, 10))),
+  makeDiscreteParam(id = "activation", values = c("Rectifier", "Tanh")), 
+  makeNumericParam(id = "l1", lower = 0.0001, upper = 1), 
+  makeNumericParam(id = "l2", lower = 0.0001, upper = 1)
+)
+                    
+# define the tuning method
+
+## grid search
+ctrl_grid <- makeTuneControlGrid()
+ctrl_grid
+
+## Random search
+ctrl_random <- makeTuneControlRandom()
+ctrl_random
+
+
+# Define resampling strategy
+cross_val <- mlr::makeResampleDesc(method = "RepCV", 
+                              predict = "both", 
+                              folds = 5 * 3)
+
+param_set <- makeParamSet(
+  makeDiscreteParam("mtry", values = c(2, 3, 4, 5))
+)
+
+ctrl_grid <- mlr::makeTuneControlGrid()
+
+task <- mlr::makeClassifTask(data = knowledge_train_data, 
+                        target = "UNS")
+
+lrn <- mlr::makeLearner("classif.h2o.deeplearning", 
+                   predict.type = "prob", 
+                   fix.factors.prediction = TRUE)
+
+lrn_tune <- mlr::tuneParams(lrn, 
+                       task, 
+                       resampling = cross_val, 
+                       control = ctrl_grid, 
+                       par.set = param_set)
+
+lrn_tune
+```
+
+
+## 3.3 Random search with mlr - exercise
+
+```{r}
+# Get the parameter set for neural networks of the nnet package
+getParamSet(x = "classif.nnet")
+
+# Define a set of discrete parameters: start with the 
+param_set <- makeParamSet(
+  # defining size to be either 2, 3, or 5
+  makeDiscreteParam(id = "size", values = c(2, 3, 5)), 
+  # defining decay 
+  makeNumericParam(id = "decay", lower = 0.0001, upper = 0.1)
+)
+
+# Print parameter set
+print(param_set)
+
+# Define a random search tuning method
+ctrl_random <- makeTuneControlRandom()
+
+
+# Define task
+task <- makeClassifTask(data = knowledge_train_data, 
+                        target = "UNS")
+
+# Define learner
+lrn <- makeLearner("classif.nnet",
+                   predict.type = "prob", 
+                   fix.factors.prediction = TRUE)
+
+# Define a random search tuning method
+## (Usually, we would set the number much highter (the default is 100))
+ctrl_random <- makeTuneControlRandom(maxit = 6)
+
+# Define a 3 x 3 repeated cross-validataion scheme
+cross_val <- makeResampleDesc(method = "RepCV", folds = 3 * 3 )
+
+# Tune hyperparameters
+tic()
+lrn_tune <- tuneParams(lrn, 
+                       task, 
+                       resampling = cross_val, 
+                       control = ctrl_random, 
+                       par.set = param_set)
+toc()
+```
+
+## 3.4 Evaluating tuned hyperparameters with mlr
+
+Evaluation of our results: 
+
+* how different hyperparamters affect the performance of our model
+
+* Which hyperparamters have a particularly strong or weak impact on our model performance
+
+* Whether our hyperparameter search converged, i.e. whether we can be reasonable confient that we found the most optimal hyperparamter combination. 
+
+```{r}
+# recap previous work
+getParamSet("classif.h2o.deeplearning")
+
+param_set <- makeParamSet(
+  makeDiscreteParam("hidden", values = list(one = 10, two = c(10, 5, 10))), 
+  makeDiscreteParam("activation", values = c("Rectifier", "Tanh")), 
+  makeNumericParam("l1", lower = 0.0001, upper = 1), 
+  makeNumericParam("l2", lower = 0.0001, upper = 1)
+)
+
+ctrl_random <- makeTuneControlRandom(maxit = 50)
+
+holdout <- makeResampleDesc("Holdout")
+
+task <- makeClassifTask(data = knowledge_train_data, 
+                        target = "UNS")
+
+lrn <- makeLearner("classif.h2o.deeplearning", 
+                   predict.type = "prob", 
+                   fix.factors.prediction = TRUE)
+
+lrn_tune <- tuneParams(lrn, 
+                       task, 
+                       resampling = holdout, 
+                       control = ctrl_random, 
+                       par.set = param_set )
+
+
+# Evaluating the tuning results
+lrn_tune
+
+hyperpar_effects <- generateHyperParsEffectData(lrn_tune, partial.dep = TRUE)
+
+# Plotting hyperparameter tuning results
+plotHyperParsEffect(hyperpar_effects, partial.dep.learn = "regr.randomForest", 
+                    x = "l1", y = "mmce.test.mean", z = "hidden", 
+                    plot.type = "line")
+```
+
+
+## 3Evaluating hyperparamter tunning results-exercise
+
+Evaluate the results of a hyperparameter tuning run for a decision tree trained with the *rpart* package
+
+```{r}
+# define the task
+task <- makeClassifTask(data = knowledge_train_data, 
+                        target = "UNS")
+
+# define learner
+lrn <- makeLearner(cl = "classif.rpart", 
+                   fix.factors.prediction = TRUE)
+
+# Define hyperparameters
+param_set <- makeParamSet(
+  makeIntegerParam(id = "minsplit", lower = 1, upper = 30), 
+  makeIntegerParam(id = "minbucket", lower = 1, upper = 30), 
+  makeIntegerParam(id = "maxdepth", lower = 3, upper = 10)
+)
+
+ctrl_random <- makeTuneControlRandom(maxit = 10)
+
+# Create holdout sampling
+holdout <- makeResampleDesc("Holdout")
+
+# perform tuning
+lrn_tune <- tuneParams(learner = lrn, 
+                       task = task, 
+                       resampling = holdout, 
+                       control = ctrl_random, 
+                       par.set = param_set)
+
+# Generate hyperparameter effect data
+hyperpar_effects <- generateHyperParsEffectData(lrn_tune, partial.dep = TRUE)
+
+# Plot hyperparameter effects
+plotHyperParsEffect(hyperpar_effects, 
+                    partial.dep.learn = "regr.glm", 
+                    x = "minsplit", 
+                    y = "mmce.test.mean", 
+                    z = "maxdepth", 
+                    plot.type = "line")
+```
+
+
+## 3.6 Advanced tuning with mlr
+
+* *makeTuneControlCMAES*: CMA evolution strategy
+
+* *makeTuneControlDesign*: Predefined data frame of hyperparameters
+
+* *makeTuneControlGenSA*: Generalized simulated annealing
+
+* *makeTuneControlIrace*: Tuning with iterated F-Racing
+
+* *makeTuneControlMBO*: Model-based/Bayesian optimization
+
+```{r}
+# Generalized simulated annealing
+ctrl_gensa <- makeTuneControlGenSA()
+
+# Create holdout sampling
+bootstrap <- makeResampleDesc("Bootstrap", predict = "both")
+
+# Perform tuning
+lrn_tune <- tuneParams(learner = lrn, 
+                       task = task, 
+                       resampling = bootstrap, 
+                       control = ctrl_gensa, 
+                       par.set = param_set, 
+                       measures = list(acc, mmce))
+```
+
+## 3.7 Define aggregated measures
+
+```{r}
+task <- makeClassifTask(data = knowledge_train_data, 
+                        target = "UNS")
+
+lrn <- makeLearner(cl = "classif.nnet", 
+                   fix.factors.prediction = TRUE)
+
+param_set <- makeParamSet(
+  makeIntegerParam(id = "size", lower = 1, upper = 5), 
+  makeIntegerParam(id = "maxit", lower = 1, upper = 300), 
+  makeNumericParam(id = "decay", lower = 0.0001, upper = 1)
+)
+
+ctrl_random <- makeTuneControlRandom(maxit = 10)
+
+# Create holdout sampling
+holdout <- makeResampleDesc("Holdout", predict = "both")
+
+# Perform tuning
+lrn_tune <- tuneParams(learner = lrn, 
+                       task = task, 
+                       control = ctrl_random, 
+                       par.set = param_set, 
+                       measures = list(mmce, setAggregation(mmce, train.mean), 
+                                       acc, setAggregation(acc, train.mean)))
+
+# Set hyperparameters
+lrn_best <- setHyperPars(lrn, par.vals = list("size" = 1, 
+                                              "maxit" = 150, 
+                                              "decay" = 0))
+
+# train model 
+model_best <- train(lrn_best, task)
+```
+
+
+# 4. Hyperparameter tuning with h2o
+
+In this final chapter, you will use h2o, another package for machine learning with very convenient hyperparameter tuning functions. You will use it to train different models and define a Cartesian grid. Then, You will implement a Random Search use stopping criteria. Finally, you will learn AutoML, an h2o interface which allows for very fast and convenient model and hyperparameter tuning with just one function.
+
+```{r}
+# load library 
+library(h2o)
+h2o.init()
+
+```
+
+New dataset: seeds data
+```{r}
+dir("data/")
+
+seeds_train_data <- read_csv("data/seeds_train_data.csv")
+
+glimpse(seeds_train_data)
+
+seeds_train_data %>%
+  count(seed_type)
+```
+
+Preparing the data for modeling with H2O
+```{r}
+# Data as H2O frame
+seeds_data_hf <- as.h2o(seeds_train_data)
+class(seeds_data_hf)
+
+# Define features and target variable
+y <- "seed_type"
+
+x <- setdiff(colnames(seeds_data_hf), y)
+
+# For classification target should be a factor
+seeds_data_hf[, y] <- as.factor(seeds_data_hf[, y])
+```
+
+Training, validation and test sets
+
+```{r}
+sfram <- h2o.splitFrame(data = seeds_data_hf, 
+                        ratios = c(0.7, 0.15), 
+                        seed = 42)
+
+train <- sfram[[1]]
+valid <- sfram[[2]]
+test <- sfram[[3]]
+
+
+summary(train$seed_type, exact_quantiles = TRUE)
+summary(test$seed_type, exact_quantiles = TRUE)
+```
+
+Model training with H2O
+
+* Gradient Boosted models with *h2o.gbm() & h2o.xgboost()* 
+
+* Generalized linear models with *h2O.glm()*
+
+* Random forest models with *h2o.randomForest()*
+
+* Neural Network with *h2o.deeplearning()* 
+
+```{r}
+gbm_model <- h2o.gbm(x = x, y = y, 
+                     training_frame = train, 
+                     validation_frame = valid)
+gbm_model
+```
+
+Evaluate model performance with H2O
+```{r}
+# model performance
+perf <- h2o.performance(gbm_model, test)
+h2o.confusionMatrix(perf)
+
+# Predict new data
+h2o.predict(gbm_model, test)
+
+```
+
+## 4.1 Prepare data for modeling with h2o

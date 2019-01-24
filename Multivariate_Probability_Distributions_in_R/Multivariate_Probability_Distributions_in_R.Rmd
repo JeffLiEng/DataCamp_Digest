@@ -9,7 +9,7 @@ output:
     toc_float: true
 ---
 
-"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+"A happy life is one spent in learning, earning, and yearning". - Lillian Gish
 
 
 **Course Description**
@@ -31,6 +31,8 @@ library(rpart.plot)
 library(RColorBrewer)
 library(rattle)
 library(gmodels)
+library(MVN)
+
 ```
 
 # 1. Reading and plotting multivariate data
@@ -123,7 +125,7 @@ wine_gg
 
 ```{r}
 # plot the three variables
-scatterplot3d::scatterplot3d(x = wine$Alcohol, y =wine$Malic, z = wine$Alcalinity, color = wine$Type)
+scatterplot3d::scatterplot3d(x = wine$Alcohol, y = wine$Malic, z = wine$Alcalinity, color = wine$Type)
 ```
 
 
@@ -132,6 +134,18 @@ scatterplot3d::scatterplot3d(x = wine$Alcohol, y =wine$Malic, z = wine$Alcalinit
 Multivariate normal is the most important and widely used multivariate probability distribution. This chapter covers how to generate random samples from a multivariate normal distribution and how to calculate and plot the densities and probabilities under this distribution. 
 
 ## 2.1 Samples from multivariate normal distributions
+
+* Normal: rnorm, dnorm, pnorm, qnorm
+
+* Multivariate Normal: rmvnorm, dmvnorm, pmvnorm, qmvnorm
+
+* t: rt, dt, pt, qt
+
+* multivariate t: rmvt, dmvt, pmvt, qmvt
+
+
+p for "probability", q for "quantile", d for "density", and r for "random". 
+
 
 ```{r}
 # Define mean and variance-covariance matrix
@@ -147,4 +161,145 @@ cor(multnorm_sample)
 plot(multnorm_sample)
 
 ```
+
+
+Generate 1000 samples from a 3 dimensional norma
+```{r}
+# define mean, variance and co-variance
+mu1 <- c(1, 2, -5)
+sigma1 <- matrix(c(1, 1, 0, 
+                   1, 2, 0, 
+                   0, 0, 5), nrow = 3, ncol = 3)
+
+# generate samples
+set.seed(34)
+sample_3var <- rmvnorm(n = 1000, mean = mu1, sigma = sigma1)
+
+# plot
+cor(sample_3var)
+var(sample_3var)
+
+pairs(sample_3var)
+```
+
+
+## 2.2 Calculate the density of a distribution
+
+```{r}
+# define mu and sigma
+mu1 <- c(1, 2)
+sigma1 <- matrix(c(1, 0.5, 0.5, 2), 2)
+
+# calculate density
+dmvnorm(x = c(0, 0), mean = mu1, sigma = sigma1)
+```
+
+```{r}
+# Code for plotting bivariate densities
+# Create grid
+d <- expand.grid(seq(-3, 6, length.out = 50), 
+                 seq(-3, 6, length.out = 50))
+
+# Calculate density on grid
+dens1 <- dmvnorm(as.matrix(d), 
+                 mean = c( 1, 2), 
+                 sigma = matrix(c(1, 0.5,
+                                  0.5, 1), nrow = 2))
+
+# Convert to matrix
+dens1 <- matrix(dens1, nrow = 50)
+
+# Use perspective plot
+persp(dens1,theta = 80, phi = 30, expand = 0.6, shade = 0.2, 
+      col = "lightblue", xlab = "x", ylab = "y", zlab = "dens")
+```
+
+
+
+```{r}
+# calcualting the density of multivariate normal
+multnorm_dens <- dmvnorm(multnorm_sample, mean = mu_sim, sigma = sigma_sim)
+
+# create scatter plot of density heights
+scatterplot3d::scatterplot3d(cbind(multnorm_sample, multnorm_dens), 
+              color = "blue", pch = "", type = "h", 
+              xlab = "x", ylab = "y", zlab = "density")
+
+# Calculate density over the specified gride
+mvals <- expand.grid(seq(-5, 10, length.out = 40), 
+                     seq(-8, 4, length.out = 40))
+
+# Calculate density over the specified grid
+mvds <- dmvnorm(mvals, mean = mu_sim, sigma = sigma_sim)
+matrix_mvds <- matrix(mvds, nrow = 40)
+
+# create a perspective plot
+persp(matrix_mvds, theta = 80, phi = 30, expand = 0.6, 
+      shade = 0.2, col = "lightblue", xlab = "x", ylab = "y", 
+      zlab = "dens")
+
+```
+
+
+## 2.3 Using pmvnorm function 
+
+In the following example, we will use *pmvnorm()* function to calculate the cumulative distribution for specififed bivaraite norm
+
+The *pmvnorm()* can calculate the cumulative distributions of multivariate normals. 
+```{r}
+# Valume undere a bivariate standard norml
+pmvnorm(lower = c(-1, -1), upper = c(1, 1))
+
+# Volume under specifed mean and variance-covariance matrix
+pmvnorm(lower = c(-5, -5), upper = c(5, 5), mean = mu_sim, sigma = sigma_sim)
+```
+
+## 2.4 Calculate probability contours using *qmvnorm()*
+
+```{r}
+# Probability contours for a standard bivariate normal 
+qmvnorm(p = 0.9, tail = "both", sigma = diag(2))
+
+# Probability contours for a bivariate normal
+qmvnorm(p = 0.95, tail = "both", mean = mu_sim, sigma = sigma_sim)
+```
+
+
+## 2.5 Checking normality of multivariate data
+
+
+* Classical statistical techniques that assume univariate/multivariate normaliy: 
+
+   * Multivariate regression
+   
+   * Discriminant analysis
+   
+   * Model-based clustering
+   
+   * Principal component analysis (PCA)
+   
+   * Multivariate analysis of variance (MANOVA)
+   
+*qqnorm()* + *qqline()* : for univariate normality tests
+
+Deviation from the line might indicate: heavier tails, skewness, outliers, and clustered data. 
+
+*uniPlot()* for all variables
+
+```{r}
+qqnorm(iris[, 1])
+qqline(iris[, 1])
+
+# qqnorm of all variable
+library(MVN)
+MVN::uniPlot(iris_raw[, 1:4])
+
+setosa = iris[1:50, 1:4] # Iris data only for setosa and four variables
+uniPlot(setosa, type = "qqplot")
+```
+
+
+
+
+
 
