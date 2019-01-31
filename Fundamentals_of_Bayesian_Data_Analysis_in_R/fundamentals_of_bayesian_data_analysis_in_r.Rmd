@@ -1,0 +1,40 @@
+---
+title: "Fundamentals of Bayesian Data Analysis in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+Bayesian data analysis is an approach to statistical modeling and machine learning that is becoming more and more popular. It provides a uniform framework to build problem specific models that can be used for both statistical inference and for prediction. This course will introduce you to Bayesian data analysis: What it is, how it works, and why it is a useful tool to have in your data science toolbox.
+
+Ref: Baath, Rasmus. "Fundamentals of Bayesian Data Analysis in R", www.datacamp.com, 2019. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+
+# 1. What is Bayesian Data Analysis? 
+
+Introduce Bayesian data analysis
+
+
+Bayesian inference is a method for figuring out unknown or unobservable quantities given known facts.
+
+Thomas Bayes (1702 - 1761). 
+
+Probability: 
+

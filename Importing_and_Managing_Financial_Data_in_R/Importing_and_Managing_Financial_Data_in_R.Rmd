@@ -58,11 +58,8 @@ The getSymbols() function from the quantmod package provides a consistent interf
 import QQQ data from Yahoo! Finance. QQQ is an exchange-traded fund that tracks the Nasdaq 100 index, and Yahoo! Finance is the default data source for getSymbols().
 
 ```{r}
-# Load the quantmod package
-library(quantmod)
-
 # Import QQQ data from Yahoo! Finance
-getSymbols("QQQ", auto.assign = TRUE)
+getSymbols(Symbols = "QQQ", auto.assign = TRUE)
 
 # Look at the structure of the object getSymbols created
 str(QQQ)
@@ -80,7 +77,11 @@ Import data from __Alpha Vantage__ and __FRED__. __Alpha Vantage__ is a source s
 
 ```{r}
 # Import QQQ data from Alpha Vantage
-getSymbols(Symbols = "QQQ", src = "av", auto.assign = TRUE, api.key = Sys.getenv("av_API"))
+getSymbols(Symbols = "QQQ", 
+           src = "av", 
+           auto.assign = TRUE, 
+           api.key = Sys.getenv("av_API"))
+
 head(QQQ)
 
 # Look at the structure of QQQ
@@ -90,7 +91,9 @@ str(QQQ)
 plot(QQQ)
 
 # Import GDP data from FRED
-getSymbols(Symbols = "GDP", src = "FRED", auto.assign = TRUE)
+getSymbols(Symbols = "GDP", 
+           src = "FRED", 
+           auto.assign = TRUE)
 
 # Look at the structure of GDP
 str(GDP)
@@ -105,7 +108,7 @@ plot(GDP)
 ## 1.3 Make *getSymbols() return the data it retrieves
 ```{r}
 # Assign SPY data to *spy* using auto.assign argument
-spy <- getSymbols("SPY", auto.assign = FALSE)
+spy <- getSymbols(Symbols = "SPY", auto.assign = FALSE)
 
 # Look at the structure of the `spy` object
 str(spy)
@@ -113,7 +116,7 @@ str(spy)
 plot(spy)
 
 # Assign JNJ data to *jnj* using env argument
-jnj <- getSymbols("JNJ", env = NULL)
+jnj <- getSymbols(Symbols = "JNJ", env = NULL)
 
 # Look at the structure of the jnj
 str(jnj)
@@ -291,17 +294,26 @@ OHLCV(AMRS) %>% tail()
 # set Quandl API key
 Quandl.api_key(Sys.getenv("quandl_api_key"))
 
-codes <- c("CME/CLH2016", "CME/BZH2016")
-
-oil_data <- Quandl(code = codes, type = "xts")
+# Download CME data for CL and BZ as an xts object
+oil_data <- Quandl(code = c("CME/CLH2016", "CME/BZH2016"), type = "xts")
 
 # Look at the column names of the oil_data object
 colnames(oil_data)
 
 # Extract the Open price for CLH2016
-cl_open <- getPrice(oil_data, symbol = "CLH2016", prefer = "Open")
+cl_open <- getPrice(oil_data, symbol = "CLH2016", prefer = "Open$")
 
 # Look at January, 2016 using xts' ISO-8601 subsetting
 cl_open["2016-01"]
 ```
+
+## 2.4 Use Quandl to download weekly return data
+
+Common aggregations and transformations: 
+
+* collapse
+
+* transform 
+
+
 

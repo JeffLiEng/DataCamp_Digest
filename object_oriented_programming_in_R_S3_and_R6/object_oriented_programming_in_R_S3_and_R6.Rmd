@@ -14,12 +14,11 @@ output:
 
 **Course Description**
 
-"Object-oriented programming (OOP) lets you specify relationships between functions and the objects that they can act on, helping you manage complexity in your code. This is an intermediate level course, providing an introduction to OOP, using the S3 and R6 systems. S3 is a great day-to-day R programming tool that simplifies some of the functions that you write. R6 is especially useful for industry-specific analyses, working with web APIs, and building GUIs. The course concludes with an interview with Winston Chang, creator of the R6 package.."
+"Object-oriented programming (OOP) lets you specify relationships between functions and the objects that they can act on, helping you manage complexity in your code. This intermediate level course provides an introduction to OOP and to use the S3 and R6 systems. The S3 system is a great day-to-day R programming tool that simplifies some of the functions that you write. The R6 system is especially useful for industry-specific analyses, working with web APIs, and building GUIs. The course concludes with an interview with Winston Chang, creator of the R6 package.."
 
-Ref: Cotton, Richie, (2018) Introduction to Time Series Analysis, https://www.datacamp.com/courses/introduction-to-time-series-analysis, 2018.
+Ref: Cotton, Richie, (2018). "Introduction to Time Series Analysis", https://www.datacamp.com/.
 
-
-Note: Some course materials and data have beem revised for training by Jeff Li. 
+Note: Some course materials and data have been revised for training by Jeff Li. 
 
 # (I) Load required libraries
 ```{r setup, include = FALSE}
@@ -34,6 +33,126 @@ library(assertive)
 # 1. Introduction to Object-Oriented Programming 
 
 Learn what object-oriented programming (OOP) consists of, when to use it, and what OOP systems are available in R. You'll also learn how R identifies different types of variable, using classes, types, and modes.
+
+* With *functional programming*, think about the *funciton first*
+
+* With *object-oriented programming (OOP)* think about the *data structures first*
+
+* Don't use OOP for general purpose data analyses
+
+* Do use OOP when you have a limited number of complex objects
+
+
+## 1.1 Should I OOP?
+
+Object-oriented programming (OOP) is very powerful, but not appropriate for every data analysis workflow. Which of the following scenarios are a good fit for using object-oriented programming?
+
+* Cleaning up a dirty dataset. --NO
+
+* Writing an interface to the Internet Movie Database API. ---Yes
+
+* Creating objects to work with cartographic data for spatial analysis. --Yes 
+
+* Using ggplot2 to visualize your dataset. ---No 
+
+
+## 1.2 Working with objects 
+
+Commom R objects include *numeric, logical, and character vectors*, as well as *data.frame*.  
+
+One of the priciples of OOP is that functions can behave differently for different kinds of object. 
+
+The *summary()* function is a good example of this. Since different types of variable need to be summarized in different ways, the output that is displayed varies depending upon what you pass into it. 
+
+```{r}
+# Create several variables
+a_numeric_vector <- rlnorm(50) # log normal distribution 
+
+a_factor <- factor(
+  sample(c(LETTERS[1:5], NA), 50, replace = TRUE)
+)
+
+a_data_frame <- data.frame(
+  n = a_numeric_vector, 
+  f = a_factor
+)
+
+a_linear_model <- lm(dist ~ speed,data = cars)
+
+# Call summary on these objects
+summary(a_numeric_vector)
+
+summary(a_factor)
+
+summary(a_data_frame)
+
+summary(a_linear_model)
+```
+
+## 1.4 Nine Systems
+
+S3, R6, S4, ReferenceClasses, OOP, mutatr, R5, R.OO, and proto
+
+* Use S3 regularly
+
+* Use R6 when more power is needed
+
+* Use S4 for Bioconductor
+
+* Maybe use ReferenceClasses
+
+
+## 1.5 How does R Distinguish variables? 
+
+* *class()* is your first choice for determining the kind of variable
+
+* *typeoff()* is also occasionally useful
+
+* *mode()* and *storage.mode()* are old functions; don't use them. 
+
+In R, there are three kinds of functions: 
+
+* *closure*: most of the functions that we come across
+
+* *builtin*: special evaluation mechanism to make them go faster. Like: *length()*
+
+* *special*: lanshouage constructs, like if and while. 
+
+
+```{r}
+# Define a type_info function
+type_info <- function(x) {
+  c(
+    class = class(x), 
+    typeof = typeof(x), 
+    mode  = mode(x), 
+    storage.mode = storage.mode(x)
+  )
+}
+
+# Create list of example variables
+some_vars <- list(
+  an_integer_vector = rpois(24, lambda = 5),
+  a_numeric_vector = rbeta(24, shape1 = 1, shape2 = 1),
+  an_integer_array = array(rbinom(24, size = 8, prob = 0.5), dim = c(2, 3, 4)),
+  a_numeric_array = array(rweibull(24, shape = 1, scale = 1), dim = c(2, 3, 4)),
+  a_data_frame = data.frame(int = rgeom(24, prob = 0.5), num = runif(24)),
+  a_factor = factor(month.abb),
+  a_formula = y ~ x,
+  a_closure_function = mean,
+  a_builtin_function = length,
+  a_special_function = `if`
+)
+
+# Loop over some_vars calling type_info() on each element to explore them
+lapply(some_vars, type_info)
+```
+
+## 1.6 Assigning Classes
+
+* We can override the class()
+
+* This won't break existing functionality
 
 
 # 2. Using S3 
@@ -57,7 +176,7 @@ print.Date
 
 ## 2.2 What's in a Name? 
 
-S3 uses a strict naming convension: all S3 methods have a name of the form: **generic.class**. 
+S3 uses a strict naming conversion: all S3 methods have a name of the form: **generic.class**. 
 
 Early days of the S language, many of the functions have a name containing a dot without being an S3 method. For example, all.equal() is actually an S3 generic, not a method. 
 
@@ -92,7 +211,7 @@ is_s3_method("order")
 ```
 
 
-## 2.3 Creating a Generic Function  and an S3 metehod 
+## 2.3 Creating a Generic Function  and an S3 method 
 
 To create an S3 functions, the first step is to write the generic. 
 
@@ -127,7 +246,7 @@ get_n_elements(mat)
 
 ## 2.4 Finding available methods for an S3 generic and for a class 
 
-to find all the avialable methods for an S3 generic, call the *methods()* function
+to find all the available methods for an S3 generic, call the *methods()* function
 
 ```{r}
 is_s3_generic("wilcox.test")
@@ -219,7 +338,7 @@ what_am_i <- function(x, ...) {
 
 # defined chain method calls
 what_am_i.triangular_numbers <- function(x, ...) {
-  message("I'am triangular numbers")
+  message("I'm triangular numbers")
   NextMethod("what_am_i")
 }
 
@@ -301,7 +420,7 @@ We can call multiple methods by using NextMethod().
 
 * Learn the structure of R6 classes
 
-* How to seperate the user interface from the implementation details
+* How to separate the user interface from the implementation details
 
 
 ## 3.1 The Object Factory
@@ -448,9 +567,9 @@ Control private access with active bindings.  Use assertive to check binding inp
 
 ## 3.6 Read the Rating
 
-The data stored by an R6 object is deliberately hidden away from teh user by keeping it in the *private* element. This is the principle of *encapsulation*. 
+The data stored by an R6 object is deliberately hidden away from the user by keeping it in the *private* element. This is the principle of *encapsulation*. 
 
-If we want ot provide access to any of the data values (private), we can use an active binding. These are functions that behave like variables. 
+If we want OT provide access to any of the data values (private), we can use an active binding. These are functions that behave like variables. 
 
 Active bindings are stored in the *active* element of an R6 object. To create an active bindings to get a private data fields (i.e.a "read-only" binding), we can create a function with no arguments that simply returns the private element. 
 
@@ -482,7 +601,7 @@ a_microwave_oven$power_rating_watts   # active bindings let users examine data f
 
 ## 3.7 Control the Power
 
-Active bindings can also be used to set private fields. In this case, the binding functions shoudl accept a single argument, names "value". 
+Active bindings can also be used to set private fields. In this case, the binding functions should accept a single argument, names "value". 
 
 ```{r}
 # Add a binding for power rating

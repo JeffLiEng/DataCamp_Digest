@@ -30,23 +30,21 @@ Note: Some course materials and data have been digested and adapted for my teach
 knitr::opts_chunk$set(echo = TRUE)
 
 # (b) Load libraries
-
 library(tidyverse)
-
 ```
 
 
-
 # 1. Simplifying Iteration and Lists With purrr
+
+## 1.1 The power of iteration
+
 
 *map(object, function):* 
 
 * object --> vector or list
 
-* function --> 
+* function -->  any function in R that takes the input offered by the object
 
-
-## 1.1 For loop vs map
 
 ```{r}
 # Initialize list
@@ -55,28 +53,44 @@ all_files <- list()
 files <- list.files("data/", pattern = ".*.csv$", full.names = TRUE)
 
 # For loop to read files into a list
-for(i in seq_along(files)){
+for (i in seq_along(files)) {
   all_files[[i]] <- read_csv(file = files[[i]])
 }
 
 # Output size of list object
 length(all_files)
+```
 
+Iteration with purrr
 
-##----Iteration with purrr-------
-
+```{r}
 # use map to iterate
 all_files_purrr <- map(files, read_csv)
+```
 
+
+More iteration with for loops
+```{r}
 
 # change each character element to a number
 list_of_df <- list(a = c("1", "2", "3", "4"), 
                    b = c("5", "6", "7", "8"))
 
-map(list_of_df, as.numeric)
+class(list_of_df[[1]])
 
-map(list_of_df, function(x) as.numeric(x)*2)
+
+# use for loop: change all characters to numberic
+for (i in seq_along(list_of_df)) {
+  list_of_df[[i]] = as.numeric(list_of_df[[i]])
+}
+
+
+# easier way to use map
+map(.x = list_of_df, .f = as.numeric)
+
+map(.x = list_of_df, .f = function(x) as.numeric(x)*2)
 ```
+
 
 ## 1.2 Subsetting lists 
 

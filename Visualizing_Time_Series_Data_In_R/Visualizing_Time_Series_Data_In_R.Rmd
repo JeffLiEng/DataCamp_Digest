@@ -1,5 +1,5 @@
 ---
-title: "Credit Risk Modeling in R"
+title: "Visualizing Time Series Data in R"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -14,14 +14,12 @@ output:
 
 **Course Description**
 
-"This hands-on-course with real-life credit data will teach you how to model credit risk by using logistic regression and decision trees in R.
+"As the saying goes, “A chart is worth a thousand words”. This is why visualization is the most used and powerful way to get a better understanding of your data. After this course you will have a very good overview of R time series visualization capabilities and you will be able to better decide which model to choose for subsequent analysis. You will be able to also convey the message you want to deliver in an efficient and beautiful way."
 
-Modeling credit risk for both personal and company loans is of major importance for banks. The probability that a debtor will default is a key component in getting to a measure for credit risk. While other models will be introduced in this course as well, you will learn about two model types that are often used in the credit scoring context; logistic regression and decision trees. You will learn how to use them in this particular context, and how these models are evaluated by banks."
-
-Ref: Dirick, Lore (2018) Credit Risk Modeling in R, https://www.datacamp.com/courses/introduction-to-credit-risk-modeling-in-r, 2018.
+Ref: Amsellem, Arnaud (2018) "Visualizing Time Series Data in R", https://www.datacamp.com/courses/visualizing-time-series-data-in-r, 2019.
 
 
-Note: Some course materials and data have beem revised for training by Jeff Li. 
+Note: Some course materials and data have been revised for training by Jeff Li. 
 
 # (I) Load required libraries
 ```{r setup, include = FALSE}
@@ -32,139 +30,260 @@ library(gmodels)
 
 ```
 
+# 1. R Time Series Visualization Tools
 
-# 1. Introduction and data preprocessing 
+*plot()* function 
 
-This chapter begins with a general introduction to credit risk models. We'll explore a real-life data set, then preprocess the data set such that it's in the appropriate format before applying the credit risk models.
+```{r, eval=FALSE}
+# Plot two charts on same graphical window
+par(mfrow = c(2, 1))
+plot(data$yahoo, main = "yahoo")
+plot(data$microsoft, main = "microsoft")
 
-## 1.1 Lecture  and Exloring the credit data 
 
-What is loan default? 
 
-Borrower cound not pay  back to bank. 
-
-Componenets of expected loss (EL):
-
-* Probability of default (PD)
-
-* Exposure at default (EAD)
-
-* Loss given default (LGD) 
-
-EL = PD x EAD x LGD
-
-```{r}
-# (a) read data 
-loan_data <- read_rds("data/loan_data_ch1.rds")
-
-# (b) the head of data
-head(loan_data, 5)
-
-# Cross Table
-CrossTable(loan_data$home_ownership)
-
-CrossTable(loan_data$home_ownership, loan_data$loan_status, prop.r = TRUE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE)
-```
-
-## 1.2 Exploring teh credit data
-```{r}
-# View the structure of loan_data
-str(loan_data)
-
-# Call CrossTable() on grade adn load_status
-CrossTable(x = loan_data$grade, y= loan_data$loan_status, prop.r = TRUE, prop.c = FALSE, prop.t = FALSE, prop.chisq = FALSE )
-```
-
-The proportion of defaults increases when the credit rating moves from A (good credit score) to G (worse credit score). 
-
-## 1.3 Histogram 
-
-```{r}
-hist(loan_data$int_rate, main = "Histogram of interest rate", xlab = "Interest Rate")
-
-# annual_inc
-hist_income <- hist(loan_data$annual_inc, xlab = "Annual Income", main = "Histogram of Annual Income")
-hist_income
-
-# define n_break
-n_breaks <- sqrt(nrow(loan_data))
-
-hist_income_n <- hist(loan_data$annual_inc, breaks = n_breaks, xlab = "Annual Income", main = "Histogram of Annual Income")
-
-# plot of annual_inc
-plot(loan_data$annual_inc, ylab = "Annual Income")
-
+# Replot with reduced margin and character sizes
+par(mfrow = c(2, 1), mex = 0.6, cex = 0.8)
+plot(data$yahoo, main = "yahoo")
+plot(data$microsoft, main = "microsoft")
 
 ```
 
-**Outliers**
 
-* What is a value an outlier? 
+```{r, eval=FALSE}
+plot(my_ts, main = "My Stocks")
+lines(my_ts2, col = "red")
+axis(side = 4, at = pretty(my_ts2))
+legend(x = "bottomright", legend = c("Stock X", "Stock Y"), 
+       col = c("black", "red"), lty = c(1, 1))
 
-* Expert judgement
+abline(v = as.Date("2016-04-14"))
+abline(h = 1)
+```
 
-* rule of thumb: Q1 - 1.5*IQR or Q3 + 1.5*IQR
 
-* mostly: combination of both
+```{r, eval=FALSE}
+library(PerformanceAnalytics)
+period <- c("2014-01/2015-06")
+chart.TimeSeries(my_ts, period.areas = period, main = "my_ts")
+
+```
+
+
+```{r, eval=FALSE}
+# Plot the "microsoft" series
+plot(data$microsoft, main = "Stock prices since 2015")
+
+# Add the "dow_chemical" series in red
+lines(data$dow_chemical, col = "red")
+
+# Add a Y axis on the right side of the chart
+axis(side = 4, at = pretty(data$dow_chemical))
+
+# Add a legend in the bottom right corner
+legend(x = "bottomright", 
+       legend = c("microsoft", "dow_chemical"), 
+       col = c("black", "red"),  
+       lty = c(1, 1))
+ 
+```
+
+
+
+```{r, eval=FALSE}
+# Plot the "citigroup" time series
+plot(data$citigroup, main = "Citigroup")
+
+# Create vert_line to identify January 4th, 2016 in citigroup
+vert_line <- which(index(data$citigroup) == as.Date("2016-01-04"))
+
+# Add a red vertical line using vert_line
+abline(v = .index(data$citigroup)[vert_line], col = "red")
+
+# Create hori_line to identify average price of citigroup
+hori_line <- mean(data$citigroup)
+
+# Add a blue horizontal line using hori_line
+abline(h = hori_line, col = "blue")
+```
+
+
+```{r, eval=FALSE}
+# Create period to hold the 3 months of 2015
+period <- c("2015-01/2015-03")
+
+# Highlight the first three months of 2015 
+chart.TimeSeries(data$citigroup, period.areas = period)
+
+# Highlight the first three months of 2015 in light grey
+chart.TimeSeries(data$citigroup, period.areas = period, period.color = "lightgrey")
+```
+
+
+```{r, eval=FALSE}
+# Plot the microsoft series
+plot(data$microsoft, main = "Dividend date and amount")
+
+# Add the citigroup series
+lines(data$citigroup, col = "orange", lwd = 2 )
+
+# Add a new y axis for the citigroup series
+axis(side = 4, col = "orange", at = pretty(data$citigroup))
+```
+
+```{r, eval=FALSE}
+# Same plot as the previous exercise
+plot(data$microsoft, main = "Dividend date and amount")
+lines(data$citigroup, col = "orange", lwd = 2)
+axis(side = 4, at = pretty(data$citigroup), col = "orange")
+
+# Create the two legend strings
+micro <- paste0("Microsoft div. of ", "$0.39"," on ", "15 Nov. 2016")
+citi <- paste0("Citigroup div. of ", "$0.16"," on ", "13 Nov. 2016")
+
+# Create the legend in the bottom right corner
+legend(x = "bottomright", legend = c(micro, citi), col = c("black", "orange"), lty = c(1, 1))
+
+```
+
+
+
+# 2. Univariate Time Series
+
+Univariate plots are designed to learn as much as possible about the distribution, central tendency and spread of the data. 
+
+
+## 2.1 Representing a univariate time series
+
+The very first step in any time series analyses is to address if the time time series have the right mathematical properties to apply the standard statistical framework. If not, you much transform the time series first. 
+
+```{r, eval=FALSE}
+# Plot Apple's stock price 
+plot(data, main = "Apple stock price")
+
+# Create a time series called rtn
+rtn <- ROC(data)
+
+# Plot Apple daily price and daily returns 
+par(mfrow = c(1, 2))
+plot(data, main = "Apple stock price")
+plot(rtn, main = "Apple daily returns")
+
+
+```
+
+
+Histogram with density lines
+
+```{r, eval=FALSE}
+# Create a histogram of Apple stock returns
+hist(rtn, main = "Apple stock return distribution", probability = TRUE)
+
+
+# Redraw a thicker, red density line
+lines(density(rtn), col = "red", lwd = 2)
+```
+
+
+Box and Whisker plot 
+
+```{r, eval=FALSE}
+# Draw box and whisker plot for the Apple returns
+boxplot(rtn, horizontal = TRUE, main = "Apple returns")
+
+# Draw a box and whisker plot of a normal distribution
+boxplot(rnorm(1000), horizontal = TRUE)
+
+# Redraw both plots on the same graphical window
+par(mfrow = c(2, 1))
+boxplot(rtn, horizontal = TRUE)
+boxplot(rnorm(1000), horizontal = TRUE) 
+
+```
+
+Autocorrelation: helps to understand time-lagged relationship in your data. 
+
+```{r, eval=FALSE}
+# Draw autocorrelation plot
+acf(rtn, main = "Apple return autocorrelation")
+
+# Redraw with a maximum lag of 10
+acf(rtn, main = "Apple return autocorrelation", lag.max = 10)
+```
+
+
+q-q plot: 
 
 ```{r}
-# "annual salaries > $3 million are outliers"
-index_outlier_expert <- which(loan_data$annual_inc > 3000000)
+# Create q-q plot
+qqnorm(rtn, main = "Apple return QQ-plot")
 
-# remove expert outlier
-loan_data_expert <- loan_data[-index_outlier_expert, ]
+# Add a red line showing normality
+qqline(rtn, col = "red")
+```
 
-# hist of cleaned data based on expert judgement
-hist(loan_data_expert$annual_inc, sqrt(nrow(loan_data_expert)), xlab = "Annual income expert judgement")
+A comprehensive time series diagnostic: 
 
-# Use of a rule of thumb: outlier if bigger than Q3 + 1.5*IQR
-outlier_cutoff <- quantile(loan_data$annual_inc, 0.75) + 1.5 * IQR(loan_data$annual_inc)
-index_outlier_ROT <- which(loan_data$annual_inc > outlier_cutoff)
+```{r}
+# Set up 2x2 graphical window
+par(mfrow = c(2, 2))
 
-loan_data_ROT <- loan_data[-index_outlier_ROT, ]
+# Draw histogram and add red density line
+hist(rtn, probability = TRUE)
+lines(density(rtn), col = "red")
 
-# Hist of cleaned data based on the rule of thumb 
-hist(loan_data_ROT$annual_inc, sqrt(nrow(loan_data_ROT)), xlab = "Annual income rule of thumb")
+# Draw box and whisker plot
+boxplot(rtn)
+
+# Draw autocorrelogram
+acf(rtn)
+
+# Draw q-q plot and add a red line for normality
+qqnorm(rtn)
+qqline(rtn, col = "red")
+
+```
 
 
-# Create histogram of loan_amnt: hist_1
-hist_1 <- hist(loan_data$loan_amnt)
+# 3. Multivariate Time Series
 
-# Print locations of the breaks in hist_1
-hist_1$breaks
+Learn how to identify pattern in the distribution, central tendency and spread over pairs or groups of data. 
 
-# Change number of breaks and add labels: hist_2
-hist_2 <- hist(loan_data$loan_amnt, breaks = 200, xlab = "Loan amount", 
-               main = "Histogram of the loan amount")
+
+
+# 4. Case study: visually selecting a stock that improves your existing portfolio
+
+Let's put everything you learned so far in practice! Imagine you already own a portfolio of stocks and you have some spare cash to invest, how can you wisely select a new stock to invest your additional cash? Analyzing the statistical properties of individual stocks vs. an existing portfolio is a good way of approaching the problem.
+
+```{r}
+dir("data/")
+
+data <-  read_csv("data/data_4_1.csv")
+
+
+# plot the portfolio values
+plot(data$value, main = "Portfolio Value")
+
+# Plot the portfolio return
+plot(data$return, main = "Portfolio Return")
+
+# Plot a histogram of portfolio return
+hist(data$return, probability = TRUE)
+
+# Add a density line 
+lines(density(data$return), col = "red", lwd = 2)
 ```
 
 
 ```{r}
-# Create histogram of loan_amnt: hist_1
-hist_1 <- hist(loan_data$loan_amnt)
+data <- read_csv("data/data_4_3.csv")
 
-# Print locations of the breaks in hist_1
-hist_1$breaks
+# Plot the four stocks on the same graphical window
+par(mfrow = c(2, 2), mex = 0.8, cex = 0.8)
 
-# Change number of breaks and add labels: hist_2
-hist_2 <- hist(loan_data$loan_amnt, breaks = 200, xlab = "Loan amount", 
-               main = "Histogram of the loan amount")
-```
-
-There are some high peaks at round values: 5,000, 10,000, 15,000,... People tend to borrow round numbers. 
-
-
-```{r}
-# Plot the age variable
-hist(loan_data$age, ylab = "Age")
-
-# Save the outlier's index to index_highage
-index_highage <- which(loan_data$age > 122)
-
-# Create data set new_data with outlier deleted
-new_data <- loan_data[-index_highage, ]
-
-# Make bivariate scatterplot of age and annual income
-plot(loan_data$age, loan_data$annual_inc, xlab = "Age", ylab = "Annual Income")
+plot(data$GS)
+plot(data$KO)
+plot(data$DIS)
+plot(data$CAT)
 ```
 
