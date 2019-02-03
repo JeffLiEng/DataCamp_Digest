@@ -31,6 +31,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # (b) Load libraries
 library(tidyverse)
+library(repurrrsive)
 ```
 
 
@@ -61,15 +62,19 @@ for (i in seq_along(files)) {
 length(all_files)
 ```
 
-Iteration with purrr
+## 1.2 Iteration with purrr
 
 ```{r}
 # use map to iterate
 all_files_purrr <- map(files, read_csv)
+
+# output size of list object
+length(all_files_purrr)
+
 ```
 
 
-More iteration with for loops
+## 1.3 More iteration with for loops
 ```{r}
 
 # change each character element to a number
@@ -92,7 +97,7 @@ map(.x = list_of_df, .f = function(x) as.numeric(x)*2)
 ```
 
 
-## 1.2 Subsetting lists 
+## 1.4 Subsetting lists 
 
 ```{r}
 # Load repurrrsive package, to get access to the wesanderson dataset
@@ -117,16 +122,26 @@ wesanderson$GrandBudapest[4]
 
 ```
 
-## 1.3 map_dbl, map_lgl, map_chr
+## 1.4 map_dbl, map_lgl, map_chr
+
+*map(list, ~function(.x))*: use the argument .x to denote where teh list element goes inside the function. When we want to use .x to show where the element goes in the function, we need to put a ~ in front of the function in front of the function in the second argument of *map()*. 
+
 
 ```{r}
+# Map over list to get the length of each element
+class(wesanderson)
+summary(wesanderson)
+
+map(.x = wesanderson, ~length(.x))
+
 # Create a numcolors column and fill with length of each wesanderson element
-data.frame(numcolors = map_dbl(wesanderson, ~length(.x)))
+data.frame(numcolors = map_dbl(wesanderson, ~length(.x))) # the dbl means a double or a number that can have a decimal. 
 ```
 
 
-
 # 2. More Complex Iterations
+
+purrr is much more than a for loop; it works well with pipes, we can use it to run models and simulate data, and make nested loops!
 
 ## 2.1 Map with pipe 
 
@@ -139,39 +154,94 @@ sw_films %>%
 sw_films_named <- sw_films %>% 
   set_names(map_chr(sw_films, "title"))
 
+
 # Check to see if the names worked/are correct
 names(sw_films_named)
+```
 
+## 2.2 Pipe in map()
 
+We can also use pipes on the inside of map() function to help us iterate a pipeline of tasks over a list of inputs. 
+
+Using pipes inside of *map()* makes iterating over multiple funcitons easy. 
+
+```{r}
 # Create a list of values from 1 through 10
 numlist <- list(1:10)
 
 # Iterate over the numlist 
-map(numlist, ~.x %>% sqrt() %>% sin())
+map(numlist, ~.x %>% sqrt() %>% sin()) 
 
 ```
 
-## 2.2  Map_xx
+
+## 2.3 simulate data using map 
+```{r}
+# create a list of means
+list_of_mean <- list(5, 2, 300, 15)
+
+# Create a list of norm random value
+list_of_df <- map(.x = list_of_mean, 
+                  ~data.frame(a = rnorm(mean = .x,
+                                        n = 200, 
+                                        sd = 5/2)))
+
+map(list_of_df, colMeans)
+map(list_of_df, summary)
+
+list_of_df %>%
+  map(summary)
+```
+
+
 
 ```{r simulating_data_with_purrr}
 # List of sites north, east, and west
 sites <- list("north", "east", "west")
 
 # Create a list of dataframes, each with a years, a, and b column 
-list_of_df <-  map(sites,  
-  ~data.frame(sites = .x,
-       a = rnorm(mean = 5, n = 200, sd = 5/2),
-       b = rnorm(mean = 200, n = 200, sd = 15)))
+list_of_df <-  map(sites, 
+                   ~data.frame(sites = .x,
+                               a = rnorm(mean = 5, n = 200, sd = 5/2),
+                               b = rnorm(mean = 200, n = 200, sd = 15)))
 
 list_of_df
 ```
 
+
+## 2.4 Run linear models
+
+The following code shows how easy to run multiple models adn summarize their results. 
+
 ```{r Run_a_linear_model}
 # Map over the models to look at the relationship of a vs b
+str(list_of_df)
+
 list_of_df %>%
     map(~ lm(a ~ b, data =.)) %>%
     map(summary)
+
 ```
+
+```{r}
+mtcars %>%
+  group_by(am) %>%
+  nest() %>%
+  mutate(model = map(data, ~lm(mpg ~ wt, data = .x))) 
+
+```
+
+## 2.5  map_chr(), map_lgl(), map_int(), and map_dbl() 
+
+* map(): outputs a list
+
+* map_chr(): character vector
+
+* map_lgl(): logical vector
+
+* map_int(): integer vector
+
+* map_dbl(): double vector
 
 
 ```{r map_chr}
@@ -196,7 +266,51 @@ map_int(sw_films, ~.x[["episode_id"]])
 
 ```
 
+
 ## 2.3. map2() and pmap()
+
+### 2.3.1 More complex interactions 
+
+```{r}
+list_of_mean <- list(5, 2, 300, 15)
+list_of_sd  <- list(0.5, 0.01, 20, 1)
+
+sim_data <- map2(.x = list_of_mean, 
+                 .y = list_of_sd, 
+                 ~data.frame( a = rnorm(mean = .x, 
+                                        n = 200, 
+                                        sd = .y), 
+                              b = rnorm(mean = 200, 
+                                        n = 200, 
+                                        sd = 15)))
+
+summary(sim_data)
+str(sim_data)
+```
+
+```{r, pmap}
+# create list of inputs
+input_list <- list(
+  means = list(5, 2), 
+  sd  = list(0.5, 0.01), 
+  n = list(200, 50)
+)
+
+str(input_list)
+
+# using pmap()
+
+sim_data <- pmap(input_list, 
+                 function(means, sd, n) {
+                   data.frame(a = rnorm(mean = means, 
+                                        sd = sd, 
+                                        n = n))} )
+
+str(sim_data)
+
+```
+
+### 2.3.2 Simulating data with multiple inputs using map2()
 
 ```{r}
 # List of 1 through 3
@@ -206,11 +320,17 @@ means <- list(1, 2, 3)
 sites <- list("north", "west", "east")
 
 # Map over two arguments: sites and mu
-list_of_files_map2 <- map2(.x = sites, .y = means,  ~data.frame(sites = .x,
-                           a = rnorm(mean = .y, n = 200, sd = (5/2))))
+list_of_files_map2 <- map2(.x = sites, 
+                           .y = means,  
+                           ~data.frame(sites = .x,
+                                       a = rnorm(mean = .y, 
+                                                 n = 200, 
+                                                 sd = (5/2))))
 
-list_of_files_map2
+str(list_of_files_map2)
 ```
+
+### 2.3.3 Simulating data 3+ inputs with pmap()
 
 ```{r pmap}
 
@@ -230,18 +350,45 @@ pmapinputs <- list(sites = sites,
 
 # Map over the master list
 list_of_files_pmap <- pmap(pmapinputs, 
-  function(sites, means1, sigma1, means2, sigma2) 
-    data.frame(sites = sites,
-        a = rnorm(mean = means1, n = 200, sd = sigma1),
-        b = rnorm(mean = means2, n = 200, sd = sigma2)))
+                           function(sites, means1, sigma1, means2, sigma2) 
+                             data.frame(sites = sites,
+                                        a = rnorm(mean = means1, n = 200, sd = sigma1),
+                                        b = rnorm(mean = means2, n = 200, sd = sigma2)))
                            
-list_of_files_pmap
+str(list_of_files_pmap)
 
 
 ```
 
 
 # 3. Troubleshooting lists with purrr
+
+How to purrr safely()? 
+
+If you map() over a list, and one of the elements does not have the right data type, you will not get the output you expect. 
+
+If you have a very large list, figuring out where things went wrong, and what exactly went wrong can be hard. That is where safely() comes in; it shows you both your results and where the errors occurred in your map() call.
+
+```{r}
+# no error
+list(5, 10) %>%
+  map(function(x) x*10 )
+
+# error
+a <- list("unknown", 10) %>%
+  map(function(x) x*10)
+
+# using safely
+a <- list("unknown", 10) %>%
+  map(safely(function(x) x * 10, 
+             otherwise = NA_real_))
+
+a
+
+# reordering to easy spot errors
+a %>%
+  transpose()
+```
 
 ## 3.1 Using safely() in map()
 
@@ -262,5 +409,314 @@ a[["result"]]
 # Print the error element in the list
 a[["error"]]
 
+```
+Now we have the power to start debugging your lists, and you can do it with simple element subsetting. 
+
+
+## 3.2 convert data to numeric with purrr
+
+Use *purrr* for data wrangling to help clean numeric data in lists
+
+```{r}
+# Load sw_people data
+data(sw_people)
+# str(sw_people)
+
+# Map over sw_people and pull out the height element
+height_cm <- map(sw_people, "height") %>%
+  map(function(x) {
+    ifelse(x == "unknown", NA, as.numeric(x))
+  })
+
+str(height_cm)
+
+```
+
+
+## 3.3 Finding the problem areas
+
+When you are working with a small list, it might not seem like a lot of work to go through things manually and figure out what element has an issue. But if you have a list with hundreds or thousands of elements, you want to automate that process.
+
+Now you'll look at a situation with a larger list, where you can see how the error message can be useful to check through the entire list for issues.
+
+```{r}
+# Map over sw_people and pull out the height element
+height_ft <- map(sw_people, "height") %>% 
+  map(as.numeric) %>%
+  map(safely(function(x) {
+    x * 0.0328084}, 
+    quiet = FALSE)) %>%
+  transpose()
+
+# Print the list, the result element, and the error element
+height_ft
+
+height_ft[["result"]]
+height_ft[["error"]]
+```
+
+
+## 3.4 possible()
+
+```{r}
+a <- list(-10, "unknown", 10) %>%
+  map(possibly(function(x)
+    x * 10, 
+    otherwise = NA_real_))
+
+a
+```
+
+
+## 3.5 Replace safely() with possibly() 
+
+Once you have figured out how to solve an issue with safely(), (e.g., output an NA in place of an error), swap out safely() with possibly(). possibly() will run through your code and implement your desired changes without printing out the error messages.
+
+You'll now map() over log() again, but you will use possibly() instead of safely() since you already know how to resolve your errors.
+
+```{r}
+# Take the log of each element in the list
+a <- list(-10, 1, 10, 0) %>%
+  map(possibly(function(x) {
+    log(x)
+  }, NA_real_))
+
+
+```
+
+## 3.6 Convert values with possibly()
+Let's say you need to convert the Star Wars character heights in sw_people from centimeters to feet. You already know that some of the heights have missing data, so you will use possibly() to convert missing values into NA. Then you will multiply each of the existing values by 0.0328084 to convert them from centimeters into feet.
+
+To get a feel for your data, print out height_cm in the console to check out the heights in centimeters.
+
+```{r}
+# map over height-cm data
+height_cm <- map(sw_people, "height") %>% map(as.numeric)
+head(height_cm)
+
+
+# Create a pipe workflow that returns double vectors
+height_cm %>%
+  map_dbl(possibly(function(x) {
+    as.numeric(x) * 0.0328084
+  }, NA_real_))
+```
+
+## 3.7 purrr is a wal() in the park
+
+why walk()?
+
+```{r}
+short_list <- list(-10, 1, 10)
+short_list
+
+# clean way
+walk(short_list, print)
+
+```
+
+## 3.8  Comparing walk() vs no walk() outputs
+
+Printing out lists with map() shows a lot of bracketed text in the console, which can be useful for understanding their structure, but this information is usually not important for communicating with your end users. If you need to print, using walk() prints out lists in a more compact and human-readable way, without all those brackets. walk() is also great for printing out plots without printing anything to the console.
+
+Here, you'll be using the people_by_film dataset, which dataset derived from sw_films that has the url of each character and the film they appear in.
+```{r}
+# 
+```
+
+
+Now you will try one more use of walk(), specifically creating plots using walk()
+
+```{r}
+# Load the gap_split dat
+data("gap_split")
+# str(gap_split)
+
+# Map over the first 10 elements of gap_split
+plots <- map2(.x = gap_split[1:10], 
+              .y = names(gap_split[1:10]), 
+              ~ ggplot(data = .x, aes(x = year, y = lifeExp)) +
+                geom_line() + 
+                labs(title = .y)
+              )
+
+# Object name, then function name
+walk(plots, print)
+```
+
+
+
+
+# 4. Problem solving with purrr
+
+## 4.1 Using purrr in your workflow 
+
+```{r}
+data("sw_films")
+str(sw_films)
+names(sw_films)
+
+sw_films <- sw_films %>%
+  set_names(map_chr(.x = sw_films, "title"))
+
+names(sw_films)
+
+# Setting names while asking questions
+sw_films[[1]][["episode_id"]]
+
+map_chr(sw_films, ~.x[["episode_id"]]) %>%
+  set_names(map_chr(sw_films, "title")) %>%
+  sort()
+
+```
+
+
+### 4.1.1 Name review 
+
+```{r}
+# Load the data from the repurrsive package
+data(gh_users)
+str(gh_users)
+
+# chekc if data have names
+names(gh_users)
+
+# Map over name element of list
+gh_users[[1]][["name"]]
+
+map(gh_users, ~.x[["name"]])
+
+```
+
+### 4.1.2 Setting names
+```{r}
+set_names(1:4, c("a", "b", "c", "d"))
+# If the second argument is ommitted a vector is named with itself
+set_names(letters[1:5])
+
+# Name gh_users with the names of the users
+gh_users_named <- gh_users %>%
+  set_names(map_chr(gh_users, "name"))
+
+# check gh_repos
+# str(gh_repos)
+class(gh_repos_names)
+summary(gh_repos_names)
+
+# Name gh_repos with the names of the repo owner
+gh_repos_names <- gh_repos %>%
+  map_chr(~.[[1]]$owner$login) %>%
+  set_names(gh_repos, .)
+```
+
+## 4.1.3 Asking questions from a list
+
+We can use functions to ask any question of the data in just a few lines of code.
+
+```{r}
+# Determine who joined githbu first
+data("gh_users")
+head(gh_users)
+map_chr(gh_users, ~.x[["created_at"]]) %>%
+  set_names(map_chr(gh_users, "name")) %>%
+  sort()
+
+# Determine user versus organization
+gh_users[[1]][["type"]]
+map_lgl(gh_users, ~.x[["type"]] == "User")
+
+# Determine who has the most publica repositories
+map_int(gh_users, ~.x[["public_repos"]]) %>%
+  set_names(map_chr(gh_users, "name")) %>%
+  sort()
+
+```
+
+## 4.2 More complex list naming 
+
+sometimes each element of a list is another list. This can make setting the names difficult and requires to use multiple map() functions. 
+
+```{r}
+# each element is a different GitHub repository
+set_names(gh_repos[[1]], map(gh_repos[[1]], ~.x$name))
+
+gh_repos <- gh_repos %>%
+  map(~set_names(.x, map(.x, ~.x$name)))
+
+# check to make sure list has the right names
+names(gh_repos)
+```
+
+
+## 4.3 Questions about gh_repos
+
+* Which repository is the largest? 
+
+```{r}
+# Map over gh_repos to generate numeric output
+map(gh_repos, 
+    ~map_dbl(.x, ~.x[["size"]])) %>%
+  # grab the largest element
+  map(~max(.x))
+      
+```
+
+## 4.4 Graphs in purrr
+
+ggplot() requires dataframe input. 
+
+```{r}
+# Create a dataframe with four columns
+
+gh_users[[1]][c("login", "name", "followers", "public_repos")]
+
+map_df(.x = gh_users, 
+       .f = `[`, 
+       c("login", "name", "followers", "public_repos")) %>%
+       # Plot followers by public_repos
+    ggplot(., 
+         aes(x = followers, y = public_repos)) + 
+        # Create scatter plots
+        geom_point()
+```
+
+## 4.5 purrr and histograms
+
+Now you're going to put together everything you've learned, starting with two different lists, which will be turned into a faceted histogram. You're going to work again with the Stars Wars data from the sw_films and sw_people datasets to answer a question:
+
+What is the distribution of heights of characters in each of the Star Wars films?
+Different movies take place on different sets of planets, so you might expect to see different distributions of heights from the characters. Your first task is to transform the two datasets into dataframes since ggplot() requires a dataframe input. Then you will join them together, and plot the result, a histogram with a different facet, or subplot, for each film.
+
+```{r}
+str(sw_films)
+
+# Create a dataframe with the "title" of each film, and the "characters" from each film in the sw_films dataset.
+
+sw_films[[1]]$title
+sw_films[[1]]$characters
+
+film_by_character <- tibble(filmtitle = map_chr(sw_films, "title")) %>%
+  mutate(filmtitle, characters = map(sw_films, "characters")) %>%
+  unnest()
+  
+# Create a dataframe with the "height", "mass", "name", and "url" elements from sw_people.
+sw_people[[1]][c("height", "mass", "url")]
+
+sw_charactes <- map_df(.x = sw_people, 
+                         .f = `[`, 
+                         c("height", "mass", "url") )
+
+# Join the two dataframes together using the "characters" and "url" keys.
+character_data <- inner_join(film_by_character, 
+                             sw_charactes, 
+                             by = c("characters" = "url")) %>%
+  # make sure the columns are numbers
+  mutate(height = as.numeric(height), 
+         mass = as.numeric(mass))
+
+# Plot the heights, faceted by film tilte
+ggplot(character_data, aes(x = height)) +
+  geom_histogram(stat = "count") + 
+  facet_wrap(~filmtitle)
 ```
 
