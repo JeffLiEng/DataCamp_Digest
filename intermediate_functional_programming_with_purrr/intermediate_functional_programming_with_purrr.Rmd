@@ -1,0 +1,495 @@
+---
+title: "Intermediate Functional Programming with purrr"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+
+**Course Description**
+
+"Have you ever been wondering what the purrr description (“A functional programming toolkit for R”) refers to? Then, you’ve come to the right place! This course will walk you through the functional programming part of purrr - in other words, you will learn how to take full advantage of the flexibility offered by the .f in map(.x, .f) to iterate other lists, vectors and data.frame with a robust, clean, and easy to maintain code. During this course, you will learn how to write your own mappers (or lambda functions), and how to use predicates and adverbs. Finally, this new knowledge will be applied to a use case, so that you’ll be able to see how you can use this newly acquired knowledge on a concrete example of a simple nested list, how to extract, keep or discard elements, how to compose functions to manipulate and parse results from this list, how to integrate purrr workflow inside other functions, how to avoid copy and pasting with purrr functional tools." 
+
+
+
+Ref: Fay, Colin. 2019. "Intermediate Functional Programming with purrr". https://www.datacamp.com/. 
+
+
+Note: Some course materials and data have been digested and adapted for my teaching. 
+
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+library(tidyverse)
+library(repurrrsive)
+```
+
+# 1. Programming with purrr
+
+Do lambda functions, mappers, and predicates sound scary to you? Fear no more! After refreshing your purrr memory, we will dive into functional programming 101, discover anonymous functions and predicates, and see how we can use them to clean and explore data.
+
+$map(.x, .f, ...)$ for each element of $.x$ do $.f$. 
+
+* $map(.x, .f, ...)$: for each element of $.x$, do $.f(.x, ...)$, return a list 
+
+* $map_dbl(.x, .f, ...)$: for each element of $.x$, do $.f(.x, ...)$, return a numberic vector. 
+
+* $map2(.x, .y, .f, ...)$: for each element of $.x$ and $.y$, o $.f(.x, .y, ...), return a list
+
+* $map2_dbl(.x, .y, .f, ...)$: return a numeric vector
+
+* $pmap(.l, .f, ...)$: for each sublist of $.l$, do $f(..1, ..2, ..3, [etc], ...)$, return a list
+
+* $pmap_dbl(.l, .f, ...)$: return a numeric vector. 
+
+
+## 1.1 Refreshing purrr 
+
+visit_a contains the results from campaign A and visit_b the results of campaign B. Both are expressed as an average hourly number of visits. All the other stats you have are expressed as visits per day, so you need to convert these two. Then, you'll extract the mean of each vector.
+
+```{r}
+# create the to_day function 
+to_day <- function(x) {
+  x * 24
+}
+
+# create a list containing both vectors, all_visits
+visit_a <- c(117, 147, 131, 73,  81,  134, 121)
+visit_b <- c(180, 193, 116, 166, 131, 153, 146)
+all_visits <- list(visit_a, visit_b)
+
+# convert to daily number of visits: all_visits_day 
+all_visits_day <- map(.x = all_visits, .f = to_day)
+
+# Map the mean() function and output a numerica vector
+map_dbl(all_visits_day, mean)
+```
+
+## 1.2 Another purrr refresher
+
+```{r}
+# Create all_tests list and modify with to_day() function
+visit_c <- c(57, 110, 68, 72, 87, 141, 67)
+
+all_tests <- list(visit_a, visit_b, visit_c)
+all_tests_day <- map(all_tests, to_day)
+
+
+# Plot all tests with map
+#barplot(all_tests_day[[1]])
+map(all_tests_day, barplot)
+
+# Plot all_tests_day without anything printed to the console
+walk(all_tests_day, barplot)
+
+# Get the sum, of the all_tests_day_list, element by element, and check its class
+sum_all <- pmap_dbl(all_tests_day, sum)  # take sub-element one by one
+sum_all
+class(sum_all)
+```
+
+## 1.3 Introcution to mappers
+
+**.f** in purrr
+
+* A function: for each elments of .x, do .f(.x, ...)
+
+* A number n: for each elemnts of .x, do .X[n]
+
+* A character vector z: for each elements of .x, do .x[z]
+
+When a function, *.f* can be either: a classical function, or a lambda (or anonymous) function
+
+* A class function: my_fun <- function(x) { round(mean(x))} 
+
+*map_dbl(visit_2014, my_fun)*
+
+* A lambda (or anonymous) function: 
+
+ *map_dbl(visit_2014, function(x) {round(mean(x))})*
+ 
+ 
+**Mappers**: anonymous function with a one-sided formula
+
+```{r}
+# list 
+my_lists <- list(a = rnorm(10, mean = 20, sd = 10),
+                 b = rnorm(10, mean = 3 ),
+                 c = rnorm(20, mean = 10)) 
+
+# With one parameter
+map_dbl(my_lists, ~ round(mean(.x)))
+
+# is equivalent to
+map_dbl(my_lists, ~ round(mean(.)))
+
+# is equivalent to 
+map_dbl(my_lists, ~ round(mean(..1)))
+
+# with two parameters
+list_a <- list(1, 2, 3, 4)
+list_b <- list(5, 6, 7, 8)
+map2(list_a, list_b, ~.x + .y)
+
+# Is equivalent to 
+map2(list_a, list_b, ~ ..1 + ..2)
+
+# with more than two paramters
+list <- list(a = list(1, 2, 3), 
+             b = list(3, 5, 6), 
+             c = list(7, 8, 9))
+pmap(list, ~ ..1 + ..2 + ..3)
+```
+
+## 1.4 Create mapper objects from a lambda function
+```{r}
+# Classica function 
+round_mean_a <- function(x) {
+  round(mean(x))
+}
+
+class(round_mean_a)
+
+round_mean_a(rnorm(20, mean = 10))
+
+# as a mapper
+round_mean_b <- as_mapper(~ round(mean(.x)))
+class(round_mean_b)
+
+round_mean_b(rnorm(20, mean = 20))
+
+```
+
+Why mappers? 
+
+* Concise
+
+* Easy to read
+
+* Reusable
+
+
+## 1.5 Creating lambda functions 
+
+```{r}
+# Turn visit_a into daily number using an anonymous function
+map(visit_a, function(x) { x * 24 })
+
+# Turn visit_a into daily number of visits by using a mapper
+map(visit_a, ~ .x * 24)
+
+# Create a mapper object called to_day
+to_day <- as_mapper(~ .x * 24)
+class(to_day)
+
+# Use it on the three vectors
+map(visit_a, to_day)
+map(visit_b, to_day)
+map(visit_c, to_day)
+
+```
+
+
+## 1.6 Lambda functions
+
+```{r}
+# Round visit_a to the nearest tenth with a mapper
+map(visit_a, ~ round(.x, -1))
+
+# Create to_ten, a mapper that rounds to the nearest tenth
+to_ten <- as_mapper(~ round(.x, -1))
+
+# map to_ten on visit_b
+map(visit_b, to_ten)
+
+# map to_ten on visit_c 
+map(visit_c, to_ten)
+```
+
+
+## 1.7 Clean up your data with keep 
+
+Since the beginning of this course, we have been using the results of a weeklong A/B test.
+
+We have put these results in a list called all_visits. This list contains visit_a, visit_b, and visit_c. These vectors are unnamed. They all contain seven numbers, one for each day of the week.
+
+The first question we want to ask is: which days reached more than 100 visits an hour on average? We will use the keep() function. But the answer would not be readable with an unnamed vector: you would have the numbers, but you would not know to which day these numbers correspond.
+
+The good news is: you can use the set_names() function to solve this issue. This is what we'll do in this chapter: first, use keep() on unnamed vectors, then on named ones.
+
+* learn how to name vectors? *set_names()*: sets the names of an unnamed list
+```{r}
+mon <- 1:12
+set_names(mon, month.abb)
+```
+
+* how ot construct a reusable mapper to answer questions.  
+
+```{r}
+# Create a mapper that test if .x is more than 100
+is_more_than_hundred <- as_mapper(~ .x > 100)
+
+# Use the mapper with keep() on the all_visit object
+all_visits <- list(c(117, 147, 131, 73, 81, 134, 121), 
+                   c(180, 193, 116, 166, 131, 153, 146), 
+                   c(57, 110, 68, 72, 87, 141, 67))
+
+all_visits
+
+map(all_visits, ~ keep(.x, is_more_than_hundred))
+
+
+# Use the day vector to set names to all_list
+day <- c("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+full_visits_named <- map(all_visits, ~ set_names(.x, day))
+
+# Use this mapper with keep()
+
+map(full_visits_named, ~ keep(.x, is_more_than_hundred))
+
+```
+
+## 1.8 Split up with keep() and discard()
+
+* *keep()*: extract elements that satify a condiction
+
+* *discard()*: remove elements that satisfy a condition 
+
+
+We want to split our results into two groups: the days over 100, and the days under 100. We'll combine keep() and discard() to do so.
+
+Why two functions? Couldn't we use one function? Couldn't we create a mapper called is_less_than_hundred?
+
+We could, but that would be more error-prone: it's easier to switch from keep() to discard() than copying and pasting. By combining both functions, we only need one mapper. That means that if we want to change the threshold, we'll only need to do it once, not twice, as we would have to do if we had two mappers.
+
+This is a rule you should endeavor to apply when coding: write code so that if you need to change one thing, you will have to change it just once.
+
+all_visits is still available in your workspace.
+
+```{r}
+# Set the name of each subvector
+day <- c("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+all_visits_named <- map(all_visits, ~ set_names(.x, day))
+
+# Create a mapper that will test if .x is over 100
+threshold <- as_mapper(~ .x > 100)
+
+# Run this mapper on the all_visits_named object: group_over
+group_over <- map(all_visits_named, ~ keep(.x, threshold))
+group_over
+
+# Run this mapper on the all_visits_named object: group_under
+group_under <- map(all_visits_named, ~ discard(.x, threshold))
+group_under
+```
+
+An important feature of good code: do not write code in a way that if you need to change a parameter, you'll have to change it several times. 
+
+
+## 1.9 Preicates
+
+### 1.9.1 What is a predicates?
+
+preicates: return TRUE or FALSE
+
+* Test for condistions
+
+* Exist in base R: is.numeric(), %in%, is.character(), etc. 
+
+```{r}
+is.numeric(10)
+
+2 %in% c(1, 3, 4)
+
+"A" %in% c("A", "B", "C")
+```
+
+### 1.9.2 What is a preicate functional?
+
+Predicate funtionals: 
+
+* Take an element & a predicate
+
+* Use the preicate on the element
+
+```{r}
+# keep only numerica columns 
+keep(airquality, is.numeric) %>% head()
+keep(airquality, is.character) %>% head()
+```
+
+### 1.9.3 every() and some()
+
+* every(): does every element satisfy a condition? 
+
+* some(): do some elements satisfy a condition? 
+
+```{r}
+every(airquality, is.numeric)
+
+some(airquality, ~ mean(.x) > 1000)
+```
+
+### 1.9.4 detect_index() and has_element()
+
+```{r}
+# which is the first element with a mean above 10? 
+detect_index(airquality, ~ mean(.x) > 10)
+
+# Which is the last element with a mean above 10? 
+detect_index(airquality, ~ mean(.x) > 10, .right = TRUE)
+
+# does a column has a mean of 10
+airquality_mean <- map(airquality, mean)
+
+has_element(airquality_mean, 10)
+```
+
+## 1.10 Exporing data with predicates
+
+```{r}
+# Create a threshold variable, set it to 160
+threshold <- 160
+
+# Create a mapper that tests if .x is over the defined threshold
+over_threshold <- as_mapper(~ .x > threshold)
+
+# Are all elements in every all_visits vectors over the defined threshold? 
+map(all_visits, ~ every(.x, over_threshold))
+
+# Are some elements in every all_visits vectors over the defined threshold? 
+map(all_visits, ~ some(.x, over_threshold))
+```
+
+
+# 2. Functional programming: from theory to practice
+
+Ready to go deeper with functional programming and purrr? In this chapter, we'll discover the concept of functional programming, explore error handling using including safely() and possibly(), and introduce the function compact() for cleaning your code.
+
+-Everything that exists is an object 
+
+-Everything that happens is a function call. 
+
+R is a functional programming language. 
+
+"pure functions": output only depends on input and no "side-effect". 
+
+
+## 2.1 Identifying pure functions
+
+A pure function satisfies two properties:
+
+* Its output only depends on its inputs: when you input a value, the output is always the same
+
+* It has no side-effect, that is to say, no effect outside the function
+
+*Sys.time()* is an extremely inpure functions, as it will return a different output on when you are running it. 
+
+*nrow()*: is pure, as the output only depens on the object and no side effect
+
+*plot()*: by definition called for its side-effects. 
+
+```{r}
+# Run Sys.time(), then Sys.sleep(1), then Sys.time() again, to see how two calls to the same function can lead to different results.
+Sys.time()
+
+Sys.sleep(1)
+
+Sys.time()
+```
+
+
+## 2.2 Three types of high order functions
+
+* Functionals 
+
+* Function factories
+
+* Function operators
+
+## 2.3 Adverbs in purrr
+ 
+ Handling errors and warnings: 
+ 
+ * possibly()
+ 
+ * safely()
+ 
+```{r}
+safe_mean <- safely(mean)
+
+class(safe_mean)
+
+mean(c(1, "a", 2))
+safe_mean(c(1, a, 2))
+
+map(list(a = c( 1, 2, 3), 
+         b = c(1, "2", 3)), mean)
+
+map(list(a = c( 1, 2, 3), 
+         b = c(1, "2", 3)), safe_mean)
+
+# extracting elements from safely()
+safe_log <- safely(log)
+
+map(list("a", 2), safe_log) %>%
+  map("result")
+
+map(list("a", 2), safe_log) %>%
+  map("error")
+```
+ 
+
+## 2.4 Safe itrations
+
+```{r}
+# Create a safe version of read_lines()
+safe_read <- safely(read_lines)
+
+# Map it on the urls vector
+urls <- c("https://thinkr.fr", "https://colinfay.me", 
+          "http://not_working.org", "https://datacamp.com", 
+          "http://cran.r-project.org/", "https://not_working_either.org")
+
+res <- map(urls, safe_read)
+
+# Set the name of the results to "urls"
+named_res <- set_names(res, urls)
+
+# Extract only the "error" part of each sublist
+map(named_res, "error")
+
+```
+
+
+## 2.5 Create a function
+
+```{r}
+# Create a safe version of read_lines()
+safe_read <- safely(read_lines)
+
+# Coe a function that discard() the NULL from safe_rea()
+safe_read_discard <- function(url) {
+  safe_read(url) %>%
+    discard(is.null)
+}
+
+# map this function on the url list
+res <- map(urls, safe_read_discard )
+
+res
+
+```
+
+## 2.6 A possibly() version of read_lines()
+
