@@ -32,6 +32,10 @@ knitr::opts_chunk$set(echo = TRUE)
 # (b) Load libraries
 library(tidyverse)
 library(repurrrsive)
+library(broom)
+library(httr)
+library(rvest)
+
 ```
 
 # 1. Programming with purrr
@@ -492,4 +496,240 @@ res
 ```
 
 ## 2.6 A possibly() version of read_lines()
+
+```{r}
+# Create a possibley() versio of read_lines()
+possible_read <- possibly(.f = read_lines, otherwise = "404")
+
+# Map this function on urls, pipe it into set_names()
+res <- map(urls, possible_read) %>% set_names(urls)
+
+# Paste each element of the list
+res_pasted <- map(res, paste, collapse = " ")
+
+# Keep only the elements which are equal to 404
+keep(res_pasted, ~ .x == "404")
+```
+
+## 2.7 Everything in one call
+
+* Create, inside the map() call, a possibly() version of read_lines() that will otherwise return a 404.
+
+* Set the names of the output.
+
+* Use the paste() function with the collapse argument set to " " to turn each sublist into a character vector.
+
+* Remove the elements which are equal to 404.
+
+If a process will be repeated, it's better to write a function. 
+
+```{r}
+url_tester <- function(url_list) {
+  url_list %>%
+    map(possibly(read_lines, otherwise = "404")) %>%
+    # set the names of the result
+    set_names(urls) %>%
+    # paste() and collapse each element
+    map(paste, collapse = " ") %>%
+    # Remove the 404
+    discard( ~ .x == "404") %>%
+    # return the names of the good ones
+    names()
+}
+
+# Try this function on the urls object
+url_tester(urls)
+```
+
+
+## 2.8 Purrrfecting our function
+
+```{r}
+url_tester <- function(url_list, type = c("result", "error")) {
+  res <- url_list %>%
+    # Create a safely() version of read_lines()
+    map(safely(read_lines, otherwise = "error")) %>%
+    set_names(url_list) %>%
+    # Transpose into a list of $result and $error
+    transpose() 
+  
+  if (type == "result") return(res$result)
+  if (type == "error") return(res$error)
+  }
+
+# Try the function
+url_tester(urls, type = "error")
+url_tester(urls, type = "result")
+
+```
+
+## 2.9 Extracting status codes with GET()
+
+```{r}
+url_tester <- function(url_list) {
+  url_list %>%
+    # Map a version of GET() that would otherwise return NULL
+    map(safely(httr::GET, otherwise = "error")) %>%
+    # Set the names of the result
+    set_names(url_list) %>%
+    # remove the NULL
+    compact() %>%
+    # Extract all the status_code
+    map("status_code")
+}
+
+# Try the function
+url_tester(urls)
+```
+
+
+# 3.  Better code with purrr
+
+In this chapter, we'll use purrr to write code that is clearer, cleaner, and easier to maintain. We'll learn how to write clean functions with compose() and negate(). We'll also use partial() to compose functions by "prefilling" arguments from existing functions. Lastly, we'll introduce list-columns, which are a convenient data structure that helps us write clean code using the Tidyverse.
+
+## 3.1 How to write compose()
+
+* *compose()*: the functions are passed from right to left. 
+```{r}
+rounded_mean <- compose(round, mean)
+rounded_mean(1:28)
+```
+
+```{r}
+# Create a vector
+urls <- c("https://thinkr.fr", 
+          "https://colinfay.me", 
+          "https://datacamp.com",
+          "http://cran.r-project.org/")
+
+# Launch purrr and httr
+library(purrr)
+library(httr)
+
+
+# Compose a status extractor 
+status_extract <- compose(status_code, GET)
+
+# Try with "https://thinkr.fr" & "http://datacamp.com"
+status_extract("https://thinkr.fr")
+status_extract("http://datacamp.com")
+
+# Map it on the urls vector, return a vector of numbers
+map_dbl(urls, status_extract)
+```
+
+
+## 3.2 Build a function 
+
+```{r}
+# Negate teh %in% function 
+`%not_in%` <- negate(`%in%`)
+
+# compose a status extractor
+status_extract <- compose(status_code, GET)
+
+# Define a function 
+strict_code <- function(url) {
+  code <- status_extract(url)
+  if (code %not_in% c(200:203)) {
+    retunr(NA)
+  } else {
+    return(code)
+  }
+}
+
+strict_code("https://thinkr.fr")
+```
+
+## 3.3 Count the NA
+
+```{r}
+# Create a vector
+urls <- c("https://thinkr.fr", 
+          "https://colinfay.me", 
+          "https://datacamp.com",
+          "http://cran.r-project.org/")
+
+# Map the strict_code function on the urls vector
+res <- map(urls, strict_code)
+
+# Set the names of the results using the urls vector 
+res_named <- set_names(res, urls)
+
+# Negate the is.na fucntion 
+is_not_na <- negate(is.na)
+
+# Run is_not_na on the results
+is_not_na(res_named)
+
+```
+
+## 3.4 A content extractor: html text from *H2* headers
+
+```{r}
+# Prefill html_nodes() with the css param set to h2
+get_h2 <- partial(html_nodes, css = "h2")
+
+# Combine the html_text, get_h2, and read_html functions
+get_content <- compose(html_text, get_h2, read_html)
+
+# Map get_content to the urls list
+res <- map(urls, get_content) %>%
+  set_names(urls)
+
+# Print the results to the console
+res
+
+```
+
+## 3.5 Extract all the links exist on a specific page
+
+Write a web mining function with just 6 lines of code
+
+```{r}
+# Create a partial version of html_nodes(), with the css param set to "a"
+a_node <- partial(html_nodes, css = "a") # "a" is the HTML tag for links
+
+# Create href(), a partial version of html_attr()
+href <- partial(html_attr, name = "href")  # "href" is the link address
+
+# combine href(), a_node, and read_html()
+get_links <- compose(href, a_node, read_html)
+
+# Map get_links() to the urls list
+res <- map(urls, get_links) %>%
+  set_names(urls)
+
+# print the results
+res
+
+```
+
+## 3.6 List columns
+
+Nested dataframes-dataframes with list-columns. 
+
+List-columns allow to build a tidyverse workflow while never leaving the dataframe structure. 
+
+
+### 3.6.1 Create a list-column data.frame
+
+```{r}
+# create a data frame with urls
+df <- tibble(urls)
+df
+str(df)
+
+# Create a "links" columns, by mapping get_links() on urls
+df2 <- df %>%
+  mutate(links = map(urls, get_links))
+
+# print df2
+df2
+
+# unnest() df2 to have a tidy dataframe
+df3 <- df2 %>%
+  unnest()
+
+```
 
