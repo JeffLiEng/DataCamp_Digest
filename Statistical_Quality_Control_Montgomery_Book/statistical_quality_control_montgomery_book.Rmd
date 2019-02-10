@@ -67,3 +67,58 @@ for (i in seq(1:1e9)) {
 mean(sim)
 
 ```
+
+
+# 8. Process and Measurement System Capability Analysis
+
+## 8.1 Introcution 
+
+* **Natural tolerance limits of the process**: 
+$$UNTL = \mu + 3\sigma$$
+$$LNTL = \mu - 3\sigma$$
+
+For a normal distribution, the NTL include 99.73% of the variable, or in another word, only 0.27% of the process output will fall outside the natural tolerarnce limits. 
+
+Process capability analysis is a vital part of an overal quality-improvement program. The major uses include following: 
+
+* 1. Predicting how well the process will hold the tolerances
+
+* 2. Assisting product developers/designers in selecting or modifying a process
+
+* 3. Assisting in establishing an interval between sampling for process monitoring
+
+* 4. Specifying performance requirement for new equipment
+
+* 5. Reducing the variability in a process 
+
+Three primary techniquies used in process capability analysis include: *histograms/probability plots*, *control charts*, and *designed experiments*. 
+
+## 8.2 Process Capability Analysis Using a Histogram or a Probability Plot
+
+### 8.2.1 Using the Histogram
+
+```{r}
+dir("data/")
+# (a) read the data
+bursting_strengths_100_glass_raw <- readxl::read_excel("data/ch08.xlsx", 
+                                                   sheet = "table8_1") 
+
+# (b) clean and reformat data
+bursting_strengths_100_glass <- str_split(bursting_strengths_100_glass_raw$values, pattern = " " ) %>%
+  map(as.numeric) %>%
+  unlist() %>%
+  as.data.frame() %>%
+  select(bursting_strenths_psi = '.')
+ 
+# mean and sd
+bursting_strengths_100_glass %>%
+  summarise(mean = mean(bursting_strenths_psi), 
+            sd = sd(bursting_strenths_psi))
+
+bursting_strengths_100_glass %>%
+  ggplot(aes(x = bursting_strenths_psi)) +
+  geom_histogram(bins = 9)
+```
+
+### 8.2.2 Probability Plotting
+
