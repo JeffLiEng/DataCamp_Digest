@@ -1,0 +1,659 @@
+---
+title: "ARIMA Modeling with R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+In this course, you will become an expert in fitting ARIMA models to time series data using R. First, you will explore the nature of time series data using the tools in the R stats package. Next, you learn how to fit various ARMA models to simulated data (where you will know the correct model) using the R package astsa. Once you have mastered the basics, you will learn how to fit integrated ARMA models, or ARIMA models to various real data sets. You will learn how to check the validity of an ARIMA model and you will learn how to forecast time series data. Finally, you will learn how to fit ARIMA models to seasonal data, including forecasting using the astsa package.
+
+Ref: Stoffer, David. (2019) "ARIMA Modeling with R", www.datacamp.com. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+library(astsa)
+
+```
+
+
+# 1. Time Series Data and Models 
+
+"You will investigate the nature of time series data and learn the basics of ARMA models that can explain the behavior of such data. You will learn the basic R commands needed to help set up raw time series data to a form that can be analyzed using ARMA models."
+
+
+## 1.1 Time series 
+
+Time series are everywehere: finance, industrial processes, nature. 
+
+* Autoregressive (AR) & Moving Average (MA): ARMA
+
+* Integrated ARMA: ARIMA
+
+```{r}
+# Time Series data - 1
+head(jj)
+str(jj)
+plot(jj, main = "Johnson & Johnson Quarterly Earning per Share", type = "c")
+text(jj, labels = 1:4, col = 1:4)
+
+# Time series data - II
+str(globtemp)
+plot(globtemp, main = "Global Temperature Deviations", type = "o")
+
+# Time series data - III
+library(xts)
+str(sp500w)
+head(sp500w)
+plot(sp500w, main = "S&P 500 Weekly Returns")
+```
+
+
+## 1.2 Time Series Regression Models
+
+Regression: $Y_i = \beta*X_i + \epsilon_i$, where $\epsilon_i$ is white noise. 
+
+White Noise: 
+
+  * independent normals with commom variance
+  
+  * is basic building blocks of time series
+  
+AutoRegression: $X_t = \phi * X_{t-1} + \epsilon_t$ ($\epsilon$ is white noise)
+
+Moving Average: $\epsilon_t = W_t + \theta * W_{t-1}$ ($W_t$ is white noise)
+
+ARMA: $X_t = \phi * X_{t-1} + W_t + \theta * W_{t-1}$ 
+
+
+```{r}
+# View a detailed description of AirPassengers
+help(AirPassengers)
+
+# Plot AirPassengers
+plot(AirPassengers)
+
+# Plot the DJIA daily closings
+plot(djia$Close)
+
+# Plot the Southern Oscillation Index
+plot(soi)
+
+```
+
+The AirPassengers data show a handful of important qualities, including seasonality, trend, and heteroscedasticity, which distinguish the data from standand white noise. 
+
+
+
+## 1.3 Stationarity and Nonstationarity 
+
+Stationarity: The mean is constant over time (no trend); the correlation structure remains constant over time. 
+
+Random Walk Trend: no stationary, but differenced data are stationary. 
+
+Trend stationarity: sationarity around a trend, differencing still works!
+
+Nonstationarity in trend and variability: First log, then difference. 
+
+
+## 1.3.1 Differencing 
+
+When a time series is trend stationary, it will have stationary behavior around a trend. A simple example is $Y_t = \alpha + \beta*t + X_t$ where $X_t$ is stationary. 
+
+A different type of model for trend is *random walk*, which has the form $X_t = X_{t-1} + W_t$, where $W_t$ is white noise. It is called a random walk because at time t the process is where it was at time *t-1* plus a completely random movement. For a *random walk with drift*, a constant is added to the model and wil cause the random walk to drift in the direciton (positive or negative) of the drift. 
+
+Differencing both trend stationary and random walk data has the effect of removing the trends, despite the important differences between the two datasets. 
+
+```{r, eval=FALSE}
+# Plot detrended y (trend stationary)
+plot(diff(y))
+
+# Plot detrended x (random walk)
+plot(diff(x))
+
+```
+
+
+### 1.3.2 Detrending Data
+
+Differencing is generally good for removing trend form time series data. 
+
+```{r}
+# Plot globtemp and detrended globtemp
+par(mfrow = c(2, 1))
+plot(globtemp)
+plot(diff(globtemp))
+
+# Plot cmort adn detrended cmort
+par(mfrow = c(2, 1))
+plot(cmort)
+plot(diff(cmort))
+
+
+```
+
+
+## 1.3.3 Dealing with Trend and Heteroscedasticity 
+
+We can coerce nonstationary data to stationarity by calculating the return or growth rate as follows. 
+
+Ofter time series are generated as 
+$$ X_i = (1 + p_i)X_{t-1}$$
+meaning that the value of the time series observed at time t equals the value observed at time *t-1* and a small percent change *pi* at time t. 
+
+A simple deterministic example is putting money into a bank with a fixed interest p. In the case, $X_i$ is the value of the account at time period *t* with an initial deposit of $X_0$. 
+
+Typically, $p_t$ is referred to as the return or growth rate of a time series, and the process is ofter stable. 
+
+The growth rate $p_i$ can be approximately by: 
+$$Y_t = log(X_t) - log(X_{t-1}) $$ 
+
+In R, $p_t$ is ofter calculated as *diff(log(x))* 
+
+```{r}
+# plot GNP series (gnp) and its growth rate
+par(mfrow = c(2, 1)) 
+plot(gnp)
+plot(diff(log(gnp)))
+
+# Plot DJIA closing (djia$Close) and its returns
+par(mfrow = c(2, 1)) 
+plot(djia$Close)
+plot(diff(log(djia$Close)))
+```
+
+
+## 1.4 Stationary Time Series: ARMA
+
+### 1.4.1 Wold Decomposition
+Wold proved that any sationary time series may be represented as a linear combination of white noise: 
+$$X_t = W_t + \alpha_1 W_{t-1} + \alpha_2 W_{t-2} + ... $$ 
+For constants $\alpha_1, \alpha_2, ...$. 
+
+Any ARMA model has this form, which means they are suited to modeling time series. 
+
+### 1.4.2 Generating ARMA using arima.sim()
+
+Basic syntax: *arima.sim(model, n, ...)* 
+
+* *model* is a list whith order of the model as c(p, d, q). p: order of AR, q: order of MA
+
+Generate MA(1) given by: $X_t = W_t + 0.9*W_{t-1}$ 
+```{r}
+x <- arima.sim(list(order = c(0, 0, 1), ma = 0.9), n = 100)
+plot(x)
+```
+
+
+Generating and plotting AR(x): $X_t = 0 * X_{t-1} -0.9*X_{t-2} + W_t$ 
+```{r}
+x <- arima.sim(list(order = c(2, 0, 0), ar = c(0, -0.9)), n = 100)
+plot(x)
+```
+
+## 1.5 Simulating ARMA models
+
+Any stationary time series can be written as a linear combination of white noise. 
+
+R provides a simple function called *arima.sim()* to generate data from an ARMA model. 
+
+```{r}
+# Generate and plot white noise
+WN <- arima.sim(model = list(order = c(0, 0, 0)), 
+                n = 200)
+plot(WN)
+
+# Generate and plot an MA(1) with parameter .9
+MA <- arima.sim(model = list(order = c(0, 0, 1), 
+                             ma = 0.9), 
+                n = 200)
+plot(MA)
+
+# Generate and plot an AR(2) with paraters 1.5 and -0.75
+AR <- arima.sim(model = list(order = c(2, 0, 0), 
+                             ar = c(1.5, -0.75)), 
+                n = 200)
+plot(AR)
+```
+
+
+# 2. Fitting ARMA models
+Lean how to identify a model; how to choose the correct model; how to verify a model. 
+
+
+## 2.1 AR and MA models
+
+```{r}
+# Generate AR and MA data
+ar_x <- arima.sim(model = list(order = c(1, 0, 0), 
+                               ar = -0.7), 
+                  n = 200)
+
+ma_y <- arima.sim(model = list(order = c(0, 0, 1), 
+                               ma = -0.7), 
+                  n = 200)
+
+# plot AR and MA data
+par(mfrow = c(1, 2))
+plot(ar_x, main = "AR(1)")
+plot(ma_y, main = "MR(1)")
+```
+
+## 2.2 ACF and PACF
+
+* AR(p): ACF - tails off;      PACF - Cuts off lag p
+
+* MA(q): ACF - cuts off lag q; PACF - Tails off
+
+* ARMA(p, q): ACF- tails off; PACF - tails off; 
+
+```{r}
+# AR(1)
+acf(ar_x)
+pacf(ar_x)
+
+
+# MA(1)
+acf(ma_y)
+pacf(ma_y)
+```
+
+## 2.3 Estimation
+
+* Estimation for time series is similar to using least squares for regression
+
+* Estimates are obtained numerically using ideas of Gauss and Newton. 
+
+Example: 
+
+**AR(2) with mean 50:
+$$ X_t = 50 + 1.5(X_{t-1} - 50) - 0.75(X_{t-2} - 50) + W_t$$
+
+```{r}
+# generate simulated data
+x <- arima.sim(model = list(order = c(2, 0, 0),
+                            ar = c(1.5, -0.75)), 
+               n = 200) + 50
+
+# plot
+plot(x)
+acf(x)
+pacf(x)
+
+# fit 
+x_fit <- sarima(x, p = 2, d = 0, q = 0)
+
+x_fit$ttable
+```
+
+MA(1): 
+$$X_t = W_t - 0.7 W_{t-1}$$
+
+```{r}
+# simulate MA(1) data
+y <- arima.sim(model = list(order = c(0, 0, 1), 
+                            ma = -0.7), 
+               n = 200)
+
+# plot, acf, pacf
+plot(y)
+acf(y)
+pacf(y)
+
+# fit using the package of "astsa"
+y_fit <- sarima(y, p = 0, d = 0, q = 1)
+y_fit$ttable
+```
+
+## 2.4 Fitting an AR(1) model
+
+Simulated data from AR(1): 
+$$X_t = 0.9 X_{t-1} + W_t$$
+
+```{r}
+# Generate 100 obervations from the AR(1) model
+x <- arima.sim(model = list(order = c(1, 0, 0), 
+                            ar = 0.9), 
+               n = 100)
+
+
+# plot the generated data
+plot(x)
+
+# plot the sample ACF and PACF pair
+acf2(x)
+
+# Fit an AR(1) to the data and examine the t-table
+sarima(x, p = 1, d = 0, q = 0)
+
+```
+
+## 2.5 Fitting an AR(2) model
+
+AR(2): 
+$$X_t = 1.5X_{t-1} - 0.75X_{t-2} + W_t$$
+
+```{r}
+# Generate simulated data
+x <- arima.sim(model = list(order = c(2, 0, 0), 
+                            ar = c(1.5, -0.75)), 
+               n = 200)
+
+# Plot x
+plot(x)
+
+# plot the sample P/ACF of x
+acf2(x)
+
+# Fit an AR(2) to the data and example the t-table
+sarima(x, p = 2, d = 0, q = 0)
+```
+
+## 2.6 Fitting an MA(1) Model
+
+MA(1) model: 
+$$X_t = W_t - 0.8W_{t-1}$$
+
+```{r}
+# Simulate MA(1) data 
+x <- arima.sim(model = list(order = c(0, 0, 1), 
+                            ma = -0.8), 
+               n = 100)
+# plot x
+plot(x)
+
+# Plot the sample P/ACF of x
+acf2(x)
+
+# Fit an MA(1) to the data and example the t-table
+sarima(x, p = 0, d = 0, q = 1)
+```
+
+
+## 2.7 AR and MA together
+
+Auto-regression with correlated errors:
+$$X_t = \phi*X_{t-1} + W_t + \theta * W_{t-1}$$
+
+$$X_t = 0.9X_{t-1} + W_t -0.4W_{t-1}$$
+
+```{r}
+# simulate ARMA(1, 1)
+x <- arima.sim(model = list(order = c(1, 0, 1), 
+                            ar = 0.9, 
+                            ma = -0.4), 
+               n = 200)
+
+# Plot 
+plot(x, main = "ARMA(1, 1)")
+
+# PACF and ACF plot
+acf2(x)
+
+# estimation
+x_fit <- sarima(x, p = 1, d = 0, q = 1)
+
+#
+x_fit$ttable
+```
+
+## 2.8 Fitting an ARMA model 
+
+ARMA(2, 1) model:
+$$X_t = X_{t-1} - 0.9X_{t-2} + W_t + 0.8W_{t-1}$$
+
+```{r}
+# simulate ARMA(2, 1) data
+x <- arima.sim(model = list(order = c(2, 0, 1), 
+                            ar = c(1, -0.9), 
+                            ma = 0.8), 
+               n = 250)
+
+# Plot x
+plot(x)
+
+# Plot the sample P/ACF of x
+acf2(x)
+
+# Fit an ARMA(2, 1) to the data and examine the t-talbe
+sarima(x, p = 2, d = 0, q = 1)
+```
+
+
+## 2.9 Model Choice and Residual Analysis
+
+**AIC** and **BIC**: 
+
+$$average(observed - predicted)^2 + k(p+q)$$ 
+
+* AIC and BIC measure the error and penalize (differently) for adding parameters. 
+
+* For example, AIC has k = 2 and BIC has k = log(n)
+
+* Goal: find the model with the smallest AIC or BIC
+
+```{r}
+# Model choice: AR(1) vs MA(2) 
+gnpgr <- diff(log(gnp))
+
+sarima(gnpgr, p = 1, d = 0, q = 0)
+
+sarima(gnpgr, p = 0, d = 0, q = 2)
+```
+
+**Bad Residuals**: 
+
+* Pattern in the residuals
+
+* ACF has large values
+
+* Q-Q plot suggets normality
+
+* Q-statistic - all points below line. 
+
+
+## 2.10 Model Choice 
+The best approach to fitting ARMA is to start with a low order model, and then try to add a parameter at a time to see if the results change. 
+
+```{r}
+# log and difference data
+dl_varve <- diff(log(varve))
+plot(dl_varve)
+acf2(dl_varve)
+
+# Fit an MA(1) to dl_varve
+ma1 <- sarima(dl_varve, p = 0, d = 0, q = 1)
+ma1$BIC
+
+ma1
+
+# Fit an MA(2) to dl_varve
+ma2 <- sarima(dl_varve, p = 0, d = 0, q = 2)
+ma2$BIC
+# Fit an ARMA(1, 1) to dl_varve
+arma11 <- sarima(dl_varve, p = 1, d = 0, q = 1)
+
+c(ma1$BIC, ma1$BIC, arma11$BIC)
+
+data.frame(model = c("MA(1)", "MA(2)", "ARMA(1,1)"), 
+           AIC = c(ma1$AIC, ma2$AIC, arma11$AIC), 
+           BIC = c(ma1$BIC, ma2$BIC, arma11$BIC))
+
+```
+
+AIC and BIC help to find the model with the smallest error using the least number of parameters. The idea is based on the parsimony principle, which is basic to all science adn tells you to choose the simplest scientific explanation that fits the evidence. 
+
+We should always examine the residuals because the model assumes the errors are Gaussian white noise. 
+
+
+## 2.11 Crude oil data
+```{r}
+# oil data (in dollars per barrel)
+plot(oil)
+
+# Calculate approximate oil returns
+oil_returns <- diff(log(oil))
+
+# Plot oil_returns 
+plot(oil_returns)
+
+# Plot the P/ACF pair for oil_returns
+acf2(oil_returns)
+
+# fit a model
+sarima(oil_returns, p = 1, d = 0, q = 1)
+```
+
+
+# 3. ARIMA Models
+
+Now that you know how to fit ARMA models to stationary time series, you will learn about integrated ARMA (ARIMA) models for nonstationary time series. You will fit the models to real data using R time series commands from the stats and astsa packages.
+
+## 3.1 Identifying ARIMA
+
+A time series exhibits ARIMA behavior if the differenced data have ARMA behavior 
+```{r}
+
+# Simulation ARIMA(p = 1, d = 1, q = 0)
+x <- arima.sim(model = list(order = c(1, 1, 0), 
+                            ar = .9), 
+               n = 200)
+
+plot(x, main = "ARIMA(1, 1, 0)")
+
+# plot diff(x)
+diff_x <- diff(x)
+plot(diff_x, main = "ARMA(p = 1, d = 0, q = 0")
+
+# ACF and PCF
+acf2(x)
+acf2(diff(x))
+```
+
+
+## 3.2 ARIMA - Plug and Play
+
+A time series is called ARIMA(p, d, q) if the differenced series (of order d) is ARMA(p, q). 
+
+ARIMA model:
+$$Y_t = 0.9 Y_{t-1} + W_t$$
+
+where $Y_t = \Delta X_t = X_t - X_{t-1}$. In this case, the model is an ARIMA(1, 1, 0) because the differenced data are an autoregression of order one. 
+
+```{r}
+# simulated time series 
+x <- arima.sim(model = list(order = c(1, 1, 0), 
+                            ar = 0.9), 
+               n = 200)
+
+# plot x 
+plot(x)
+
+# plot the P/ACF pair of x
+acf2(x)
+
+# Plot the differenced data
+plot(diff(x))
+
+# Plot teh P/ACF pair of the differenced data
+acf2(diff(x))
+```
+
+
+## 3.3 Simulated ARIMA
+
+An ARIMA(2, 1, 0) model: 
+
+$$Y_t = 1 + 1.5Y_{t-1} - 0.75Y_{t-2} + W_t$$ 
+where $Y_t = \Delta X_t = X_t - X_{t-1}$. 
+
+```{r}
+# Simulate ARIMA(2, 1, 0) 
+x <- arima.sim(model = list(order = c(2, 1, 0), 
+                            ar = c(1.5, -0.75)), 
+               n = 250) + 1
+
+# Plot x 
+plot(x)
+
+plot(diff(x))
+
+# Plot sample P/ACF of differenced data adn determine model
+acf2(diff(x))
+
+# Estimate parameters and examine output
+sarima(x, p = 2, d = 1, q = 0)
+```
+
+## 3.4 Global Warming Data 
+
+```{r}
+# plot 
+plot(globtemp)
+
+# plot the sample P/ACF pair of the differenced data
+acf2(diff(globtemp))
+
+# Fit an ARIMA(1, 1, 1) model to globtemp
+sarima(globtemp, p = 1, d = 1, q = 1)
+
+# Fit an ARIMA(0, 1, 2) model to globtemp. 
+sarima(globtemp, p = 0, d = 1, q = 2)
+
+```
+
+
+## 3.5 Diagnostics - Simulated Overfitting 
+
+Simulated data ARIMA(0, 1, 1): 
+
+$$Y_t = W_t + 0.9W_{t-1}$$ 
+where $Y_t = \Delta X_t = X_t - X_{t-1}$. 
+
+```{r}
+# simulate data
+x <- arima.sim(model = list(order = c(0, 1, 1), 
+                            ma = 0.9), 
+               n = 250)
+
+# Plot x
+plot(x)
+acf2(x)
+
+# Plot sample P/ACF pair of the differenced data
+acf2(diff(x))
+
+# Fit the first model: ARIMA(0, 1, 1)
+sarima(x, p = 0, d = 1, q = 1)
+
+# Fit the second model ARIMA(0, 1, 2)
+sarima(x, p = 0, d = 1, q = 2)
+
+```
+As you can see from the t-table, the second MA parameter is not significantly different from zero and the first MA parameter is approximately the same in each run. Also, the AIC and BIC both increase when the parameter is added. In addition, the residual analysis of your ARIMA(0,1,1) model is fine. All of these facts together indicate that you have a successful model fit.
+
+## 3.6 Diagnostics - Global Temperatures
+
+```{r}
+# Fit ARIMA(0, 1, 2) to globtemp and check diagnostics
+sarima(globtemp, p = 0, d = 1, q = 2)
+
+# fit ARIMA(1, 1, 1) to globtemp and check diagnostics
+sarima(globtemp, p = 1, d = 1, q = 1)
+```
+
+
+
