@@ -1,0 +1,44 @@
+---
+title: "Join Messy Excel Files Using Fuzzyjoin"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+library(fuzzyjoin)
+
+library(qdapDictionaries)
+```
+
+
+# 1. Correct misspellings against a dictionary
+
+```{r}
+# misspellings example
+data(misspellings)
+head(misspellings)
+str(misspellings)
+
+# Use the dictionary of words from the qdapDictionaries package
+words <- as_tibble(DICTIONARY)
+head(words)
+tail(words)
+str(words)
+
+# Use stringdist_inner_join to jion tehm against our dicitionary
+joined <- misspellings %>%
+  stringdist_inner_join(words, by = c("misspelling" = "word"), max_dist = 1)
+```
+

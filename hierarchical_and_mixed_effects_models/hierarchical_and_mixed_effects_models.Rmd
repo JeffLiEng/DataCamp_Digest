@@ -1,0 +1,1260 @@
+---
+title: "Hierarchical and Mixed Effects Models"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+This course begins by reviewing slopes and intercepts in linear regressions before moving on to random-effects. You'll learn what a random effect is and how to use one to model your data. Next, the course covers linear mixed-effect regressions. These powerful models will allow you to explore data with a more complicated structure than a standard linear regression. The course then teaches generalized linear mixed-effect regressions. Generalized linear mixed-effects models allow you to model more kinds of data, including binary responses and count data. Lastly, the course goes over repeated-measures analysis as a special case of mixed-effect modeling. This kind of data appears when subjects are followed over time and measurements are collected at intervals. Throughout the course you'll work with real data to answer interesting questions using mixed-effects models..
+
+Ref: Erickson, Richard. (2019) "ARIMA Modeling with R", www.datacamp.com. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(broom)
+
+library(lme4)
+
+```
+
+# 1. Overview and introduction to hierarchical and mixed models
+
+The first chapter provides an example of when to use a mixed-effect and also describes the parts of a regression. The chapter also examines a a student test-score dataset with a nested structure to demonstrate mixed-effects.
+
+
+## 1.1 Why do we use a hierarchical model? 
+
+* Data nested within itself
+
+* Pool information across small sample sizes
+
+* Repeated observations across groups or individuals
+
+## 1.2 Explore multi-level data: students 
+
+```{r}
+# Students data
+student_data <- read_csv("data/classroom.csv")
+head(student_data)
+str(student_data)
+
+# Plot the data
+student_data %>%
+  ggplot(aes(x = housepov, y = mathgain)) + 
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+# Fit a linear model
+summary(lm(mathgain ~ housepov, data = student_data))
+```
+
+## 1.3 Exploring multiple-levels: Classrooms and schools
+
+Students learn within classrooms and classrooms exist within schools. Aggregating student score by classroom or school can account for this lack of independence. However, aggregation methods are important, especially for unequal group size. 
+
+```{r}
+# First, plot the housepov and mathgain at the classroom-level from the callData data.frame
+class_data <- student_data %>% 
+  select(schoolid, classid, mathgain, mathprep, housepov, yearstea) %>%
+  group_by(schoolid, classid) %>%
+  summarise(mathgain = mean(mathgain), 
+            mathprep = mean(mathprep), 
+            housepov = mean(housepov), 
+            yearstea = mean(yearstea))
+
+class_data %>%
+  ggplot(aes(x = housepov, y = mathgain)) + 
+  geom_point() +
+  geom_smooth(method = "lm")
+
+# Second, plot the housepov adn mathgain at the school-level from the schoolData 
+school_data <- student_data %>% 
+  select(schoolid, mathgain,housepov) %>%
+  group_by(schoolid) %>%
+  summarise(mathgain = mean(mathgain), 
+            housepov = mean(housepov))
+
+str(school_data)
+
+ggplot(data = school_data, aes(x = housepov, y = mathgain)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+
+# Now, compare your linear regression results from the previous expercise to the two new models
+summary( lm(mathgain ~ housepov, data = student_data)) ## student-level data
+summary( lm(mathgain ~ housepov, data = class_data)) ## class-level data
+summary( lm(mathgain ~ housepov, data = school_data)) ## school-level data
+```
+
+Three parameter estimates for mathgain differ across all three models. Although none of the estimates differs significantly from zero, arbitrary data aggregation can be avoided using hierarchical models. 
+
+
+## 1.4 Multiple regression caveats
+
+* Independence of predictor variables
+
+* "corrected for ..."
+
+* Simpson's paradox
+
+* only linear
+
+* Interactions may be important
+
+
+## 1.5 Intercepts
+
+Intercepts are an important part of regression models, including hierarchical models. Without other coefficients, a single intercepts is the global mean of the data. 
+
+
+```{r}
+# create a demo data as in the excercise
+response <- c(-1.2070657, 0.2774292, 1.0844412, -2.3456977, 0.4291247, 
+              5.7590838, 4.1378901, 4.1800522, 4.1533220, 3.6649433, 
+              9.0456146, 8.0032271, 8.4474922, 10.1289176, 11.9189881) 
+
+predictor <- rep(c("a", "b", "c"), times = 3, each = 5)
+intDemo <- data.frame(predictor, 
+                      response)
+
+
+# Plot the means of the data
+ggIntDemo <- intDemo %>%
+  ggplot(aes(x = predictor, y = response)) +
+  geom_point() + 
+  stat_summary(fun.y = mean, color = "red", size = 3, geom = "point") +
+  xlab("Intercept groups") + 
+  theme_minimal()
+
+ggIntDemo
+
+# Fit a linear model 
+intModel <- lm(response ~ predictor - 1, data = intDemo)
+summary(intModel)
+
+# Extract out the coefficient estimates using tidy
+intCoefPlot <- tidy(intModel) 
+
+# Remove the work "predictor" for the coefficients
+intCoefPlot$term <- factor(gsub(pattern = "predictor", 
+                                replacement = "", 
+                                x = intCoefPlot$term))
+
+# using "stringr" to do the above thing
+intCoefPlot %>%
+  mutate(term = str_replace(string = term, 
+                            pattern = "predictor", 
+                            replacement = ""))
+
+
+# Add the new points to the previous plot
+ggIntDemo +
+  geom_point(data = intCoefPlot, aes(x = term, y = estimate), 
+             position = position_dodge(width = 0.4), 
+             color = "blue", size = 8, alpha = 0.25)
+
+```
+
+
+## 1.6 Slopes 
+
+We can use multiple **intercept** to model the expected values for discrete groups. During this exercise, we will include continuous variables, **slopes**, in the model. 
+
+Building models for data science is often an iterative process, requiring both visualizing and modeling data. 
+
+* One slope and one intercept model
+
+* model each group with its own intercept
+
+* each group has its own slope and intercept
+
+
+```{r}
+# create the test data 
+response <- c(-0.8679727, 6.3505335, 7.2525681, 9.8813354, 10.9468547, 
+              4.5540738,  4.2151141, 9.3428070, 10.2640478, 15.7506982, 
+              7.7112630,  12.5947646, 8.2792914, 10.9016878, 25.3512070)
+group <- rep(c("a", "b", "c"), times = 1, each = 5)
+x <- rep(0:4, times = 3, each = 1)
+
+intercept <- c(-0.7228547, -1.5012186, -1.1857241, -2.3858077,  1.6198833, 
+               10.2112595, 6.6366504, 5.9122180, 7.3907363, 4.9748301, 
+               8.7572698, 11.7922496, 9.8320076,  6.2727711,  5.3594039)
+multIntDemo <- data.frame(group, 
+                          intercept, 
+                          x, 
+                          response)
+
+
+# plot the raw data using ggplot2
+ggplot(data = multIntDemo, aes(x = x, y = response)) + 
+	geom_point() + stat_smooth(method = 'lm')
+
+# build a linear model with response predicted by x 
+lm(response ~ x, data = multIntDemo) %>% tidy()
+
+# plot the data with each group as its own color
+ggplot(data = multIntDemo, aes(x = x, y = response, color = group)) + 
+	geom_point()
+
+# build a linear model with response predicted by group and x
+lm(response ~ group + x, data = multIntDemo) %>% tidy()
+
+# plot the data using ggplot2 using a different color for each group
+ggplot(data = multIntDemo, aes(x = x, y = response, color = group)) + 
+	geom_point() + stat_smooth(method = 'lm')
+
+# build a linear model with response predicted by x including an interaction with group 
+lm(response ~ x * group, data = multIntDemo) %>% tidy()
+
+```
+
+
+## 1.7 Random-effect intercepts 
+
+**Fixed-effect** parameters only use data for a specific group. In contrast, random-effect parameters assume data share a common distribution. For situations with small amount of data or outliers, random-effect models can produce different estimates. 
+
+```{r}
+# Use lmer() from lme4 to fit a random-effects intercept model. Use the data.frame multIntDemo to examine how response can be predicted by a random intercept using group and a fixed-effect slope variable x
+outLmer <- lme4::lmer(response ~ x + (1|group), data = multIntDemo)
+
+# look at model ouputs
+summary(outLmer)
+
+tidy(outLmer)
+
+# Save the model predictions as a column to the original data.frame
+multIntDemo$lmerPredict <- predict(outLmer)
+
+# Third, plot the original data
+ggmultIntgDemo2 <- ggplot( multIntDemo, aes(x = x, y = response) ) +
+        geom_point(aes(color = group))+
+        theme_minimal() +
+        scale_color_manual(values = c("blue", "black", "red")) +
+        geom_abline(data = multIntDemo,
+                    aes(intercept = intercept, slope = 3, color = group))
+
+# Fourth, use the predicted values to plot the new outputs
+ggmultIntgDemo2 +
+	geom_line( data =  multIntDemo,
+               aes(x = x, y = lmerPredict, color = group),
+               linetype = 2)
+
+```
+
+## 1.8 Random-effect slopes
+
+**lmer()** uses ( continuousPredictor | randomEffectGroup) for a random effect slope. 
+
+```{r}
+# Random-effect slopes
+outLmer2 <- lme4::lmer(response ~x + (x|group), data = multIntDemo)
+summary(outLmer2)
+tidy(outLmer2)
+```
+
+```{r, eval=FALSE}
+# Second, save the model predictions as a column to the original data.frame
+multIntDemo$lmerPredict <- predict(outLmer2)
+
+# Third, plot the original data
+ggmultIntgDemo2 <- ggplot( multIntDemo, aes(x = x, y = response) ) +
+        geom_point(aes(color = group))+
+        theme_minimal() +
+        scale_color_manual(values = c("blue", "black", "red")) +
+        geom_abline(data = multIntDemo,
+                    aes(intercept = intercept, slope = 3, color = group))
+
+# Fourth, use the residual to plot the new outputs
+ggmultIntgDemo2 +
+	geom_line( data =  multIntDemo,
+               aes(x = x, y = lmerPredict, color = group),
+               linetype = 2)
+```
+
+
+## 1.9 Analyzing and interpreting the school data
+
+Research questions: 
+
+* Does the sex of a student impact their knowledge gain? 
+
+* Does the teacher's training (*mathprep*) impact the gain and does the teacher's math knowledge (*mathknow*) impact the gain? 
+
+```{r}
+# Mixed effec model
+lmerModel <- lme4::lmer(mathgain ~ sex + mathprep + mathknow + (1|classid) + (1|schoolid), 
+                        data = student_data, 
+                        na.action = "na.omit", 
+                        REML = TRUE)
+
+summary(lmerModel)
+
+
+# Extract out the coefficents
+modelOutPlot <- tidy(lmerModel, conf.int = TRUE)
+modelOutPlot
+
+# Grab the coefficents of interest: 
+modelOutPlot <- modelOutPlot %>% 
+  filter(group == "fixed" & term != "(Intercept)")
+
+# plot the coefficients of interest
+ggplot(modelOutPlot, aes(x = term, y = estimate,
+                             ymin = conf.low,
+                             ymax = conf.high)) +
+	theme_minimal() +
+	geom_hline(yintercept = 0.0, color = 'red', size = 2.0) +
+	geom_point() +
+	geom_linerange() + 
+  coord_flip() 
+```
+
+None of the predictor differed significantly from zero. 
+
+Although not statistically significant, math knowledge of the teacher is likely important and could be investigated further. 
+
+
+# 2. Linear mixed-effect models
+
+This chapter providers an introduction to linear mixed-effects models. It covers different types of random-effects, describes how to understand the results for linear mixed-effects models, and goes over different methods for statistical inference with mixed-effects models using crime data from Maryland.
+
+## 2.1 Linear mixed effect model-Birth rates data
+
+**Birth rates data**
+
+* Small populations subject to stochasticity
+
+* Random-effects one solution to this problem
+
+* Birth rates one such variable
+
+
+**lmer syntax in R **
+
+$$lmer(y - x + (RandomEffect), data = myData) $$ 
+
+* (1|group): Random intercept with fixed mean 
+
+* (1|g1/g2): Intercepts vary among g1 and g2 within g2
+
+* (1|g1) + (1|g2): random intercepts for 2 variables
+
+* x + (x|g): correlated random slope and intercept
+
+* x + (x||g): uncorrelated random slope and intercept
+
+
+### 2.1.1 Building a lmer model with random effects
+
+In the county-level birth rate data, counties exist within states and perhaps states contribute to variability. 
+
+First, we will build a hierarchical model with a global intercept (fixed-effect) and random-effect for state. When building mixed-effect models, starting with simple model such as the global intercept model can check to see if problem exist with either the data or code. 
+
+```{r}
+# read data 
+countyBirthsData <- read_csv("data/countyBirthsDataUse.csv") %>%
+  mutate_at(.vars = c("CountyName", "State"), as.factor)
+
+# check data structure
+str(countyBirthsData)
+
+# summary 
+summary(countyBirthsData)
+
+# plot BirthRate vs TotalPopulation 
+plot(x = countyBirthsData$TotalPopulation, y = countyBirthsData$BirthRate)
+
+# Build a lmer with State as a random effect
+birthRateStateModel <- lme4::lmer(BirthRate ~ (1|State), data = countyBirthsData)
+
+# Look at the model's summary and the residuals
+summary(birthRateStateModel)
+plot(birthRateStateModel)
+
+# predicted value
+countyBirthsData$birthPredictState <- predict(birthRateStateModel, countyBirthsData)
+
+# ggplot
+countyBirthsData %>%
+  ggplot(aes(x = TotalPopulation)) + 
+  geom_point(aes(y = BirthRate)) + 
+  geom_point(aes(y = birthPredictState), color = "red", alpha = 0.3)
+
+```
+
+
+### 2.1.2 Including a fixed effect
+
+```{r}
+# Include the AverageAgeofMother as a fixed effect within the lmer adn state as a random effect
+ageMotherModel <- lme4::lmer(BirthRate ~ AverageAgeofMother + (1|State), 
+                       data = countyBirthsData)
+
+# summary
+summary(ageMotherModel)
+
+```
+
+The estimate is negative, suggesting counties with older mothers have lower birth rates. 
+
+
+### 2.1.3 Random-effect slopes
+
+In the previous exercise, we estimated random-effect intercepts for each state. This allowed us to account for each state having its own intercept. During this exercise, we will estimate a random-effect slope for each state. 
+
+```{r}
+# log total population
+countyBirthsData <- countyBirthsData %>% 
+  mutate(LogTotalPop = log(TotalPopulation))
+
+# Include the AverageAgeofMother as fixed-effect adn state as a random-effect
+model_A <- lme4::lmer(BirthRate ~ AverageAgeofMother + (1|State), data = countyBirthsData)
+tidy(model_A)
+
+# Include the AverageAgeofMother as fixed-effect adn LogTotalPop and State as random-effects
+model_B <- lme4::lmer(BirthRate ~ AverageAgeofMother + (LogTotalPop|State), 
+                      data = countyBirthsData)
+broom::tidy(model_B)
+```
+
+The estimate for *AverageAgeofMother* became more negative and farther from zero. This suggests including total population is important for building the model because it changes the coefficients estimate. 
+
+
+### 2.1.4 Uncorrelated random-effect slope
+
+In the previous exercise, we assumed slopes and intercepts within each group were correlated. However, this assumption may not always be valid or we may want to simplify the model if we are having trouble numerically fitting the model. 
+
+To fit a model with an uncorrelated random-effect slope, use **||** rather than **|** with **lmer()** syntax. 
+
+```{r}
+# Include AvergeAgeofMother as fixed-effect and LogTotalPop and State as uncorrelated random-effects 
+
+model_C <- lme4::lmer(BirthRate ~ AverageAgeofMother + (LogTotalPop||State), 
+                      data = countyBirthsData)
+
+# compare output of both models
+summary(model_B)
+summary(model_C)
+
+```
+
+Fitting *model_C* gave a *singular* warning message. In this case, the more complex model is required. The result was the random effect correlation for *LogTotalPop* is -1.00.  A perfect negative correlation exists between the random-effect slope and intercept. Thus, fitting the model without the correlation fails. The random-effect slope and random-effect intercept cannot be estimated independent of each other. 
+
+
+### 2.1.5 Fixed- and random-effect predictor 
+Sometimes, a model can have the same predictor as both a fixed and random-effect. For example, perhaps you are interested in estimating the average effect the age of a mother at birth (*AverageAgeofMother*). Including the predictor as fixed-effect allows you to estimate the effect of a mother's age across all locations. Including the predictors as a random-effect allows you to simultaneously account (or correct) for different slope estimates among states. 
+
+```{r}
+# Construct a lmer() using AverageAgeofMother as a fixed-effect and AverageAgeofMother as a random-effect nested within State to predict BirthRate with the countyBirthsData. Make sure the fixed-effect goes before the random-effects in the formula.
+out <- lme4::lmer(BirthRate ~ AverageAgeofMother + (AverageAgeofMother|State), 
+                  data = countyBirthsData)
+
+# summary
+summary(out)
+```
+
+## 2.2 Understanding and reporting the output of a lmer
+
+### 2.2.1 Comparing print and summary output 
+
+```{r}
+# print out the model
+print(out)
+
+# summary 
+summary(out)
+```
+
+### 2.2.2 Extracting coefficients
+
+The fixed-effect estimates can be called directly using the *fixef()* function. 
+The random-effect estimates can be called directly using the *ranef()* function. 
+The fixed-effect confidence can be extracted using the *confint()*. 
+
+The broom package also contains *tidy* methods for extracting model results from lmer(). 
+
+```{r}
+# Extract the fixed-effec coefficients
+lme4::fixef(out)
+
+# Extract the random-effect coefficients
+lme4::ranef(out)
+
+# Estimate the confidence intervals
+confint(out)
+
+# Use the tidy function
+tidy(out)
+
+```
+
+### 2.2.3 Displaying the results from a lmer model
+Communication is an important part of data science and data analysis. This is especially true for complex models such as the results from lmer(). A critical part of communications is to match your audience's knowledge level and expectation. 
+
+```{r}
+# Extract out the parameter estimates and confidence intervals and manipulate the data
+dataPlot <- data.frame(cbind(fixef(out), confint(out)[5:6, ]))
+rownames(dataPlot)[1] <- "Intercept"
+colnames(dataPlot) <- c("est", "L95", "U95")
+dataPlot$parameter <- rownames(dataPlot)
+
+# Print the new dataframe
+print(dataPlot)
+
+
+# Plot the results using ggplot2
+dataPlot %>%
+  ggplot(aes(x = parameter, y = est, 
+             ymin = L95, ymax = U95)) +
+  geom_hline(yintercept = 0, color = "red") +
+  geom_linerange() +
+  geom_point() +
+  coord_flip() + 
+  theme_minimal()
+```
+
+
+## 2.3 Statistical inference with Maryland crime data
+
+```{r}
+# Maryland crime data
+MDcrime <- read_csv("data/MDcrime.csv") %>% mutate(County = factor(County))
+head(MDcrime)
+tail(MDcrime)
+str(MDcrime)
+
+summary(MDcrime)
+```
+
+**ANOVA**
+
+* Analysis of Variance (ANOVA)
+
+* Compare variability of model with and without parameter
+
+
+### 2.3.1 Visualizing Maryland crime data 
+
+```{r}
+# Plot the change in crime through time by County 
+plot1 <- ggplot(data = MDcrime, aes(x = Year, y = Crime, group = County)) + 
+  geom_line() + 
+  theme_minimal() + 
+  ylab("Major crimes reported per county") 
+
+print(plot1)
+
+# Add the trend line for each county
+plot1 +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+If all of the points appear to have similar ranges and means, a random-effect intercept may not be important. Likewise, if trends look consistent across counties, a random-effect slope may not be required. 
+
+Both the connected points and trend lines provide insight into what kinds of random effects are required. 
+
+As shown in the above figure, the number of major crimes per county varies across counties. This suggests a random-effect intercept will improve the model's fit. Likewise, the slopes may be different as well. 
+
+### 2.3.2 Rescaling slopes
+
+Previously, the plot suggested the model requires a random-effect intercept and likely requires a random-effect slope. For this model, include *Year* as both a fixed- and random-effect. This estimates a global slope across all counties as well as a random-effect slope for each county. The fixed-effect slope estimate indicates how major crimes are changing in the State of Maryland across all counties. The random-effect slopes correct for counties having different changes in crime. 
+
+However, fitting this model produces a warming message. To address this warning, *Year* needs to be changed from starting at 2006 to starting at 0. When fitting regressions, scaling or centering the intercept to start at 0 can be an important transformation for numerical stability. 
+
+```{r}
+# Load lmerTest
+library(lmerTest)
+
+# Fit the model with Year as both a fixed and random-effect
+lmer(Crime ~ Year + (1 + Year|County), data = MDcrime)
+
+# Fit the model with Year2 (Year - 2006) rather than Year
+lmer(Crime ~ Year2 + (1 + Year2|County), data = MDcrime)
+
+
+```
+We had to re-scale year so that the model would work. 
+
+
+### 2.3.3 Null hypothesis testing
+
+Null hypothesis testing uses *p-value* to see if a variable is "significantly" different from zero. Recently, the abuse and overuse of null hypothesis testing and p-value have caused the American Statistical Association to issue a statement about the use of p-value. 
+
+Because of criticisms such as these and other numerical challenges, Doug Bates (the creator of the *lme4* package) does not include p-value as part of his package. However, we may still want to estimate p-values, because p-values are still commonly used. Several packages exist, including the *lmerTest* package. 
+
+```{r}
+# Load lmerTest
+library(lmerTest)
+
+# Fit a lmer use lme4
+out_lme4 <- lme4::lmer(Crime ~ Year2 + (! + Year2 | County), data = MDcrime)
+
+# Fit a lmer using lmerTest
+out_lmerTest <- lmerTest::lmer(Crime ~ Year2 + (1 + Year2 | County), data = MDcrime)
+
+# Look at the summaries
+summary(out_lme4)
+summary(out_lmerTest)
+
+
+# Extract the fixed-effec coefficients
+lme4::fixef(out_lmerTest)
+
+# Extract the random-effect coefficients
+lme4::ranef(out_lmerTest)
+
+
+```
+
+### 2.3.4 Model Comparison with ANOVA
+
+Analysis of Variance (ANOVA) can be used to compare different models and test if one model explains more variability than the other model. Specifically, ANOVA can be used to test the amount of variability explained by *lmer* models. 
+
+```{r}
+# Build the null model with only County as a random -effect
+null_model <- lme4::lmer(Crime ~ (1|County), data = MDcrime)
+
+# summary 
+summary(null_model)
+
+# Extract the random-effect coefficients
+ranef(null_model)
+
+# Build the Year2 model with Year2 as a fixed and random slope and County as the random-effect
+year_model <- lme4::lmer(Crime ~ Year2 + (1 + Year2|County), 
+                         data = MDcrime)
+
+fixef(year_model)
+ranef(year_model)
+
+# compare null_model adn year_model using an anova
+anova(null_model, year_model)
+
+```
+
+# 3. Generalized linear mixed-effect models 
+
+This chapter extends linear mixed-effects models to include non-normal error terms using generalized linear mixed-effects models. By altering the model to include a non-normal error term, you are able to model more kinds of data with non-linear responses. After reviewing generalized linear models, the chapter examines binomial data and count data in the context of mixed-effects models.
+
+
+## 3.1 Crash course on GLMs
+
+### 3.1.1 Logistic regression 
+
+In toxicology studies, organisms are often dosed and binary outcomes often occur such as dead/alive. 
+
+```{r}
+# Create a test data in a "long" format 
+dose <- rep(seq(from = 0, to = 10, by = 2), times = 1, each = 20)
+mortality <- c(rep(0, 20), 
+               rep(1, 4),  rep(0, 16), 
+               rep(1, 9),  rep(0, 11), 
+               rep(1, 11), rep(0, 9), 
+               rep(1, 11), rep(0, 9), 
+               rep(1, 15), rep(0, 5))
+
+dfLong <- data.frame(dose, mortality)
+
+str(dfLong)
+
+# Create dfShort: an aggregated formate 
+
+dfShort <- dfLong %>% 
+  mutate(mor = mortality) %>%
+  group_by(dose) %>%
+  summarise(mortality = sum(mor == 1), 
+            survival = sum(mor == 0),
+            nReps = n()) %>%
+  mutate(mortalityP = mortality/nReps) %>%
+  ungroup()
+
+```
+
+Using the data dfLong, fit a glm() with the "binomial" distribution family (or, synonymous, binomial error term) where mortality is predicted by dose.
+
+```{r}
+# Fit a glm using data in a long format
+fitLong <- glm(mortality ~ dose, data = dfLong, family = "binomial")
+summary(fitLong)
+```
+
+Using the data dfShort, fit a glm() with the "binomial" distribution family where the matrix cbind(mortality, survival) is predicted by dose.
+
+```{r}
+# fit a glm using data in a short format with two columns
+fitShort <- glm(cbind(mortality, survival) ~ dose, data = dfShort, family = "binomial")
+summary(fitShort)
+```
+
+Using the data dfShort, fit a glm() with the "binomial" distribution family where mortalityP is predicted by dose with weights of nReps.
+
+```{r}
+# Fit a glm using dat in a short format with weights
+fitShortP <- glm(mortalityP ~ dose, 
+                 data = dfShort, 
+                 weights = nReps, 
+                 family = "binomial")
+
+summary(fitShortP)
+```
+
+All outputs produced the same coefficient estimates, but differed with respect to the degrees of freedom estimated. 
+
+
+### 3.1.2 Poisson Regression 
+
+Using the data dfShort, fit a glm() with the "binomial" distribution family where mortalityP is predicted by dose with weights of nReps.
+
+```{r}
+# create a demo data
+x <- 1:20
+y <- c(0, 1, 0, 1, 0, 1, 0, 1, 0, 2, 1, 2, 0, 1, 1, 0, 1, 5, 1, 1)
+plot(x, y)
+
+# Fit the linear model
+summary(lm(y ~ x))
+
+# Fit the generalized linear model 
+summary(glm(y ~ x, family = "poisson"))
+
+```
+
+### 3.1.3 Plotting GLMs
+```{r}
+# Plot the data using jittered points and the default stat_smooth
+ggplot(data = dfLong, aes(x = dose, y = mortality)) + 
+  geom_jitter(height = 0.05, width = 0.1) +
+	stat_smooth(fill = 'pink', color = 'red') 
+```
+
+Add a stat_smooth() to the second plot. This time, specify the method to be "glm" and family to be "binomial" to fit a logistic regression.
+
+```{r}
+# Plot the data using jittered points and the glm stat_smooth
+ggplot(data = dfLong, aes(x = dose, y = mortality)) +
+  geom_jitter(height = 0.05, width = 0.1) +
+  stat_smooth(method = "glm", 
+              method.args = list(family = "binomial"))
+```
+
+
+The above plot is bounded by 0 and 1 on the y-axis. Also, notice how the curve is now monotonic (or never decreasing). 
+
+
+## 3.2 Binomial data
+
+**Examples of binomial data**: Coin/toss; Yes/NO; Dead/alive; Behavior; Choice
+
+### 3.2.1 Toxicology data
+
+A toxicologist studies if exposure to a chemical increase mortality as its dose increases. She has exposed test organisms to different doses of a chemical and recorded the number that died in each test tank. Each dose was repeated on three different days. 
+
+```{r}
+# Create the test data
+toxi_df <- read_excel("data/toxicology_data.xlsx") %>%
+  separate(col = values, into = c("dose", "replicate", "mortality")) %>%
+  filter(!is.na(mortality)) %>%
+  mutate(replicate = as_factor(replicate)) %>%
+  mutate_at(.vars = c("dose", "mortality"), .funs = as.numeric)
+
+# data structure
+str(toxi_df)
+
+# plot
+toxi_df %>%
+  ggplot(aes(x = dose, y = mortality, col = replicate)) + 
+  geom_jitter()
+
+# Create glmOut, a glm() model that predicts mortality as a function of dose and replicate. Estimate an intercept for the replicate group using replicate - 1
+
+glmOut <- glm(mortality ~ dose + replicate - 1, family = "binomial", data = toxi_df)
+coef(glmOut)
+
+# Create glmerOut, a glmer() model that predicts mortality as a function of dose while accounting for replicate as a random effect.
+glmerOut <- glmer(mortality ~ dose + (1|replicate),
+                  family = "binomial", 
+                  data = toxi_df)
+summary(glmerOut)
+coef(glmerOut)
+```
+
+The intercept estimates are closer to each other for the *glmer()* outputs. 
+
+
+### 3.2.2 Marketing example
+
+Research question: if a friend's recommendation increases the number of people who buy, rather than pass, on the online product. 
+
+He has given us a summary of his data as a data.frame called allData. This data includes the number of Purchases and Passes for 4 test cities (city) as well as the ranking. This data structure lends itself to using cbind() on the two columns of interest.
+
+You are interested to see if the recommendation from a friend increases people buying the product. To answer this question, you will build a glmer() model and then examine the model's output.
+
+If the parameter estimate for friend is significantly greater than zero, then a friend's recommendation increases the chance somebody makes a purchase. If the parameter estimate for friend is significantly less than zero, then a friend's recommendation decreases the chance somebody makes a purchase. If the parameter estimate for friend is not significantly different than zero, then a friend's recommendation has no effect on somebody making a purchase.
+
+
+```{r}
+# read data
+allData <- read_excel("data/marketing_data.xlsx") %>%
+  separate(values, into = c("ranking", "city", "friend", "Purchases", "Pass")) %>%
+  mutate_at(.vars = c("city", "friend"), as_factor) %>%
+  mutate(friend = factor(friend, levels = c("yes", "no"))) %>%
+  mutate_at(.vars = c("ranking", "Purchases", "Pass"), as.numeric) 
+
+str(allData)
+head(allData)
+
+# Fit the model and look at its summary
+modelOut <- glmer(cbind(Purchases, Pass) ~ friend + ranking + (1|city), 
+                  family = "binomial", 
+                  data = allData)
+
+summary(modelOut)
+
+ranef(modelOut)
+fixef(modelOut)
+```
+
+The coefficient estimate for slope is negative (friend no) and significantly different than zero. This indicates a friend's recommendation increases the change of purchasing an item. However, describing the coefficient to your friend would be hard. We will see how ods-ratios can be used to describe logistic regression outputs. 
+
+### 3.2.3 Calculating odds-ratios
+
+Refresher on odds-ratios: 
+
+* If an odds-ratio is 1.0, then both events have an equal chance of occurring. For example, if the odds-ratio for a friend's recommendation was 1.0, then a friend would have no influence on a purchase decision. 
+
+* If an odds-ratio is less than 1, then a friend's recommendation would decrease the chance of a purchase occurring. For example, an odds-ratio of 0.5 would mean a friend's recommendation has odds of 1:2 or 1 purchase occurring for every 2 passes. 
+
+* if an odds-ratio is greater than 1, then  a friend's recommendation would increase the chance of a purchase occurring. For example, an odds-ratio of 3 would mean a friend's recommendation has odds of 3:1 or 3 purchases occurring for every 1 passes. 
+
+```{r}
+# Run the code ot calculate odds ratios
+summary(modelOut)
+exp(fixef(modelOut))
+
+# Create the tidied output
+tidy(modelOut, conf.int = TRUE, exponentiate = TRUE)
+
+"May the odds be ever in your favor!" 
+
+```
+
+## 3.3 Count Data 
+
+*Examples of count data*: 
+
+* Events at a rate of time 
+
+* Events per area
+
+* Differs from binomial because no explicit upper limit
+
+
+*Alternative to Chi-square test*: 
+
+* Chi-square test used to compare binned counts
+
+* Poisson glm can be an alternative
+
+
+### 3.3.1 Internet click-through
+
+A common theme throughout this course has been nestedness of data. During this case study, you will examine the number of users who click through on a link to a website before and after a redesign. These users are nested within trial groups. 
+
+For this redesign, we will examine the web behavior of 10 people from 4 different focus groups, for a total of 40 people. You want to know if the number of *clicks* to different pages changed from the old to the new *webpage* while correcting for *groups*. 
+
+```{r}
+# read data
+userGroups <- read_csv("data/userGroup.csv") %>%
+  separate(col = values, into = c("group", "webpage", "clicks")) %>%
+  mutate(group = factor(group), 
+         webpage = factor(webpage, levels = c("Old", "New")),
+         clicks = as.integer(clicks))
+
+summary(userGroups)
+
+
+# Fit a glmer() where clicks is predicted by webpage using group as a random-effect and the data.frame userGroups. Be sure to use the '"poisson"' family. Save the model as glmerOut
+
+glmerOut <- glmer(clicks ~ webpage + (1|group), 
+                  family = "poisson", 
+                  data = userGroups)
+
+# examine output with summary()
+summary(glmerOut)
+
+plot(glmerOut)
+
+
+```
+
+Look at the regression coefficient estimate for the *new* webpage. There was a positive and statistically significant effect of the webpage redesign.  The updated webpage appears to increase click-through. 
+
+
+### 3.3.2 Chlamydia by age-group and county
+
+The number of cases of infections can change through time and vary across age groups. Reason vary, but can include cultural, social, and policy-related reasons. For small populations, such as counties in rural America, these counts may likely include zero infections and be non-normal. In these cases, distributions such as the Poisson may be more appropriate for modeling than a normal distribution. 
+
+For this excise , we will examine how chlamydia infections in small counties in Illinois vary. 
+
+* Do the number of reported cases vary between people aged 15-19 compared to 20-24? 
+
+* Are the number of reported cases changing across time for these two age group? 
+
+```{r}
+# read data
+ILdata <- read_csv("data/ILdata.csv", 
+                   col_types = list(col_factor(),
+                                    col_integer(),
+                                    col_factor(), 
+                                    col_integer())) 
+
+str(ILdata)
+summary(ILdata)
+
+# Run a glmer() with "poisson" family error term, predicting count as a function of fixed effects age (1st fixed-effect) and year (2nd fixed-effect), and include year as a random-effect of county as well. Use the data ILdata.
+modelOut <- glmer(count ~ age + year + (year|county), 
+                  family = "poisson", 
+                  data = ILdata)
+summary(modelOut)
+
+```
+
+
+## 3.3.3 Displaying chlamydia results
+
+```{r}
+# Extract out fixed effects
+fixef(modelOut)
+
+# Extract out random effect
+ranef(modelOut)
+
+# Run code to see on method for plotting the data
+ggplot(data = ILdata, aes(x = year, y = count, group = county)) +
+  geom_line() + 
+  facet_grid(age ~ .) +
+  stat_smooth(method = "glm", 
+              method.args = list(family = "poisson"), 
+              se = FALSE, 
+              alpha = 0.5) +
+  theme_minimal()
+```
+
+
+# 4. Repeated Measures
+This chapter shows how repeated-measurement analysis is a special case of mixed-effect modeling. The chapter begins by reviewing paired t-tests and repeated measures ANOVA. Next, the chapter uses a linear mixed-effect model to examine sleep study data. Lastly, the chapter uses a generalized linear mixed-effect model to examine hate crime data from New York state through time. 
+
+## 4.1 Old paired t-test
+
+### 4.1.1 Paired t-test
+
+```{r}
+# Set the seed to be 345659
+set.seed(345659)
+
+# Model 10 individuals
+n_ind <- 10 
+
+# Simulate before withmean of 0 and sd of 0.5
+before <- rnorm(n = n_ind, mean = 0, sd = 0.5)
+
+# simulate after with mean effect of 4.5 and sd of 5
+after <- before + rnorm(n = n_ind, mean = 4.5, sd = 5)
+
+# Run a standard, non-paired t-test
+t.test(x = before, y = after, paired = FALSE)
+
+# Run a standard, paired t-test
+t.test(x = before, y = after, paired = TRUE)
+```
+
+Notice how the paired t-test has a larger t-score. The paired t-test is more powerful because it accounts for individual variability. 
+
+
+### 4.1.2  Repeated measures ANOVA
+
+A paired t-test is a special case of a repeated measures ANOVA
+
+```{r}
+# Create the data.frame, using the variables from the previous exercise. 
+# y is the joined vectors before and after.
+# trial is the repeated names before and after, each one repeated n_ind
+# ind is the letter of the individual, repeated 2 times (because there were two observations)
+dat <- data.frame(y = c(before, after), 
+                  trial = rep(c("before", "after"), each = 10),
+                  ind = rep(letters[1:n_ind], times = 2))
+
+dat %>%
+  ggplot(aes(x = ind, y = y, col = trial)) +
+  geom_point()
+
+```
+
+### 4.1.3 Repeated measures ANOVA
+During this exercise, we will see how statistical methods generalize. First, we will see how a paired t-test is special case of a repeated measure ANOVA. In the process, we will see how a repeated measures ANOVA is a special case of a mixed-effects model by using *lmer()* in R. 
+
+```{r}
+# Load the lmerTest package
+library(lmerTest)
+
+# run a standard, paired t-test
+t.test(before, after, paired = TRUE)
+
+# Run a lmer and save it as lmer_out
+lmer_out <- lmer(y ~ trial + (1|ind), data = dat)
+
+# Look at the summary() of lmer_out
+summary(lmer_out)
+fixef(lmer_out)
+
+```
+
+
+## 4.2 Sleep study 
+
+**Overview of sleep study**: 
+
+* Two soporifi drugs
+
+* 10 patients
+
+* Classic dataset used by "Student"
+
+**Research question**: 
+
+*ANOVA type analysis*: 
+
+* Ho: Drug type term does not explain a significant amount of variability 
+
+* Ha: Drug type term explains a significant amount of variability
+
+*Regression coefficient approach*: 
+
+* Ho: Drug type term is zero
+
+* Ha: Drug type term is not zero
+
+
+**Modeling approach**: 
+
+* Visualize data
+
+* Build simple model
+
+* Build model of interest
+
+* Extract information of interest
+
+* Visualize results
+
+### 4.2.1 Exploring the sleep data 
+
+```{r}
+# structure of data
+str(sleep)
+
+# plot the raw data
+ggplot(data = sleep, aes(x = ID, y = extra, col = group)) + 
+  geom_point()
+
+
+# replace geom_point with geom_line
+ggplot(data = sleep, aes(x = group, y = extra, group = ID)) +
+	geom_line() + 
+  xlab(label = "Drug") +
+  ylab(label = "Extra sleep") +
+  theme_minimal()
+
+```
+
+As shown in this figure, notice how almost all individuals had a greater increase in sleep with the second drug compared to the first. This suggests the second drug is more effective. 
+
+### 4.2.2 Building models
+
+```{r}
+# Build a linear model using lm(). The goal of this step is to simply make sure the model builds without errors or warnings
+lm(extra ~ group + ID, data = sleep)
+
+# Build a lmer() model with extra predicted by the fixed-effect group and random-effect intercept ID using the sleep data.
+lmer_out <- lmer(extra ~ group + (1|ID), data = sleep)
+
+```
+
+### 4.2.3 Comparing regressions and ANOVAs
+
+```{r}
+# Run an anova() on lmer_out
+anova(lmer_out)
+
+# Look at the summary() of lmer_out
+summary(lmer_out)
+fixef(lmer_out)
+ranef(lmer_out)
+```
+
+Notice how both models find a statistically significant effect, but do so using different tests. Regression inferences is a better option because the output includes the estimated difference by default. 
+
+### 4.2.4 Plotting results
+
+```{r}
+# load the tidyr package
+library(tidyr)
+
+# Spread out the data
+sleep_wide <- sleep %>%
+  spread(key = group, value = extra) %>%
+  mutate(diff = `2` - `1`)
+
+# use the data sleep_wide 
+sleep_wide %>%
+  ggplot(aes(x = diff)) +
+  geom_histogram() + 
+  ylab(label = "Count") + 
+  xlab(label = "Extra sleep from drug 2") + 
+  theme_bw()
+```
+
+
+## 4.3 Hate in NY state 
+
+Overview of data: 
+* Data from Data.gov; 
+* Collected by New York State; 
+* Include county, year, crime type (against property or person), and group targeted. 
+
+Questions with data:
+* Is the state-wide number of hate crimes changing? 
+* Are the number of hate crimes changing differently in each county? 
+
+Know your target audiences: 
+* Technical details
+* Figures versus tables
+
+Presenting for "pop" audiences
+* Narrative important
+* Avoid bogged down with details
+
+Presenting for scientific audiences: 
+* Reproducibility
+* Technical details
+* Code
+* Match style of your field
+
+### 4.3.1 Exploring NY hate data
+
+The State of New York reports the number of hate crimes again people in each county. The purpose of these exercises are two fold. First, they demonstrate how generalized mixed-effect regressions (glmer()) can be used for repeated measures in R. Second, they provide another example of using mixed-effect models for statistical inference. 
+
+```{r}
+# read data 
+hate <- read_csv("data/hateNY.csv", 
+                 col_names = c("Year",
+                               "County", 
+                               "TotalIncidents", 
+                               "Year2"), 
+                 col_types = list(col_integer(),
+                                  col_factor(), 
+                                  col_integer(),
+                                  col_integer()), 
+                 skip = 1)
+
+str(hate)
+
+# Plot the TotalIncidents of hate crimes in NY by Year, grouped by County
+hate %>% 
+  ggplot(aes(x = Year, y = TotalIncidents, group = County)) + 
+  geom_line() +
+  geom_smooth(method = "glm", 
+              method.args = c("poisson"), 
+              se = FALSE)
+  
+```
+
+In the plot, trends in hate crime data through time are different. Different trends across groups implies different random-effect slopes for each group should be used. 
+
+### 4.3.2 Building the model
+As part of the model building process, first build a simple Poisson regression. A glm() runs quicker than glmer() and is easier to debug. For example, the Poisson regression might catch if you have non-integer data. Plus, the Poisson regression can provide intuition about the more complicated model.
+
+If you run into any problems, follow the instructions to fix your data.
+
+Last, build and save a repeated-measures Poisson regression.
+
+```{r}
+# build a simple glm model 
+glm(TotalIncidents ~ Year + County, data = hate, family = "poisson")
+
+# build a glmer with County as a random-effect intercept and Year as both a fixed adn random-effect slop
+glmer(TotalIncidents ~ Year + (Year|County), family = "poisson", data = hate)
+
+"The model does not converge, the reason is the scale of Year"
+
+# Create a new column, Year2 that started with the min of Year
+hate$Year2 <- hate$Year - min(hate$Year)
+
+# build a glmer with County as a random-effect intercept and Years as both a fixed- and random-effect slope
+glmer_out <- glmer(TotalIncidents ~ Year2 + (Year2|County), 
+                   family = "poisson", 
+                   data = hate)
+
+```
+
+
+### 4.3.2 Interpreting model results
+```{r}
+# Examine the summary of glmer_out
+summary(glmer_out)
+
+print("There was a statistically significant decreasing trend")
+```
+
+### 4.3.3 Displaying the results
+
+The last, and arguably most important, the step of creating a model is sharing the results. 
+
+During this exercise, we will extract out the county-level estimates and plot them with ggplot2. The county-level random-effect slopes need to be added to the fixed-effect slopes to get the slope estimates for each county. 
+
+```{r}
+# Extract out the fixed-effect slope for Year2
+Year2_slope <- fixef(glmer_out)['Year2']
+
+# Extract out the random-effect slopes for county
+county_slope <- ranef(glmer_out)$County
+
+# Create a new column for the slope
+county_slope$slope <- county_slope$Year2 + Year2_slope
+
+# Use the row names to create a county name column
+county_slope$county <- rownames(county_slope)
+
+# Create an ordered county-level factor based upon slope values
+county_slope$county_plot <- factor(county_slope$county, 
+                                   levels = county_slope$county[order(county_slope$slope)])
+
+# Now plot the results using ggplot2
+county_slope %>%
+  ggplot(aes(x = county_plot, y = slope)) + 
+  geom_point() +
+  ylab("Change in hate crimes per year") +
+  xlab("County") +
+  coord_flip() + 
+  theme_bw() 
+
+```
+
+Notice how the change in hate crime rates varies greatly across counties. 
+
