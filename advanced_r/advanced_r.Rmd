@@ -1,0 +1,191 @@
+---
+title: "Advanced R Pratice Workbook"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+Wickham, H. "Advanced R". https://adv-r.hadley.nz/index.html. Accessed on 2/19/2019
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rlang)
+library(lobstr)  # Used to explore the tree structure of code 
+```
+
+
+# 7. Environments 
+
+## 7.1 Introduction 
+
+The environment is the data structure that powers scoping. 
+
+Domain specific languages: dplyr and ggplot2
+
+
+## 7.2  Environment basics
+
+Generally, an environment is similar to a named list, with four important exceptions: 
+
+* Every name much be unique
+
+* The names in an environment are not ordered
+
+* An environment has a parent
+
+* Environments are not copied when modified
+
+### 7.2.1 Basics
+
+To create an environment, use *rlang::env()*. It works like *list()*, taking a set of name-value pairs: 
+
+```{r}
+e1 <- env(
+  a = FALSE, 
+  b = "a", 
+  c = 2.3, 
+  d1 = 1:3,
+)
+```
+
+The job of an environment is to associate, or bind, a set of names to a set of values. 
+
+
+Environments can "caontain" themselves. 
+```{r}
+e1$d2 <- e1
+
+# display the memory address of the environment
+e1
+
+# display more information 
+env_print(e1)
+
+# Get a character vector 
+env_names(e1)
+```
+
+### 7.2.2 Important environments
+
+**Two important environments**: 
+
+* current environment, *current_env()* is the environment in which code is currently executing. 
+
+* global environment, *global_env()* is our "workspace", it's where all interactive (i.e. outside of a function) computation takes place. 
+
+```{r}
+# to compare environment 
+identical(global_env(), current_env())
+```
+
+### 7.2.3 Parents
+
+Every environment has a **parent**, another environment.  The parent is what's used to implement lexical scoping: if a name is not found in an environment, then R will look in its parent (and so on). 
+
+```{r}
+# e2a is the parent of e2b
+e2a <- env(d = 4, e = 5)
+e2b <- env(e2a, a = 1, b = 2, c = 3)
+
+env_print(e2a)
+env_print(e2b)
+
+# find the parent of an environment 
+env_parent(e2a)
+env_parent(e2b)
+
+```
+
+Only one environment doesn't have a parent: the **empty** environment. 
+
+```{r}
+e2c <- env(empty_env(), d = 4, e = 5)
+e2d <- env(e2c, a = 1, b = 2, c = 3)
+
+env_parent(e2c)
+env_parent(e2d)
+```
+
+
+By default, *env_parents()* stops when it gets to the global environment. The ancestors of the global environment include every attached package. 
+```{r}
+# Override the default, see the attached packages
+env_parents(e2b, last = empty_env())
+```
+
+### 7.2.4 Super assignment, <<- 
+
+Regular assignment, <-, always creates a variable in the current environment. 
+
+Super assignment, <<-, never creates a variable in the current environment, but instead modifies an existing variable found in a parent environment
+
+```{r}
+# Regular assignment
+x <- 0
+
+# create a function with super assignment <<- 
+f <- function() {
+  x <<- 1
+}
+
+# excute the function and print out x
+f()
+x
+
+
+```
+"If <<- doesn't find an existing variable, it will create one in the global environment. This is usually undesirable, because global variables introduce non-obvious dependencies between functions. <<- is most ofter used in conjustion with a function factory."
+
+
+### 7.2.5 Getting and Setting 
+
+
+
+
+
+
+
+
+
+# 17. Big picture
+
+## 17.1 Introduction 
+
+Metaprogramming. 
+
+
+
+
+
+# 18. Expressions
+
+## 18.1 Introduction 
+
+```{r}
+# Seperate code description from the action 
+z <- rlang::expr(y <- x * 10)
+z
+
+```
+
+*expr()* returns an expression, an object that capture the structure of the code without evaluating it. 
+
+```{r}
+# Evaluate the expression
+x <- 1:4
+eval(z)
+y
+```
+
+

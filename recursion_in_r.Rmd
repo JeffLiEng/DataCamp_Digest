@@ -1,0 +1,95 @@
+---
+title: "Write My Recursion Function in R"
+author: "Prepared by: Jeff Li"
+date:  "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    fig.cap: true
+    fig_width: 7
+    fig_height: 6
+fontsize: 11pt
+fontfamily: mathpazo
+---
+
+
+# 1. Sum of x using my recursion function in R
+
+For example: 
+
+$$sumrec(1:100) = 1 + sumrec(2:100) =  1 + 2 + sumrec(3:100)$$ 
+
+$$sumrec(100) = 100$$
+
+```{r}
+# Define my recursion function "sumrec"
+sumrec <- function(x) {
+  if (length(x) == 1) x
+   else x[1] + sumrec(x[-1])
+}
+
+# test 1
+x <- 100
+sumrec(100)
+
+# test 2
+x <- 1:100
+sumrec(x)
+
+# test 3
+set.seed(123)
+(x <- round(runif(10) * 10))
+sumrec(x)
+
+```
+
+# 2. Factorial Function 
+
+$fact(n) = n * fact(n-1) = n*(n-1)*fact(n-2)$ and $fact(1) = 1$. 
+
+
+```{r}
+# Define my fact recursion function 
+fact <- function(n) {
+  if (n == 1) 1 
+  else n * fact(n - 1)
+}
+
+# test 1
+fact(1)
+
+# test 2
+fact(3)
+
+# test 3
+fact(100)
+```
+
+# 3. Perfroming descending sort data 
+
+```{r}
+# define function 
+sortdesc <- function(x) {
+  if (length(x) == 1) x 
+  else {
+    med <- median(x)
+    c( sortdesc(x[x > med]), x[x == med], sortdesc(x[x < med]) )
+  }
+}
+
+# test 1
+x <- 10
+sortdesc(10)
+
+# test 2
+x <- 1:5
+sortdesc(x)
+
+# test 3
+x <- rnorm(10)
+sortdesc(x)
+
+```
+
