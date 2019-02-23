@@ -37,9 +37,9 @@ library(astsa)
 
 ## 1.1 Time series 
 
-Time series are everywehere: finance, industrial processes, nature. 
+Time series are everywhere: finance, industrial processes, nature. 
 
-* Autoregressive (AR) & Moving Average (MA): ARMA
+* Auto-regressive (AR) & Moving Average (MA): ARMA
 
 * Integrated ARMA: ARIMA
 
@@ -68,7 +68,7 @@ Regression: $Y_i = \beta*X_i + \epsilon_i$, where $\epsilon_i$ is white noise.
 
 White Noise: 
 
-  * independent normals with commom variance
+  * independent normal with common variance
   
   * is basic building blocks of time series
   
@@ -94,7 +94,7 @@ plot(soi)
 
 ```
 
-The AirPassengers data show a handful of important qualities, including seasonality, trend, and heteroscedasticity, which distinguish the data from standand white noise. 
+The AirPassengers data show a handful of important qualities, including seasonality, trend, and heteroscedasticity, which distinguish the data from standard white noise. 
 
 
 
@@ -113,7 +113,7 @@ Nonstationarity in trend and variability: First log, then difference.
 
 When a time series is trend stationary, it will have stationary behavior around a trend. A simple example is $Y_t = \alpha + \beta*t + X_t$ where $X_t$ is stationary. 
 
-A different type of model for trend is *random walk*, which has the form $X_t = X_{t-1} + W_t$, where $W_t$ is white noise. It is called a random walk because at time t the process is where it was at time *t-1* plus a completely random movement. For a *random walk with drift*, a constant is added to the model and wil cause the random walk to drift in the direciton (positive or negative) of the drift. 
+A different type of model for trend is *random walk*, which has the form $X_t = X_{t-1} + W_t$, where $W_t$ is white noise. It is called a random walk because at time t the process is where it was at time *t-1* plus a completely random movement. For a *random walk with drift*, a constant is added to the model and will cause the random walk to drift in the direction (positive or negative) of the drift. 
 
 Differencing both trend stationary and random walk data has the effect of removing the trends, despite the important differences between the two datasets. 
 
@@ -150,18 +150,18 @@ plot(diff(cmort))
 
 We can coerce nonstationary data to stationarity by calculating the return or growth rate as follows. 
 
-Ofter time series are generated as 
+Often time series are generated as 
 $$ X_i = (1 + p_i)X_{t-1}$$
 meaning that the value of the time series observed at time t equals the value observed at time *t-1* and a small percent change *pi* at time t. 
 
 A simple deterministic example is putting money into a bank with a fixed interest p. In the case, $X_i$ is the value of the account at time period *t* with an initial deposit of $X_0$. 
 
-Typically, $p_t$ is referred to as the return or growth rate of a time series, and the process is ofter stable. 
+Typically, $p_t$ is referred to as the return or growth rate of a time series, and the process is often stable. 
 
 The growth rate $p_i$ can be approximately by: 
 $$Y_t = log(X_t) - log(X_{t-1}) $$ 
 
-In R, $p_t$ is ofter calculated as *diff(log(x))* 
+In R, $p_t$ is often calculated as *diff(log(x))* 
 
 ```{r}
 # plot GNP series (gnp) and its growth rate
@@ -179,7 +179,7 @@ plot(diff(log(djia$Close)))
 ## 1.4 Stationary Time Series: ARMA
 
 ### 1.4.1 Wold Decomposition
-Wold proved that any sationary time series may be represented as a linear combination of white noise: 
+Wold proved that any stationary time series may be represented as a linear combination of white noise: 
 $$X_t = W_t + \alpha_1 W_{t-1} + \alpha_2 W_{t-2} + ... $$ 
 For constants $\alpha_1, \alpha_2, ...$. 
 
@@ -189,7 +189,7 @@ Any ARMA model has this form, which means they are suited to modeling time serie
 
 Basic syntax: *arima.sim(model, n, ...)* 
 
-* *model* is a list whith order of the model as c(p, d, q). p: order of AR, q: order of MA
+* *model* is a list with order of the model as c(p, d, q). p: order of AR, q: order of MA
 
 Generate MA(1) given by: $X_t = W_t + 0.9*W_{t-1}$ 
 ```{r}
@@ -460,7 +460,7 @@ sarima(gnpgr, p = 0, d = 0, q = 2)
 
 * ACF has large values
 
-* Q-Q plot suggets normality
+* Q-Q plot suggests normality
 
 * Q-statistic - all points below line. 
 
@@ -494,7 +494,7 @@ data.frame(model = c("MA(1)", "MA(2)", "ARMA(1,1)"),
 
 ```
 
-AIC and BIC help to find the model with the smallest error using the least number of parameters. The idea is based on the parsimony principle, which is basic to all science adn tells you to choose the simplest scientific explanation that fits the evidence. 
+AIC and BIC help to find the model with the smallest error using the least number of parameters. The idea is based on the parsimony principle, which is basic to all science and tells you to choose the simplest scientific explanation that fits the evidence. 
 
 We should always examine the residuals because the model assumes the errors are Gaussian white noise. 
 
@@ -616,7 +616,7 @@ sarima(globtemp, p = 0, d = 1, q = 2)
 ```
 
 
-## 3.5 Diagnostics - Simulated Overfitting 
+## 3.5 Diagnostics - Simulated Over-fitting 
 
 Simulated data ARIMA(0, 1, 1): 
 
@@ -694,9 +694,9 @@ sarima.for(xdata = globtemp, n.ahead = 35, p = 0, d = 1, q = 2)
 
 ## 4.1 Pure Seasonal Models
 
-* Often collect data with a known seasonal componenet
+* Often collect data with a known seasonal component
 
-* Air Passagers (1 cycle every S = 12 months)
+* Air Passenger (1 cycle every S = 12 months)
 
 * Johnson & Johnson Earnings (1 cycle every S = 4 quarters)
 
@@ -789,7 +789,9 @@ dd_umemp <- diff(diff(unemp), lag = 12)
 acf2(dd_umemp, max.lag = 60)
 
 # Fit an appropriate model
-sarima(unemp, p = 2, d = 1, q = 0, P = 0, D = 1, Q = 1, S = 12)
+sarima(unemp, 
+       p = 2, d = 1, q = 0, 
+       P = 0, D = 1, Q = 1, S = 12)
 
 ```
 
@@ -849,4 +851,44 @@ sarima(birth, p = 1, d = 1, q = 1, P = 0, D = 1, Q = 1, S = 12)
 
 ```
 
+
+## 4.7 Forecasting ARIMA Processes
+
+Once model is chose, forecasting is easy because the model describes how the dynamics of the time series behave over time. 
+
+Simply continue the model dynamics into the future. 
+
+### 4.7.1 Forecasting Monthly Unemployment
+
+```{r}
+# Fit the previous model to unemp and check the diagnostics
+sarima(unemp, 
+       p = 2, d = 1, q = 0, 
+       P = 0, D = 1, Q = 1, S = 12)
+
+# Forecast the data 3 years into the future
+sarima.for(xdata = unemp, n.ahead = 36, 
+           p = 2, d = 1, q = 0, 
+           P = 0, D = 1, Q = 1, S = 12)
+```
+
+### 4.7.2 How hard is it to forecast commodity prices? 
+
+Making money in commodities is not easy. It is really hard to predict a commodity. 
+
+This is because commodities are subject to many sources of variation. 
+
+```{r}
+# Fit the chicken again (SARIMA(2, 1, 0)(1, 0, 0)12 
+sarima(chicken, 
+       p = 2, d = 1, q = 0, 
+       P = 1, D = 0, Q = 0, S = 12 )
+
+# Use sarima.for() to forecast the data 5 years into the futre
+
+sarima.for(chicken, n.ahead = 60, 
+           p = 2, d = 1, q = 0, 
+           P = 1, D = 0, Q = 0, S = 12)
+
+```
 
