@@ -150,8 +150,110 @@ x
 
 ### 7.2.5 Getting and Setting 
 
+We can get and set elements of an environment iwth $ and [[ in the same way as a list: 
+
+```{r}
+e3 <- env(x = 1, y = 2)
+
+e3$x
+e3$y
+e3[["y"]]
+```
+
+If we wnat to use a default value if the binding doesn't exist, we can use the *default* argument. 
+```{r}
+env_get(e3, "xyz", default = NA)
+```
+
+Two ways to add binding to an environment: 
+
+* env_poke()
+
+* env_bind()
+
+```{r}
+env_poke(e3, "a", 100)
+
+env_bind(e3, a = 10, b = 20)
+
+env_names(e3)
+
+# determine if an environment has a binding with env_has():
+env_has(e3, "a")
+env_has(e3, "zyz")
+
+```
+
+"NULL" vs unbind()
+
+```{r}
+e3$a <- NULL
+env_has(e3, "a")
+
+env_unbind(e3, "a")
+
+env_has(e3, "a")
+```
 
 
+### 7.2.6 Advanced bindings
+
+There are two more exotic variants of env_bind():
+
+* *env_bind_lazy()* creates **delayed bindings**, which are evaluated the first time they are accessed. Behind the scenes, delayed bindings create promise, so behave in the same way as function argumments. 
+
+The primary use of delayed bindings is in *autoload()*, which allows R packages to provide datasets that behave like they are loaded in memory, even though they're only loaded from disk when needed. 
+
+```{r}
+env_bind_lazy(current_env(), b = {Sys.sleep(1); 1})
+
+system.time(print(b))
+
+system.time(print(b))
+
+```
+
+*env_bind_active()*: creates **active bindings** which are re-computed every time they're accessed: 
+
+```{r}
+env_bind_active(current_env(), z1 = function(val) runif(1))
+
+z1
+
+z1
+```
+Active bindings are used to implement R6's active fields. 
+
+
+### 7.2.7 Exercises
+
+* (1) List three ways in which an environment differs from a list: (a) every name must be unique; (b) oder doesn't matter; (c) environments have parenets; (d) environments have reference semantics.  
+
+* (2) create a loop environment
+```{r}
+e1 <- env(x = "loop")
+e1$x <- e1 
+
+env_print(e1)
+```
+
+* (3) 
+```{r}
+e1 <- env(a = "loop")
+e2 <- env(b = "dedoop")
+
+e1$a <- e2
+e2$b <- e1
+
+print(e1)
+
+env_print(e1)
+env_print(e2)
+
+```
+
+
+## 7.3 Recursing over environments 
 
 
 
