@@ -1,0 +1,355 @@
+---
+title: "Inference for Linear Regression"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+“Give me six hours to chop down a tree and I will spend the first four sharpening the ax.”  ~ Abraham Lincoln 
+
+
+**Course Description**
+
+"Previously, you learned the fundamentals of both statistical inference and linear models; now, the next step is to put them together. This course gives you a chance to think about how different samples can produce different linear models, where your goal is to understand the underlying population model. From the estimated linear model, you will learn how to create interval estimates for the effect size as well as how to determine if the effect is significant. Prediction intervals for the response variable will be contrasted with estimates of the average response. Throughout the course, you'll gain more practice with the dplyr and ggplot2 packages, and you will learn about the broom package for tidying models; all three packages are invaluable in data science." 
+
+
+
+Ref: Hardin, Jo. (2019) "Inference for Linear Regression". https://www.datacamp.com/courses
+
+
+Note: Some course materials and data have been digested and adapted for my teaching. 
+
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+library(tidyverse)
+library(NHANES)
+library(infer)
+library(mosaicData)
+library(broom)
+```
+
+
+# 1. Inferential ideas 
+
+How and why to perform inferential(instead of descriptive only) analysis on a regression model. 
+
+## 1.1 Regression 
+
+### 1.1.1 Regression example 1
+
+```{r}
+# RailTrail data: contains information about the number of users of a trail in Florence, MA and the weather for each day
+data(RailTrail)
+str(RailTrail)
+
+# Fit a linear model
+ride_lm <- lm(volume ~ hightemp, data = RailTrail)
+
+# View the summary of the model
+summary(ride_lm)
+
+# Print the tidy model output
+tidy(ride_lm)
+```
+
+
+### 1.1.2 Random samples
+```{r}
+# Create the test data 
+popdata <- read_csv("data/popdata.csv") %>%
+  separate(values, into = c("explanatory", "response" ), sep = "[:blank:]") %>%
+  mutate_if(.predicate = is.character, .funs = as.numeric) %>%
+  na.omit()
+str(popdata)
+summary(popdata)
+
+#  Generate two samples
+set.seed(4747)
+both_samples <- bind_rows(
+  popdata %>% sample_n(size = 50), 
+  popdata %>% sample_n(size = 50), 
+  .id = "replicate"
+)
+
+# plot 
+both_samples %>% 
+  ggplot(aes(x = explanatory, y = response, color = replicate)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+### 1.1.3 Superimpose lines
+
+```{r}
+# Set the seed for reproducibility
+set.seed(4747)
+
+# Repeatedly sample the population without replacement 
+many_samples <- popdata %>%
+  oilabs::rep_sample_n(size = 50, reps = 100)
+
+# see the results
+glimpse(many_samples)
+
+head(many_samples)
+# Using many_samples, plot response vs explantory, grouped by replicate
+ggplot(many_samples, aes(x = explanatory, y = response, group = replicate)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+
+# run many lms
+many_lms <- many_samples %>%
+  # group by replicate
+  group_by(replicate) %>%
+  # Run the model on each replicate, then tidy it
+  do(lm(response ~ explanatory, data = .) %>% tidy()) %>%
+  # fiter for rows where the term is explanatory
+  filter(term == "explanatory")
+
+# see the result
+
+many_lms %>%
+  ggplot(aes(x = estimate)) + 
+  geom_histogram()
+```
+
+
+## 1.2 Research question: protein & carbohydrates
+
+Possible research questions for the starbucks data: 
+
+* Are protein and carbohydrates linearly associated in the population? (two-sided research question)
+
+* Are protein and carbohydrates linearly associated in a **positive** direction in the population? (one-sided research question)
+
+
+## 1.3 Variability of coefficients 
+
+### 1.3.1 Original population-change sample size
+
+Changing the sample size directly impacts how variable the slope is. 
+
+```{r}
+set.seed(8)
+
+# Generate 100 random samples of size 50
+many_samples <- popdata %>% 
+  oilabs::rep_sample_n(size = 50, reps = 100)
+
+# Using many_samples, plot response vs explanatory, grouped by replicate
+ggplot(many_samples, aes(x = response, y = explanatory, group = replicate)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+
+# Generate 100 random samples of size 10
+many_samples <- popdata %>% 
+  oilabs::rep_sample_n(size = 10, reps = 100)
+
+# Using many_samples, plot response vs explanatory, grouped by replicate
+ggplot(many_samples, aes(x = response, y = explanatory, group = replicate)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+```
+
+When smaller sample size was used (10 vs 50), there was more variation in the positions of each trend line.
+
+Reduceing the variability in the direction of the explanatory vairable **increases** the variability of the slope coefficients. This is because with a smaller range of the explanatory variables, there is less information on which to build the model. 
+
+In summary, bigger sample size, smaller variability around the line, increased range of explanatory variable can decrease teh variability in the sampling distribution of the slope coefficient. 
+
+
+# 2. Simulation-based inference for the slope parameter
+
+learn the ideas of the sampling distribution using simulation methods for regression models. 
+
+## 2.1 Simulation-based inference 
+
+### 2.1.1 Null sampling distribution of the slope: twin study 
+
+In the mid-20th century, a study was conducted that tracked down identical twins that were separated at birth: one child was raised at home of their biological parents and the other in a forster home. In an attempt to answer the question of whether intelligence is the result of nature or nurture, both children were given IQ tests. 
+
+```{r}
+# read the twins data 
+twins <- read_csv("data/twins.csv")
+
+# plot
+twins %>% 
+  ggplot(aes(x = Biological, y = Foster)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)
+
+# Calculate the observed slope
+obs_slope <- lm(Foster ~ Biological, data = twins) %>%
+  # Tidy the result
+  tidy() %>%
+  # Filter for rows where term equal "Biological"
+  filter(term == "Biological") %>%
+  # pull out the estimate column 
+  pull(estimate) 
+
+obs_slope
+
+# Simulate 10 slopes with a permuted dataset
+perm_slope <- twins %>%
+  # specify Foster vs. Biological
+  specify(Foster ~ Biological) %>%
+  # Use a null hypothesis of independence
+  hypothesize(null = "independence") %>%
+  # Generate 10 permutation replicates
+  generate(reps = 10, typ = "permute") %>%
+  # Calculate the slope statistic
+  calculate(stat = "slope")
+
+# see the result
+perm_slope
+```
+
+Having a range of slope estiamtes will let us measure the variation and calculate confidence intervals for that statistic. 
+
+### 2.1.2 SE of slope
+
+```{r}
+# simulate 500 slopes with a permuted dataset
+perm_slope <- twins %>%
+  # Specify Foster vs. Biological 
+  specify(Foster ~ Biological) %>%
+  # Use a null hypothesis of independence
+  hypothesize(null = "independence") %>%
+  # Generate 500 permutation replicates
+  generate(reps = 500, type = "permute") %>%
+  # Calculate the slope statistic 
+  calculate(stat = "slope")
+
+# plot 
+ggplot(perm_slope, aes(x = stat)) +
+  # Add a density layer
+  geom_density()
+
+
+# summary 
+perm_slope %>%
+  # ungroup the data set 
+  ungroup() %>%
+  summarize(
+    # Mean of stat
+    mean_stat = mean(stat), 
+    # std error of stat
+    std_err_stat = sd(stat)
+  )
+```
+
+### 2.1.3 p-value
+
+Now we have the null sampling distribution, we can use it to find the p-value associated with the original slope statistic. 
+
+```{r}
+# Run a linear reg of Foster vs. Biological on twins
+abs_obs_slope <- lm(Foster ~ Biological, data = twins) %>%
+  # Tidy the result
+  tidy() %>%
+  # Filter for rows where term equals Biological 
+  filter(term == "Biological") %>%
+  # Pull out the estiamte
+  pull(estimate) %>%
+  # Take teh absolute value
+  abs()
+
+
+# compute the p-value
+perm_slope %>%
+  # add a column of the absolute value of the slope
+  mutate(abs_perm_slope = abs(stat)) %>%
+  # Calculate a summary statistic 
+  summarize(p_value = mean(abs_perm_slope >= abs_obs_slope) )
+
+```
+
+
+*The permutated slopes were never greater than the observed absolute slope.*   The data are unlikely under the null hypothesis assumption. 
+
+
+## 2.2 Simulation-based CI for slope
+
+### 2.2.1 Bootstrapping teh data
+
+We can repeatedly sample from the dataset to estiamte the sampling distribution and standard error of the slope coeffient. using teh sampling distribution will allow us to directly find a confidence interval for the underlying population slope. 
+
+Bootstrap replicates samples from the data with replacement, unlike permutation replicates. 
+
+```{r}
+# Set the seed for reproducibility
+set.seed(4747)
+
+# Calculate 1000 bootstrapped slopes
+boot_slope <- twins %>%
+  # Specify Forster vs. Biological 
+  specify(Foster ~ Biological) %>%
+  # Generate 1000 bootstrap replicate
+  generate(reps = 1000, type = "bootstrap") %>%
+  # Calculate the slope statistic
+  calculate(stat = "slope")
+
+# see the rsult
+head(boot_slope)
+
+
+
+```
+
+
+### 2.2.2 SE method-bootstrap CI for slope
+
+
+```{r}
+# Create a confidence interval of stat
+# 2 std devs each side of the mean
+boot_slope %>% 
+  summarize(
+    lower = mean(stat) - 2 * sd(stat),
+    upper = mean(stat) + 2 * sd(stat)
+  )
+```
+
+
+### 2.2.3 Percentile method - bootstrap CI for slope
+
+```{r}
+# Set alpha = 0.05 
+
+alpha = 0.05 
+
+# Set the lower percentile cutoff
+p_lower <- alpha/2
+
+# Set the upper percentile cutoff
+p_upper <- 1 - alpha/2
+
+
+# Create a confidence interval of stat using quantiles
+boot_slope %>%
+  summarize(lower = quantile(stat, p_lower), 
+            upper = quantile(stat, p_upper))
+
+```
+
+
+# 3. t-Based Inference For the Slope Parameter 
+
+In this chapter you will learn about how to use the t-distribution to perform inference in linear regression models. You will also learn about how to create prediction intervals for the response variable.
+
+
+
