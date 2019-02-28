@@ -1,0 +1,224 @@
+---
+title: "Generalized Linear Models in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+"Linear regression serves as a workhorse of statistics, but cannot handle some types of complex data. A generalized linear model (GLM) expands upon linear regression to include non-normal distributions including binomial and count data. Throughout this course, you will expand your data science toolkit to include GLMs in R. As part of learning about GLMs, you will learn how to fit model binomial data with logistic regression and count data with Poisson regression. You will also learn how to understand these results and plot them with ggplot2."
+
+Ref: Erickson, Richard. (2019) "Generalized Linear Models in R", www.datacamp.com. 
+
+
+* Chapter 1: Review and limits of linear model and Poisson regressions
+
+* Chapter 2: Logistic (Binomial) regression
+
+* Chapter 3: Interpreting and plotting GLMs
+
+* Chapter 4: Multiple regression with GLMs
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(broom)
+
+library(lme4)
+
+```
+# 1. GLMs, an extension of your regression toolbox
+
+This chapter teaches you how generalized linear models are an extension of other models in your data science toolbox. The chapter also uses Poisson regression to introduce generalize linear models.
+
+## 1.1 Limitations of linear models
+
+Linear models - $y = \beta_0 + \beta_1 x + \epsilon$: 
+
+* Intercept for baseline effect
+
+* Slope for linear predictor
+
+There are several assumptions: linearity, normality, continuous variables. 
+
+**Generalized linear model**: 
+
+* Similar to linear models
+
+* Non-normal error distribution
+
+* Link functions: $y = \psi(b_0 + b_1 x + \epsilon)$
+
+
+A linear model is a special case of a generalized linear model (GLM). we will use *ChickWeight* dataset to see if *diet* affects *weight*. 
+
+```{r}
+# Create the data
+data("ChickWeight")
+ChickWeightEnd <- ChickWeight %>% filter(Time == 21)
+str(ChickWeightEnd)
+
+# Plot
+ChickWeightEnd %>%
+  ggplot(aes(x = Diet, y = weight)) + 
+  geom_boxplot()
+
+# Fit a lm()
+lm(formula = weight ~ Diet, data = ChickWeightEnd)
+
+# Fit a glm()
+glm(formula = weight ~ Diet, data = ChickWeightEnd, family = "gaussian")
+```
+
+## 1.2 Poisson regression
+
+* Discrete integers: x = $0, 1, 2, 3, \dots, n$
+
+* Mean and variance paramter: $\lambda$
+
+* $P(x) = \frac{\lambda^x e^{-\lambda}}{x!}$
+
+* Fixed area/time
+
+```{r}
+# Define my poisson function 
+pois_fn <- function(x, lambda = 10) {
+  lambda**x * exp(-lambda)/factorial(x)
+}
+
+# Plot my poisson function with "dpois" 
+ggplot(data.frame(x = 0:100), aes(x)) +
+  stat_function(fun = dpois, args = list(lambda = 5)) +
+  stat_function(fun = dpois, args = list(lambda = 10), alpha = 0.8) +
+  stat_function(fun = pois_fn, args = list(lambda = 20), color = "red", alpha = 0.8)  + 
+  stat_function(fun = dpois, args = list(lambda = 30)) 
+ 
+```
+
+
+**GLM with R requirements**
+
+* Discrete counts: 0, 1, 2, 3, ...
+
+* Defined area and time
+
+* Log-scale coefficients
+
+**When not to use Poisson distribution**
+
+* Non-count or non-positive data (e.g. 1.4 or -2)
+
+* Non-constant sample area or time (e.g., trees/km vs trees/m)
+
+* Mean >= 30
+
+* Over-dispersed data
+
+* Zero-inflated data
+
+### 1.2.1 Fitting a Poisson regression in R
+
+```{r}
+dat <- matrix(c(
+ 1,     0,
+ 2,     0,
+ 3,     0,
+ 4,     0,
+ 5,     1,
+ 6,     0,
+ 7,     0,
+ 8,     1,
+ 9,     0,
+10,     0,
+11,     2,
+12,     0,
+13,     1,
+14,     0,
+15,     0,
+16,     1,
+17,     0,
+18,     0,
+19,     0,
+20,     2,
+21,     2,
+22,     1,
+23,     1,
+24,     4,
+25,     1,
+26,     1,
+27,     1,
+28,     1,
+29,     0,
+30,     0), ncol = 2, byrow = TRUE)  %>% 
+  as.data.frame(dat) %>% select(time = V1, count = V2)
+
+# fit the data using the poisson family
+poissonOut <- glm(count ~ time, data = dat, family = "poisson")
+
+# print out the mode 
+poissonOut
+
+```
+
+
+### 1.2.2 comparing linear and Poisson regression 
+```{r}
+# Fit a glm with count predicted by time using data.frame dat and gaussian family
+lmOut <- glm(count ~ time, data = dat, family = "gaussian") # not a gaussina distribution 
+
+summary(lmOut)
+summary(poissonOut)
+```
+
+### 1.2.3 Intercepts-Comparisons versus means
+
+R's formulas allow two types of intercepts to be estiamted. 
+
+```{r}
+# data
+scores <- data.frame(player = rep(c("Sam", "Lou"), each = 5), 
+               goal = c(1, 2, 0, 4, 3, 0, 0, 1, 0, 0))
+
+
+# Fit a glm() that estimates the difference between players
+summary(glm(goal ~ player, data = scores, family = "poisson"))
+
+# Fit a glm() that estimates an intercept for each player
+summary(glm(goal ~ player - 1, data = scores, family = "poisson"))
+
+```
+
+## 1.3 Basic lm() function s with glm()
+
+### 1.3.1 Appying sumamry, print, and tidy to glm
+
+```{r, eval=FALSE}
+# build your models
+lmOut <- lm(Number ~ Month, data = dat) 
+poissonOut <- glm(Number ~ Month, data = dat, family = "poisson")
+
+# examine the outputs using print
+print(lmOut)
+print(poissonOut)
+
+# examine the outputs using summary
+summary(lmOut)
+summary(poissonOut)
+
+# examine the outputs using tidy
+tidy(lmOut)
+tidy(poissonOut)
+```
+

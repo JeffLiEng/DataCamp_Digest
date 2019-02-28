@@ -284,7 +284,7 @@ perm_slope %>%
 
 ## 2.2 Simulation-based CI for slope
 
-### 2.2.1 Bootstrapping teh data
+### 2.2.1 Bootstrapping the data
 
 We can repeatedly sample from the dataset to estiamte the sampling distribution and standard error of the slope coeffient. using teh sampling distribution will allow us to directly find a confidence interval for the underlying population slope. 
 
@@ -351,5 +351,142 @@ boot_slope %>%
 
 In this chapter you will learn about how to use the t-distribution to perform inference in linear regression models. You will also learn about how to create prediction intervals for the response variable.
 
+## 3.1 Mathematical approximation 
+
+### 3.1.1 How do the theoretical results play a role? 
+
+Instead of simulating a null distribution (using permutations), the t-distribution can be used to calculate p-values and confidence intervals. The theoretical result provides a t-distribution fit for the sampling distribution of the standardized slope statistic. 
+
+Why does it matter if the sampling distribution is accurate? 
+If the ditribution is wrong, the p-vlaue will not represent the probability of the data given the null hypothesis is true. 
+If the distribution is wrong, the CI procedure will not capture the true parameter in 95% of samples. 
+
+### 3.1.2 t-statistic
+
+Using the permuted dataset(recall, the randomization forces the null hypothesis to be true)., investigate the distribution of the standardized slope statistics (the slope, which has been divided by the standard error). Note that the distribution of the standardized slope is well described by a t-distribution. 
+
+```{r}
+# Run a linear reg of Foster vs. Biological on twins
+twins_perm <- 
+  twins %>%
+  specify(Foster ~ Biological) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  group_by(replicate) %>%
+  do(lm(Foster ~ Biological, data = .) %>% tidy())
+  
+
+# Fiter for biological perm 
+biological_perm <- twins_perm %>%
+  filter(term == "Biological")
+
+# Calculate degrees of freedom of twins
+degrees_of_freedom <- nrow(twins) - 2
+
+
+# Using biological_perm, plot statistic
+ggplot(biological_perm, aes(x = statistic )) + 
+  # add a histogram layer, with density on the y axis
+  geom_histogram(aes(y = ..density..)) + 
+  # Add a t-ditribution function stat, colored red
+  stat_function(fun = dt, args = list(df = degrees_of_freedom), color = "red")
+```
+
+The distribution of the data (shown in the histogram) closely matches the t-distribution predicted by theory (shown by the curve). 
+
+
+### 3.1.3 Working with R-output 
+
+The p-value given by the lm output is a two-sided p-value by default. In the twin study, it might seem more reasonable to follow along the one-sided scientific hypothesis that the IQ scores of the twins are positively associated. Because the p-value is the probability of the observed data or more extreme, the two-sided test p-value is twice as big as the one-sided result. That is, to get a one-sided p-value from the two-sided output in R, divide the p-value by two.
+
+```{r}
+# build the model
+model <- lm(Foster ~ Biological, data = twins) 
+summary(model)
+
+# Get the Biological model coefficient
+biological_term <- model %>%
+  # tidy the model
+  tidy() %>%
+  # filter for the term equal to "Biological"
+  filter(term == "Biological")
+
+biological_term %>% 
+  # add a column of one-sided p-value   (makes the test more powerful)
+  mutate(one_side_p_value = p.value/2)
+
+```
+
+
+In think about the scientific research question, if IQ is caused only by genetics, then we would expect the slope of the line between the two sets of twins to be 1. Testing the hypothesized slope of 1 can be done by taking a new test statistic which evaluates how far the observed slope is from the hypothesized values of 1. 
+
+$$ new_t = \frac{slope-1}{SE}$$
+
+If the hypothesis that the slope = 1 is true, then the new test statistic will have a t-ditribution that we can use for calculating a p-value. 
+
+```{r}
+# calculate new p-value
+biological_term %>%
+  mutate(
+    # Calculate teh test statistic
+    test_statistic = (estimate - 1)/std.error, 
+    # calculate its one-sided p-value
+    one_sided_p_value_of_test_statistic = pt(q = test_statistic, df = degrees_of_freedom), 
+    # calculate its two-sided p-value
+    two_sided_p_value_of_test_statistic = 2 * one_sided_p_value_of_test_statistic
+  )
+```
+
+Cool calculating! The p-value of **0.31** suggests that we should not reject the null hypothesis: the slope of teh IQ line is not significantly different from **1**. 
+
+
+### 3.1.4 comparing randomization inference and t-inference 
+When technical conditions (see next chapter) hold, the inference from the randomization test and the t-distribution test should give equivalent conclusions. They will not provide the exact same answer because they are based on different methods. But they should give p-values and confidence intervals that are reasonably close.
+
+```{r}
+
+# the slope in the observed data and each permutation replicate
+obs_slope <- lm(Foster ~ Biological, data = twins) %>%
+  tidy() %>%
+  filter(term == "Biological") %>%
+  pull(estimate)
+
+perm_slope <- twins %>%
+  specify(Foster ~ Biological) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "slope")
+
+# Calculate teh absolute value of the observed slope
+abs_obs_slope <- abs(obs_slope) 
+
+# Find the p-value
+perm_slope %>%
+  # add a column for the absolute value of stat
+  mutate(abs_perm_slope = abs(stat)) %>%
+  # Calculate prop'n permuted values more extreme than observed
+  summarize(p_value = mean(abs_perm_slope > obs_slope))
+
+```
+
+The absolute slope estimates in the permuted datasets were never greater than the absolute slope of the observed data. 
+
+## 3.2 Interval in Regression
+
+### 3.2.1 CI using t-theory
+
+In previous courses, you have created confidence intervals with the formula of statistic plus/minus some number of standard errors. With bootstrapping, we typically use two standard errors. With t-based theory, we use the specific t-multiplier.
+
+Create a CI for the slope parameter using both the default tidy() call as well as mutate() to calculate the confidence interval bounds explicitly. Note that the two methods should give exactly the same CI values because they are using the same computations.
+
+```{r}
+# list alpha and df
+alpha <- 0.05
+degrees_of_freedom <- nrow(twins) - 2
+
+# Calculate the confidence level
+confidence_level <- 
+
+```
 
 

@@ -291,3 +291,15 @@ y
 ```
 
 
+
+# 19. Quasiquotation
+
+## 19.1 Introduction
+
+One of the fundamental ideas makes *expr()* and *ast()* work: quotation.
+
+Three pillars of tidy evaluation: quasiquotation, quosures, and data mask. 
+
+## 19.2 Motivation 
+
+

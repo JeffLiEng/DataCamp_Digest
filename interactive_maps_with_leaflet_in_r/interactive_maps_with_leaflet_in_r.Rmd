@@ -1,0 +1,196 @@
+---
+title: "Interactive Maps with leaflet in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+“Give me six hours to chop down a tree and I will spend the first four sharpening the ax.”  ~ Abraham Lincoln 
+
+
+**Course Description**
+
+"Get ready to have some fun with maps! Interactive Maps with leaflet in R will give you the tools to make attractive and interactive web maps using spatial data and the tidyverse. In this course, you will create maps using the IPEDS dataset, which contains data on U.S. colleges and universities. Along the way, you will customize our maps using labels, popups, and custom markers, and add layers to enhance interactivity. Following the course, you will be able to create and customize your own interactive web maps to reveal patterns in your data." 
+
+
+
+Ref: Rich Majerus (2019) "Interactive Maps with leaflet in R". https://www.datacamp.com/courses
+
+
+Note: Some course materials and data have been digested and adapted for my teaching. 
+
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+library(tidyverse)
+library(leaflet)
+```
+
+
+# 1. Setting Up Interactive Web Maps 
+
+Chapter 1 will introduce students to the htmlwidgets package and the leaflet package. Following this introduction, students will build their first interactive web map using leaflet. Through the process of creating this first map students will be introduced to many of the core features of the leaflet package, including adding different map tiles, setting the center point and zoom level, plotting single points based on latitude and longitude coordinates, and storing leaflet maps as objects. Chapter 1 will conclude with students geocoding DataCamp’s headquarters, and creating a leaflet map that plots the headquarters and displays a popup describing the location.
+
+
+## 1.1 Introduction to leaflet
+
+**leaflet** is an open-source JavaScript library. It is a very popular option for creating interactive mobile-friendly maps. It can be created using only R code via the *htmlwidgets* package. 
+
+
+### 1.1.1 Loading the leaflet library
+
+Using the *htmlwidgets* and *leaflet* packages in R, we can create interactive maps with only a couple of lines of R code. 
+
+There are three steps that are required to create an interactive web map in R using *leaflet*: 
+
+* 1. Loading the *leaflet* library
+
+* 2. Initializing the *leaflet* widget using the *leaflet()* function. 
+
+* 3. adding a map tile. 
+
+
+```{r}
+leaflet()
+```
+
+Calling this function without any arguments will initialize the *htmlwidget*. 
+
+
+### 1.1.2 Creating an interactive Web Map
+
+```{r}
+# Create a leaflet map with default map tile using addTiles()
+leaflet() %>%
+    addTiles()
+```
+
+
+## 1.2  Provider Tiles 
+
+The leaflet packages comes with 100+ provider tiles
+
+```{r}
+names(providers)
+
+
+str_subset(string = names(providers), pattern = "OpenStreetMap" )
+str_subset(string = names(providers), pattern = "CartoDB")
+```
+
+### 1.2.1 Adding a Custom Map Tile
+```{r}
+# Set the provider argument ot "CartoDB"
+leaflet() %>%
+  addProviderTiles(provider = "CartoDB")
+
+# Use teh Esri provider tile
+leaflet() %>%
+  addProviderTiles(provider = "Esri")
+
+# use the CartoDB.PositronNoLabels
+leaflet() %>%
+  addProviderTiles(provider = "CartoDB.PositronNoLabels")
+```
+
+
+## 1.3 Setting the Default Map View
+
+### 1.3.1 A Map with A View
+
+```{r}
+# DataCamp Offices
+datacamp_ny  <- "350 5th Ave, Floor 77, New York, NY 10118"
+datacompa_belgium <- "Martelarenlaan 38, 3010 Kessel-Lo, Belgium"
+
+dc_hq <- data.frame(hq = c("DataCamp-NYC", "DataCamp-Belgium"), 
+                    lon = c(-74.0, 4.72), 
+                    lat = c(40.7, 50.9))
+
+# Map with CartoDB tile centered on DataCamp's NYC office with zoom of 6
+leaflet() %>%
+  addProviderTiles("CartoDB") %>%
+  setView(lng = -73.98575, lat = 40.74856, zoom = 6)
+
+
+# Map with CartoDB.PositronNoLabels tile centered on DataCamp's Belgium office with zoom of 4
+leaflet() %>%
+  addProviderTiles("CartoDB.PositronNoLabels") %>%
+  setView(lng = 4.717863, lat = 50.881363, zoom = 4)
+
+```
+
+
+### 1.3.2 A Map with a Narrower View 
+
+```{r}
+leaflet(options = leafletOptions(
+  # Set minZoom and dragging 
+  minZoom = 12, dragging = TRUE))  %>% 
+  addProviderTiles("CartoDB")  %>% 
+  # Set default zoom level 
+  setView(lng = dc_hq$lon[2], lat = dc_hq$lat[2], zoom = 14) %>% 
+  # Set max bounds of map 
+  setMaxBounds(lng1 = dc_hq$lon[2] + .05, 
+               lat1 = dc_hq$lat[2] + .05, 
+               lng2 = dc_hq$lon[2] - .05, 
+               lat2 = dc_hq$lat[2] - .05) 
+```
+
+### 1.3.3 Mark it 
+
+```{r}
+# Plot DataCamp's NYC HQ
+leaflet() %>%
+  addProviderTiles("CartoDB") %>%
+  addMarkers(lng = dc_hq$lon[1], lat = dc_hq$lat[1])
+
+
+# Plot DataCamp's NYC HQ with zoom of 12    
+leaflet() %>% 
+    addProviderTiles("CartoDB") %>% 
+    addMarkers(lng = -73.98575, lat = 40.74856)  %>% 
+    setView(lng = -73.98575, lat = 40.74856, zoom = 12)  
+
+
+# Plot both DataCamp's NYC and Belgium locations
+leaflet() %>% 
+    addProviderTiles("CartoDB") %>% 
+    addMarkers(lng = dc_hq$lon, lat = dc_hq$lat)
+```
+
+### 1.3.4 Adding Popups and Storing your Map
+
+```{r}
+# Store leaflet hq map in an object called map
+ map <- leaflet() %>%
+          addProviderTiles("CartoDB") %>%
+          # Use dc_hq to add the hq column as popups
+          addMarkers(lng = dc_hq$lon, lat = dc_hq$lat,
+                     popup = dc_hq$hq)
+
+# Center the view of map on the Belgium HQ with a zoom of 5 
+map_zoom <- map %>%
+      setView(lat = 50.881363, lng = 4.717863,
+              zoom = 5)
+
+# Print map_zoom
+map_zoom
+```
+
+
+# 2. Plotting Points
+
+In chapter 2 students will build on the leaflet map they created in chapter 1 to create an interactive web map of every four year college in California. After plotting hundreds of points on an interactive leaflet map, students will learn to customize the markers on their leaflet map. This chapter will also cover how to color code markers based on a factor variable.
+
+
+
