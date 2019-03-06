@@ -193,4 +193,37 @@ map_zoom
 In chapter 2 students will build on the leaflet map they created in chapter 1 to create an interactive web map of every four year college in California. After plotting hundreds of points on an interactive leaflet map, students will learn to customize the markers on their leaflet map. This chapter will also cover how to color code markers based on a factor variable.
 
 
+```{r}
+# Remove markers, reset bounds, and store the updated map in the m object
+map_clear <- map  %>%
+        clearMarkers()  %>% 
+        clearBounds()
+
+# Print the cleared map
+map_clear
+
+```
+
+
+## 2.1 Exploring the IPEDS Data
+In Chapters 2 and 3, we will be using a subset of the IPEDS data that focuses on public, private, and for-profit four-year institutions. The United States also has many institutions that are classified as two-year colleges or vocational institutions, which are not included this course. Our subset has five variables on 3,146 colleges.
+
+The sector_label column in the ipeds data frame indicates whether a college is public, private, or for-profit. In the console, use the group_by() and the count() functions from the dplyr package to determine which sector of college is most common.
+
+The tidyverse package, which includes dplyr, has been loaded for you. In your workspace, you also have access to the ipeds dataframe.
+
+Which sector of college is most common in the IPEDS data?
+
+```{r}
+ipeds
+
+```
+
+
+
+
+
+
+
+
 

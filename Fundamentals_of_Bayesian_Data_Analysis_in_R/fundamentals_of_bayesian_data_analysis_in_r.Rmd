@@ -36,5 +36,14 @@ Bayesian inference is a method for figuring out unknown or unobservable quantiti
 
 Thomas Bayes (1702 - 1761). 
 
-Probability: 
+
+
+Unknowns and ice creams
+
+Bayesian inference is a method for figuring out unknown or unobservable quantities given known facts. In the case of the Enigma machine, Alan Turing wanted to figure out the unknown settings of the wheels and ultimately the meaning of the coded messages.
+
+When analyzing data, we are also interested in learning about unknown quantities. For example, say that we are interested in how daily ice cream sales relate to the temperature, and we decide to use linear regression to investigate this.
+
+
+# 2. How does Bayesian inference work?
 
