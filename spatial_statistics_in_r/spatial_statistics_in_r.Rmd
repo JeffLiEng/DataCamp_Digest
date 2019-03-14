@@ -1,0 +1,71 @@
+---
+title: "Spatial Statistics in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+"Everything happens somewhere, and increasingly the place where all these things happen is being recorded in a database. There is some truth behind the oft-repeated statement that 80% of data have a spatial component. So what can we do with this spatial data? Spatial statistics, of course! Location is an important explanatory variable in so many things - be it a disease outbreak, an animal's choice of habitat, a traffic collision, or a vein of gold in the mountains - that we would be wise to include it whenever possible. This course will start you on your journey of spatial data analysis. You'll learn what classes of statistical problems present themselves with spatial data, and the basic techniques of how to deal with them. You'll see how to look at a mess of dots on a map and bring out meaningful insights."
+
+Ref: Barry Rowlingson. "Spatial Statistics in R", www.datacamp.com, 2019. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+
+# 1. Introduciton
+
+After a quick review of spatial statistics as a whole, you'll go through some point-pattern analysis. You'll learn how to recognize and test different types of spatial patterns.
+
+## 1.1 Simple spatial principles
+
+Generate some point patterns: 200 points uniformly in a rectangle. 
+
+```{r}
+# The number of points to create
+n <- 200
+
+# set the range
+xmin <- 0
+xmax <- 1
+ymin <- 0
+ymax <- 2
+
+# Sample from a Uniform distribution
+x <- runif(n, 0, 1)
+y <- runif(n, 0, 2)
+```
+
+## 1.2 Plotting Areas
+
+```{r}
+# see pre-defined variables
+ls.str()
+
+# Plot points and a rectangel
+plot(x, y, asp = 1:1)
+rect(xmin, ymin, xmax, ymax)
+
+# define a function
+mapxy <- function(a = NA) {
+  plot(x, y, asp = a)
+  rect(xmin, ymin, xmax, ymax)
+}
+
+mapxy(a = 1:1)
+```
+

@@ -47,3 +47,287 @@ When analyzing data, we are also interested in learning about unknown quantities
 
 # 2. How does Bayesian inference work?
 
+## 2.1 Take a generative model for a spin
+```{r}
+# The generative zombie drug model
+
+# Parameters
+prop_success <- 0.42
+n_zombies <- 100
+
+# Simulating data
+data <- c()
+
+for (zombie in 1:n_zombies) {
+  data[zombie] <- runif(1, min = 0, max = 1) < prop_success
+  }
+
+data <- as.numeric(data)
+data
+
+# tidy way to do the above task
+data <- data.frame( x = runif(n = 100, min = 0, max = 1)) %>%
+  mutate(data = ifelse(x < prop_success, 1, 0 )) %>%
+  pull(data)
+
+
+# how manu zombies got cured
+sum(data)
+```
+
+## 2.2 Take the binomial distribution for a spin
+
+It turns out that the generative model you ran last exercise already has a name. It's called the binomial process or the binomial distribution. In R you can use the rbinom function to simulate data from a binomial distribution. The rbinom function takes three arguments:
+
+* n: The number of times you want to run the generative model 
+
+* size:  The number of trials. (For example, the number of zombies you're giving the drug.) 
+
+* prob: The underlying proportion of success as a number between 0.0 and 1.0.
+
+```{r}
+# Try out rbinom
+rbinom(n = 1, size = 100, prob = 0.42)
+
+# Try n = 10,000
+hist(rbinom(n = 10000, size = 100, prob = 0.42), breaks = 50)
+  
+```
+
+## 2.3 How many visitors could your site get?
+
+To get more visitors to your website you are considering paying for an ad to be shown 100 times on a popular social media site. According to the social media site, their ads get clicked on 10% of the time.
+
+Excercise: 
+
+Assume that 10% is a reasonable number, and assume that the binomial distribution is a reasonable generative model for how people click on ads.
+
+Fill in the missing parameters and use the rbinom function to generate a sample that represents the probability distribution over what the number of visitors to your site is going to be.
+
+Visualize this distribution using hist.
+
+```{r}
+# Fill in the parameters
+n_samples <- 100000
+n_ads_shown <- 100
+proportion_clicks <- 0.10
+n_visitors <- rbinom(n_samples, size = n_ads_shown, 
+                     prob = proportion_clicks)
+
+# Visualize n_visitors
+hist(n_visitors)
+```
+
+## 2.4 Adding a prior to the model
+
+You're not so sure that your ad will get clicked on exactly 10% of the time. Instead of assigning proportion_clicks a single value you are now going to assign it a large number of values drawn from a probability distribution.
+
+
+For now, we are going to assume that it's equally likely that proportion_clicks could be as low as 0% or as high as 20%. These assumptions translate into a uniform distribution which you can sample from in R like this:
+
+```{r}
+# Update proportion_clicks
+n_samples <- 100000
+n_ads_shown <- 100
+proportion_clicks <- runif(n = n_samples, min = 0.0, max = 0.2)
+n_visitors <- rbinom(n = n_samples, 
+                     size = n_ads_shown, 
+                     prob = proportion_clicks)
+
+# Visualize the results
+hist(proportion_clicks)
+hist(n_visitors)
+
+```
+
+Because the rbinom function is vectorized the first value of proportion_clicks is used to sample the first value in n_visitors, the second value in proportion_clicks is used for the second in n_visitors, and so on. The result is that the samples in n_visitors now also incorporate the uncertainty in what the underlying proportion of clicks could be.
+
+With the added uncertainty in proportion_clicks the uncertainty over the number of visitors we 'll get also increased.
+
+
+## 2.5 Update a Bayesian model with data
+
+You ran your ad campaign, and 13 people clicked and visited your site when the ad was shown a 100 times. You would now like to use this new information to update the Bayesian model.
+
+The model you put together in the last exercise resulted in two vectors: (1) proportion_clicks that represents the uncertainty regarding the underlying proportion of clicks and (2) n_visitors which represents the uncertainty regarding the number of visitors you would get.
+
+```{r}
+# Create the prior data frame
+prior <- data.frame(proportion_clicks, n_visitors)
+
+# Create the posterior data frame
+posterior <- prior[prior$n_visitors == 13, ]
+
+hist(posterior$proportion_clicks)
+```
+
+This doesn't look at all like the uniform distribution between 0.0 and 0.2 we put into proportion_clicks before. The whole distribution of samples now represent the posterior (after the data) probability distribution over what proportion_clicks could be.
+
+```{r}
+# Assign posterior to a new variable called prior
+prior <- posterior
+# Take a look at the first rows in prior
+head(prior)
+
+# Replace prior$n_visitors with a new sample and visualize the result
+n_samples <- nrow(prior)
+n_ads_shown <- 100
+prior$n_visitors <- rbinom(n = n_samples, 
+                           size = n_ads_shown, 
+                           prob = prior$proportion_clicks)
+
+hist(prior$n_visitors)
+
+# Calculate the probability that you will get 5 or more visitors
+mean(prior$n_visitors >= 5)
+
+
+# next time, I just got 5 visit, obtain posterior 
+
+posterior <- prior %>% filter(n_visitors == 5)
+
+hist(posterior$proportion_clicks)
+
+prior <- posterior
+n_samples <- nrow(prior)
+n_ads_shown <- 100
+prior$n_visitors <- rbinom(n = n_samples, 
+                           size = n_ads_shown, 
+                           prob = prior$proportion_clicks)
+
+mean(prior$n_visitors >= 5)
+
+```
+
+
+# 3. Why use Bayesian Data Analysis?
+
+This chapter will show you four reasons why Bayesian data analysis is a useful tool to have in your data science tool belt.
+
+## 3.1 Explore using the Beta distribution as a prior
+
+The Beta distribution is a useful probability distribution when you want model uncertainty over a parameter bounded between 0 and 1. Here you'll explore how the two parameters of the Beta distribution determine its shape.
+
+One way to see how the shape parameters of the Beta distribution affect its shape is to generate a large number of random draws using the rbeta(n, shape1, shape2) function and visualize these as a histogram. The following code generates 1,000,000 draws from a Beta(1, 1) distribution: A Beta distribution with both shape parameters set to 1.
+
+```{r}
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 1, shape2 = 1)
+
+# Visualize the results
+hist(beta_sample)
+```
+A Beta(1,1) distribution is the same as a uniform distribution between 0 and 1. It is useful as a so-called non-informative prior as it expresses than any value from 0 to 1 is equally likely.
+
+
+The larger the shape1 parameter is, the closer the resulting distribution is to 1.0. 
+
+The larger the shape2,  the closer it is to 0.
+
+```{r}
+hist(rbeta(n = 1000000, shape1 = 100, shape2 = 100))
+
+hist(rbeta(n = 1000000, shape1 = 100, shape2 = 10))
+
+hist(rbeta(n = 1000000, shape1 = 10, shape2 = 100))
+```
+
+## 3.2 Change the model to use an informative prior
+
+The code to the right is the old model you developed from scratch in chapter 2.
+
+```{r}
+n_draws <- 100000
+n_ads_shown <- 100
+
+# Change the prior on proportion_clicks
+
+proportion_clicks <-  rbeta(n = n_draws, shape1 = 5, shape2 = 95)
+
+n_visitors <- rbinom(n_draws, 
+                     size = n_ads_shown, 
+                     prob = proportion_clicks)
+
+prior <-  data.frame(proportion_clicks, n_visitors)
+
+posterior <- prior[prior$n_visitors == 13, ]
+
+# This plots the prior and the posterior in the same plot
+par(mfcol = c(2, 1))
+hist(prior$proportion_clicks, 
+     xlim = c(0, 0.25))
+
+hist(posterior$proportion_clicks, 
+     xlim = c(0, 0.25))
+```
+
+## 3.3 Fit the binomial model (video ad vs text ad)
+
+Video ad data: 13 out of 100 clicked. 
+
+Text ad data: 6 out of 100 clicked. 
+
+```{r}
+# define number of draws, and number of ad
+n_draws <- 100000
+n_ads_shown <- 100
+
+# prior distribution 
+proportion_clicks <- runif(n_draws, min = 0.0, max = 0.2)
+
+# simulate number of visitors
+n_visitors <- rbinom(n = n_draws, 
+                     size = n_ads_shown, 
+                     prob = proportion_clicks)
+
+prior <- data.frame(proportion_clicks, 
+                    n_visitors)
+
+# Create the posteriors for video and text ads
+posterior_video <- prior %>% filter(n_visitors == 13)
+posterior_text <- prior %>% filter(n_visitors == 6)
+
+
+# Visualize the posteriors
+hist(posterior_video$proportion_clicks)
+
+prior %>%
+  filter(n_visitors %in% c(6, 13)) %>%
+  mutate(video_text = ifelse(n_visitors == 6, "Text", "Video")) %>%
+  ggplot(aes(x = proportion_clicks)) +
+  geom_histogram() + 
+  facet_wrap(~video_text)
+
+
+```
+
+## 3.4 Calculating the posterior difference
+
+The posterior proportion_clicks for the video and text ad has been put into a single posterior data frame. The reason for [1:4000] is because these proportion_clickss are not necessarily of the same length, which they need to be when put into a data frame.
+
+Now it's time to calculate the posterior probability distribution over what the difference in proportion of clicks might be between the video ad and the text ad.
+
+
+```{r}
+# build a data frame
+posterior <- data.frame(
+  video_prop = posterior_video$proportion_clicks[1:4000], 
+  text_prop = posterior_text$proportion_clicks[1:4000])
+
+# Calculate the posterior difference: video_prop - test_prop
+posterior <- posterior %>%
+  mutate(prop_diff = video_prop - text_prop)
+
+
+# Visaulize prop_diff
+hist(posterior$prop_diff)
+
+# Summarize prop_diff
+summary(posterior$prop_diff)
+
+# The probability that the video ad is better than the text ad
+
+mean(posterior$prop_diff > 0)
+
+```
+
