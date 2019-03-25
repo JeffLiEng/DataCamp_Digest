@@ -1,0 +1,95 @@
+---
+title: "Spatial Data Science"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+ref: Edzer Pebesma, and Roger Bivand. "Spatial Data Science". https://keen-swartz-3146c4.netlify.com/
+
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(spatstat)
+library(sf)
+```
+
+# 1. Getting Started
+## 1.1 A first map
+
+```{r}
+# Find the full file names of files in packages of "sf"
+nc_32119 <- system.file("gpkg/nc.gpkg", package = "sf") %>%
+  # read into R 
+  read_sf() %>%
+  # Transform into a new coordinate reference system (North Carolina State Plane, with EPSG code 32119)
+  # convert geographic coordinates (degrees longitude and latitude) in to "flat"
+  st_transform(32119) 
+
+
+nc_32119 %>%
+  # only select one feature
+  select(BIR74) %>%
+  # plot
+  plot(graticule = TRUE, axes = TRUE)
+
+
+# A ggplot is created we use geom_sf: 
+ggplot() +  geom_sf(data = nc_32119) +  aes(fill = BIR74) +
+  theme(panel.grid.major = element_line(color = "white")) +
+  scale_fill_gradientn(colors = sf.colors(20))
+
+
+
+# An interactive, leaflet-type map is obtained by
+suppressPackageStartupMessages(library(mapview))
+
+nc_32119 %>% 
+  mapview(zcol = "BIR74", legend = TRUE, col.regions = sf.colors)
+```
+
+
+```{r}
+
+```
+
+
+## 1.2 Reading and Writing 
+
+ Package sf can read from a large number of different data source types, each having its own driver. The following commands show how many vector and raster drivers we have available:
+ 
+```{r}
+# vector drivers
+st_drivers("vector") %>% nrow()
+
+# raster drivers
+st_drivers("raster") %>% nrow() 
+```
+ 
+### 1.2.3 reading and writing raster data 
+
+Raster data can be read with function read_stars from package stars
+
+```{r}
+library(stars)
+tif = system.file("tif/L7_ETMs.tif", package = "stars")
+(x = tif %>% read_stars())
+
+plot(x)
+
+```
+
+
+# 2. Coordinate systems 
+

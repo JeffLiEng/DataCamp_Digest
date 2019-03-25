@@ -1,0 +1,156 @@
+---
+title: "Mastering Statistical Process Control"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(pdftools)
+```
+
+
+
+# Part 3: Putting SPC into Practice - The Cases
+
+Page 59 - 
+
+# 5. Investigating variation in chemical concentration (X and MR)
+
+How control charts were used to identify, investigate and prove the cause of fluctuations in results. 
+
+Demonstrates how one control chart was used to: 
+
+* identify a performance problem
+
+* generate theories as to the causes
+
+* test and ultimately "prove" the theory that differences in measurments were due to different chemical analysts and not actual process performance. 
+
+
+
+
+
+# Part 5: Developing SPC Skills: Organizational Review Questions, Workshops and Exercises
+
+
+Part 5 is to help develop SPC understanding and skills
+
+## 29. The Rods Experiments- A practical case study 
+
+```{r}
+# Rods run data (Chart 29.5)
+rods <- data.frame(sample_no = 1:33, 
+                   rod_length_in = c(5.9, 6.1, 6.2, 5.9, 6.0, 6.0, 5.8, 6.4, 6.1, 
+                                    5.9, 5.6, 5.8, 6.2, 6.1, 5.8, 6.2, 6.1, 5.8, 
+                                    5.9, 6.0, 6.0, 5.8, 6.5, 6.1, 5.9, 6.2, 5.8, 
+                                    5.7, 5.9, 6.0, 6.1, 5.8, 6.0))
+
+# Creating a run chart 
+rods %>%
+  ggplot(aes(x = sample_no, y = rod_length_in)) + 
+  geom_point() + 
+  geom_line()
+
+```
+
+## 29.1 Compleing the X/MR control chart
+
+```{r}
+# the average
+x_mean <- mean(rods$rod_length_in)
+
+# average moving range
+moving_range <- data.frame(sample_no = 2:33, 
+                           mr = abs(diff(rods$rod_length_in)))
+
+moving_range_mean <- mean(moving_range$mr)
+
+# calculate standard deviation from the moving range
+s_mr <- moving_range_mean/1.128 
+
+# Upper and lower warning limits
+UWL <- x_mean + 2 * s_mr
+LWL <- x_mean - 2 * s_mr
+
+# upper and lower action limits
+UAL <- x_mean + 3 * s_mr
+LAL <- x_mean - 3 * s_mr
+
+# MR chart upper action limits
+UAL_mr <- 3.27 * moving_range_mean
+
+
+# Create Moving range control chart
+moving_range %>%
+  ggplot(aes(x = sample_no, y = mr)) +
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(moving_range_mean, UAL_mr), 
+             linetype = c("solid", "dashed")) 
+
+
+rods %>%
+  ggplot(aes(x = sample_no, y = rod_length_in)) +
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(x_mean, UWL, LWL, UAL, LAL), 
+             linetype = c("solid", "dashed", "dashed", "twodash", "twodash")) +
+  labs(x = "Sample No", y = "Rod Length (in)")
+
+
+```
+
+The process is in a state of control, and we can extend the average, warning and control limits beyong the data as these represent teh expected process performance into the future. 
+
+
+## 29.2 Drawing and interpreting a cusum chart 
+
+```{r}
+# create a process change data frame
+rods_process_changed <- data.frame(sample_no = 34:47, 
+                                   rod_length_in = c(6.2, 6.1, 5.9, 6.3, 6.4, 5.9, 
+                                                     6.4, 6.3, 6.2, 6.2, 6.5, 6.2, 
+                                                     6.1, 6.7))
+
+# Cusum data calculaiton 
+rods_with_process_changed <- rods %>%
+  bind_rows(rods_process_changed) %>%
+   # minus the target value 6 (or average)
+  mutate(rod_length_in_scaled = rod_length_in - 6) %>%
+  # calculate cusum
+  mutate(cusum = cumsum(rod_length_in_scaled))
+
+
+# plot
+p <- rods_with_process_changed %>%
+  ggplot(aes(x = sample_no, y = rod_length_in)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = 34, linetype = "dashed") 
+
+p
+
+# cusum plot 
+rods_with_process_changed %>%
+  ggplot(aes(x = sample_no, y = cusum)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = 34, linetype = "dashed") 
+
+
+```
+
+

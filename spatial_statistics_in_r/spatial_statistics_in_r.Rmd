@@ -24,6 +24,7 @@ Ref: Barry Rowlingson. "Spatial Statistics in R", www.datacamp.com, 2019.
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(spatstat)
 ```
 
 
@@ -53,8 +54,6 @@ y <- runif(n, 0, 2)
 ## 1.2 Plotting Areas
 
 ```{r}
-# see pre-defined variables
-ls.str()
 
 # Plot points and a rectangel
 plot(x, y, asp = 1:1)
@@ -67,5 +66,319 @@ mapxy <- function(a = NA) {
 }
 
 mapxy(a = 1:1)
+
 ```
 
+## 1.3 Uniform in a circle
+
+Use *spatstat* disc() function to create a circular window. 
+
+```{r}
+# Create this many points, in a circle of this radius
+n_points <- 300
+radius <- 10
+
+# Generate uniform random numbers up to radius-squared
+r_squared <- runif(n_points, 0, radius*radius)
+angle <- runif(n_points, 0, 2*pi)
+
+# Take the square root of the values to get a uniform spatial distribution
+x <- sqrt(r_squared) * cos(angle)
+y <- sqrt(r_squared) * sin(angle)
+
+plot(disc(radius)); points(x, y)
+
+```
+
+
+
+
+## 1.4 Quadrat count test for uniformity
+
+Humans tend to see patterns in random arrangements, so we need statistical tests. The quadrat count test was one of the earliest developed spatial statistics methods. It can be used to check if points are completely spatially random; that is, they are uniformly random throughout the area of interest. By running a quadrat count test on the points generated in the previous exercise, you can confirm they were generated uniformly on the circle.
+
+Quadrat count tests are implemented using quadrat.test(), which takes a planar point pattern, ppp() object. "Planar point pattern" is jargon for a set of points in a region of a 2D plane.
+
+
+Given a realized point pattern from a point process in a *rectangular* region, *R*, one begins by partitioning *R* into congruent rectangular subcells (quadrats): $C_1, ..., C_m$. The CSR hypothesis asserts that the cell-count distribution for each $C_i$ must be the same. But rather than use Binomial distribution, it is typically assumed that *R* is large enough to use the Poisson approximation. If there are n points in R, and if we let a = a(C1), and estimate expected point density $\lambda$ by: 
+
+$$\lambda = \frac{n}{a(R)}$$
+
+Then this common *Poisson cell-count distribution* has the form: 
+
+$$Pr[N_i = k|\lambda] = \frac{(\lambda a)^k}{k!}e^{-\lambda a}$$
+
+Moreover, since the CSR Hypothesis also implies that each of the cell counts, $N_i = N(C_i), i = 1, ..., k$, is independent. It follows that (Ni: i = 1, ..., k) must be an independent random samples from this Poisson distribution. Hence the simplest test of this hypothesis is to use Pearson $\chi ^2$ goodness-of-fit test. Here the expected number of points in each cell is given by the mean of Poisson above. 
+
+$$E(N|\lambda) = a \lambda = a \frac{n}{a(R)} = \frac{n}{m}$$
+
+
+Hence if the observed value of $N_i$ is denoted by $n_i$, then the chi-square statistic: 
+
+$$\chi ^2 = \sum_i^m \frac{(n_i-n/m)^2}{n/m}$$
+
+is known to be asymptotically chi-square distributed with m-1 degrees of freedom. But since n/m is simple the sample mean, this statistic can also be written as: 
+
+$$chi ^2 = \sum_i^m \frac{(n_i - \overline n)^2}{\overline n} = (m-1)\frac{s^2}{\overline n}$$
+
+If $s^2/\overline n < 1$ then there is too little variation among quadrat count, suggesting possible "dispersion" rather than randomness. Similiarly, if $s^2/\overline n >1 $ then there is too much variations among counts, suggesting possible "clustering" rather than randomness. 
+
+
+
+```{r}
+# Set coordinates and window
+ppxy <- ppp(x = x, y = y, window = disc(radius))
+summary(ppxy)
+
+# Test the point pattern
+qt <- quadrat.test(X = ppxy)
+
+# Inspect the results
+plot(qt)
+print(qt)
+
+
+```
+
+The p-value of the quadrat test is much bigger than 0.05, so you can not reject the hypothesis that the points are completely spatially random.
+
+
+## 1.5 Creating a uniform point pattern with spatstat
+A Poisson point process creates events according to a Poisson distribution with an intensity parameter specifying the expected events per unit area. The total number of events generated is a single number from a Poisson distribution, so multiple realisations of the same process can easily have different numbers of events.
+
+In the previous exercise you used a set of 300 events scattered uniformly within a circle. If you repeated the generation of the events again you will still have 300 of them, but in different locations. The dataset of exactly 300 points is from a Poisson point process conditioned on the total being 300.
+
+The spatstat package can generate Poisson spatial processes with the rpoispp() function given an intensity and a window, that are not conditioned on the total.
+
+Just as the random number generator functions in R start with an "r", most of the random point-pattern functions in spatstat start with an "r".
+
+The area() function of spatstat will compute the area of a window such as a disc.
+
+```{r}
+# Create a disc of radius 10
+disc10 <-  disc(10)
+
+# Compute the rate as count divided by area
+lambda <- 500/area(disc10)
+
+# Create a point pattern object
+ppois <- rpoispp(lambda = lambda, win = disc10)
+
+# Plot the Poisson point pattern 
+plot(ppois)
+
+# Test the point pattern
+quadrat.test(X = ppois)
+```
+
+Perfect Poisson process plotting! Poisson processes generate completely spatially random points. Next you'll see some other processes for generating random points.
+
+
+## 1.6 Simulating clustered and inhibitory patterns
+
+The spatstat package also has functions for generating point patterns from other process models. These generally fall into one of two classes: clustered processes, where points occur together more than under a uniform Poisson process, and regular (aka inhibitory) processes where points are more spaced apart than under a uniform intensity Poisson process. Some process models can generate patterns on a continuum from clustered through uniform to regular depending on their parameters.
+
+The quadrat.test() function can test against clustered or regular alternative hypotheses. By default it tests against either of those, but this can be changed with the alternative parameter to create a one-sided test.
+
+A Thomas process is a clustered pattern where a number of "parent" points, uniformly distributed, create a number of "child" points in their neighborhood. The child points themselves form the pattern. This is an attractive point pattern, and makes sense for modeling things like trees, since new trees will grow near the original tree. Random Thomas point patterns can be generated using rThomas(). This takes three numbers that determine the intensity and clustering of the points, and a window object.
+
+Conversely the points of a Strauss process cause a lowering in the probability of finding another point nearby. The parameters of a Strauss process can be such that it is a "hard-core" process, where no two points can be closer than a set threshold. Creating points from this process involves some clever simulation algorithms. This is a repulsive point pattern, and makes sense for modeling things like territorial animals, since the other animals of that species will avoid the territory of a given animal. Random Strauss point patterns can be generated using rStrauss(). This takes three numbers that determine the intensity and "territory" of the points, and a window object. Points generated by a Strauss process are sometimes called regularly spaced.
+
+```{r}
+# Create a disc of radius 10
+disc10 <- disc(radius = 10)
+
+# Generate clustered points from a Thomas process
+set.seed(123)
+p_cluster <- rThomas(
+  # Intensity of the Poisson process of cluster centres
+  kappa = 0.35, 
+  # Standard deviation of random displacement
+  scale = 1, 
+  # mean number of points per cluster
+  mu = 3,
+  # Window in which to simulate the pattern
+  win = disc10)
+
+plot(p_cluster)
+
+# Run a quadrat test
+quadrat.test(X = p_cluster, alternative = "clustered")
+
+# Regular points from a Strauss process
+set.seed(123)
+p_regular <- rStrauss(
+  # intensity parameter (positive)
+  beta = 2.9, 
+  # Interaction parameter
+  gamma = 0.025, 
+  # Interaction radius
+  R = 0.5, 
+  # Window in which to generate the random pattern
+  W = disc10)
+
+plot(p_regular)
+
+# Run a quadrat test
+quadrat.test(X = p_regular, 
+             alternative = "regular")
+
+```
+
+Thomas and Strauss processes are important, complementary ways of generating point patterns common in nature.
+
+
+## 1.7 Nearest-Neighbor Methods
+
+The quadrat method procedure is very restrictive in that it requires an equal-area partition of the given region. It also depends critically on the *size* of the partition chosen.  Nearest-Neighbor methods is based on the observation that if one simply looks at distances between points and their nearest neighbor in R, then this provides a natural test statistic that requires no artificail partitioning scheme. More precisely, for any given points, $s = (s_1, s_2)$ and $v = (v_1, v_2)$ in R, we denote the Euclidean distance between s and v by: 
+
+$$ d(s,v) = \sqrt{(s_1 - v_1)^2 + (s_2 - v_2)^2}$$
+
+
+One simple measure is the distribution of the distances from each point to its nearest neighbor.
+
+Another way of assessing clustering and regularity is to consider each point, and how it relates to the other points. One simple measure is the distribution of the distances from each point to its nearest neighbor.
+
+The nndist() function in spatstat takes a point pattern and for each point returns the distance to its nearest neighbor. You can then plot the histogram.
+
+Instead of working with the nearest-neighbor density, as seen in the histogram, it can be easier to work with the cumulative distribution function, G(r). This is the probability of a point having a nearest neighbour within a distance r.
+
+For a uniform Poisson process, G can be computed theoretically, and is G(r) = 1 - exp( - lambda * pi * r ^ 2). You can compute G empirically from your data using Gest() and so compare with the theoretical value.
+
+Events near the edge of the window might have had a nearest neighbor outside the window, and so unobserved. This will make the distance to its observed nearest neighbor larger than expected, biasing the estimate of G. There are several methods for correcting this bias.
+
+Plotting the output from Gest shows the theoretical cumulative distribution and several estimates of the cumulative distribution using different edge corrections. Often these edge corrections are almost indistinguishable, and the lines overlap. The plot can be used as a quick exploratory test of complete spatial randomness.
+
+
+```{r}
+# Create a disc of radius 10
+disc10 <-  disc(10)
+
+# Compute the rate as count divided by area
+lambda <- 500/area(disc10)
+
+# Create a point pattern object
+p_poisson <- rpoispp(lambda = lambda, win = disc10)
+
+# Regular points from a Strauss process
+set.seed(123)
+p_regular <- rStrauss(
+  # intensity parameter (positive)
+  beta = 2.9, 
+  # Interaction parameter
+  gamma = 0.025, 
+  # Interaction radius
+  R = 0.5, 
+  # Window in which to generate the random pattern
+  W = disc10)
+
+# Calc nearest-neighbor distances for poisson point data 
+nnd_poisson <- nndist(p_poisson)
+
+# Draw a histogram of nearest-neighbor distance
+hist(nnd_poisson)
+
+# Estimate G(r)
+G_poisson <- Gest(X = p_poisson)
+
+# Plot (G(r) vs. R)
+
+plot(G_poisson )
+
+
+# Calc nearest-neighbor distances for regular point data 
+nnd_regular <- nndist(p_regular)
+
+# Draw a histogram of nearest-neighbor distance
+hist(nnd_regular)
+
+# Estimate G(r)
+G_regular <- Gest(X = p_regular)
+
+# Plot (G(r) vs. R)
+
+plot(G_regular)
+
+```
+
+Notice how G for the regular point pattern stays low at small distance, indicating very low probabilities of finding close pairs of points.
+
+## 1.8 Other point pattern distribution functions
+
+A number of other functions of point patterns have been developed. They are conventionally denoted by various capital letters, including F, H, J, K and L.
+
+The K-function is defined as the expected number of points within a distance of a point of the process, scaled by the intensity. Like G, this can be computed theoretically for a uniform Poisson process and is K(r) = pi * r ^ 2 - the area of a circle of that radius. Deviation from pi * r ^ 2 can indicate clustering or point inhibition.
+
+Computational estimates of K(r) are done using the Kest() function.
+
+As with G calculations, K-function calculations also need edge corrections. The default edge correction in spatstat is generally the best, but can be slow, so we'll use the "border" correction for speed here.
+
+Uncertainties on K-function estimates can be assessed by randomly sampling points from a uniform Poisson process in the area and computing the K-function of the simulated data. Repeat this process 99 times, and take the minimum and maximum value of K over each of the distance values. This gives an envelope - if the K-function from the data goes above the top of the envelope then we have evidence for clustering. If the K-function goes below the envelope then there is evidence for an inhibitory process causing points to be spaced out. Envelopes can be computed using the envelope() function.
+
+The plot method for estimates of K uses a formula system where a dot on the left of a formula refers to K(r). So the default plot uses . ~ r. You can compare the estimate of K to a Poisson process by plotting . - pi * r ^ 2 ~ r. If the data was generated by a Poisson process, then the line should be close to zero for all values of r.
+
+
+Define the *ppp* objects of *p_poisson*, *p_cluster*, and *p_regular*. 
+```{r}
+# Create a disc of radius 10
+disc10 <-  disc(10)
+
+# Compute the rate as count divided by area
+lambda <- 500/area(disc10)
+
+# Create a point pattern object
+p_poisson <- rpoispp(lambda = lambda, win = disc10)
+
+# Regular points from a Strauss process
+set.seed(123)
+p_regular <- rStrauss(
+  # intensity parameter (positive)
+  beta = 2.9, 
+  # Interaction parameter
+  gamma = 0.025, 
+  # Interaction radius
+  R = 0.5, 
+  # Window in which to generate the random pattern
+  W = disc10)
+
+
+# Regular points from a Strauss process
+set.seed(123)
+p_regular <- rStrauss(
+  # intensity parameter (positive)
+  beta = 2.9, 
+  # Interaction parameter
+  gamma = 0.025, 
+  # Interaction radius
+  R = 0.5, 
+  # Window in which to generate the random pattern
+  W = disc10)
+```
+
+```{r}
+# Estimate the K-function for the Poisson points
+K_poisson <- Kest(X = p_poisson, correction = "border")
+
+# The Default plot shows quadratic growth
+plot(K_poisson, . ~ r)
+
+# plot the K function with a formular that substracts the theoretical Poisson value
+plot(K_poisson, - pi*r^2 ~ r)
+
+# compute envelopes of K under random locations
+K_cluster_env <- envelope(p_cluster, fun = Kest, correction = "border")
+
+# Insert the full formula to plot K minus pi * r^2
+plot(K_cluster_env, . -pi * r^2 ~ r)
+
+# compute envelops of K under regular locations
+K_regular_env <- envelope(p_regular, fun = Kest, correction = "border")
+
+plot(K_regular_env, .-pi*r^2 ~ r)
+```
+
+ Envelopes are useful where the theoretical distribution is hard or impossible to calculate.
+
+
+# 2. Point Pattern Analysis
+Point Pattern Analysis answers questions 

@@ -1,5 +1,5 @@
 ---
-title: "Hyperparameter Tuning in R"
+title: "Anomaly Detection in R"
 author: "Jeff Li"
 date: "`r Sys.Date()`"
 output: 
@@ -13,10 +13,9 @@ output:
 
 
 **Course Description:**
+"Are you concerned about inaccurate or suspicious records in your data, but not sure where to start? An anomaly detection algorithm could help! Anomaly detection is a collection of techniques designed to identify unusual data points, and are crucial for detecting fraud and for protecting computer networks from malicious activity. In this course, you'll explore statistical tests for identifying outliers, and learn to use sophisticated anomaly scoring algorithms like the local outlier factor and isolation forest. You'll apply anomaly detection algorithms to identify unusual wines in the UCI Wine quality dataset and also to detect cases of thyroid disease from abnormal hormone measurements."
 
-For many machine learning problems, simply running a model out-of-the-box and getting a prediction is not enough; you want the best model with the most accurate prediction. One way to perfect your model is with hyperparameter tuning, which means optimizing the settings for that specific model. In this course, you will work with the caret, mlr and h2o packages to find the optimal combination of hyperparameters in an efficient manner using grid search, random search, adaptive resampling and automatic machine learning (AutoML). Furthermore, you will work with different datasets and tune different supervised learning models, such as random forests, gradient boosting machines, support vector machines, and even neural nets. Get ready to tune!
-
-Ref: Glander, Shirin. "Hyperparameter Tuning in R", www.datacamp.com, 2019. 
+Ref: Alastair Rushworth. 2019. "Anomaly Detection in R", www.datacamp.com, 2019. 
 
 
 ## (I) Load Required Libraries
@@ -24,32 +23,397 @@ Ref: Glander, Shirin. "Hyperparameter Tuning in R", www.datacamp.com, 2019.
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+library(readxl)
 ```
 
-# 1. Introduction to hyperparameters 
-Why do we use the strange word "hyperparameter"? What makes it hyper? Here, you will understand what model parameters are, and why they are different from hyperparameters in machine learning. You will then see why we would want to tune them and how the default setting of caret automatically includes hyperparameter tuning.
+
+# 1. Statistical Outlier Detection 
+In this chapter, you'll learn how numerical and graphical summaries can be used to informally assess whether data contain unusual points. You'll use a statistical procedure called Grubbs' test to check whether a point is an outlier, and learn about the Seasonal-Hybrid ESD algorithm, which can help identify outliers when the data are a time series.
 
 
-## 1.1 Parameters vs Hyperparameters
+## 1.1 What is an anomaly? 
 
-* Model **parameters** are being fit (i.e. found) during training, and they are the result of model fitting or training
+Anomaly: a data point or collection of data points that do not follow the same pattern or have the same structure as the rest of the data. 
 
-* Model **hyperparameters** are being set before training, adn they specify **how** the training is supposed to happen
 
-In the linear model, coefficients were found during fitting. **method** was an option ot set **before** fitting. 
+Point anomaly: A single data point, and unusual when compared to the rest of the data. A boxplot is a good way to visualize point anomalies. 
+Collective anomaly: an anomalous collection of data instances, and they are unusual when considered together. Example: 10 consecutive high daily temperatures. Or A large number of users with an old web browser visited a web site at the same time. 
 
-In **machine learning**, weights and biases of neural nets that are optimized during training --> model parameters
 
-Options like learning rate, weight decay adn number of trees in a Random Forest model that can be tweeked --> hyperparamters
+## 1.2 Exploring the river nitrate data
 
 
 ```{r}
-library(AnomalyDetection)
+# Read river nitrate data 
+river <- read_excel("data/river.xlsx") %>%
+  separate(col = values, into = c("index", "nitrate1", "nitrate2", "months")) %>%
+  unite(col = "nitrate", nitrate1, nitrate2, sep = ".") %>%
+  mutate(index = as.numeric(index), 
+         nitrate = as.numeric(nitrate), 
+         months = as.factor(months))
 
-AnomalyDetectionTs(raw_data, max_anoms = 0.02, direction = "both", plot = TRUE)
+# Explore contents of dataset
+head(river)
 
+# Summary statistics of river nitrate concentrations
+summary(river)
+str(river)
+
+summary(river$nitrate)
+
+# Plot the distribution of nitrate concentration
+boxplot(river$nitrate, ylab = "nitrate")
+  
+```
+
+Six nitrate observations were lying beyond the whiskers in the boxplot. The boxplot is a powerful but informal tool, and some of the outlying points may not be anomalies.
+
+
+
+## 1.3 Visual check of normality
+
+Grubbs' test is a statistical test to decide if **a point** is an outlier. Grubbs' test assumes the data are normally distributed, so a normality check should be conducted first. We can use a histogram to visual check (symmetrical & bell shaped). 
+
+```{r}
+# plot a histogram of the nitrate column
+hist(river$nitrate, xlab = "Nitrate concentration", breaks = 40)
+```
+
+
+## 1.4 Grubbs' test
+
+Grubbs' test assesss whether the value that is farthest from the mean is an outlier - the value could be either the maximum or minimum value. 
+
+```{r}
+# Apply Grubbs' test to the river nitrate data
+outliers::grubbs.test(river$nitrate)
+```
+
+Grubbs' test can be used to check for single outliers. The lower the p-value returned by the test, the higher the likelihood that the point tested was an outlier. 
+
+
+### 1.4.1 Grubbs Test Background 
+
+Grubbs test was developed for detecting the largest anomaly within a univariate sample set. The test assumes that the underlying data distribution is normal. 
+
+*Grubbs' test:* 
+
+$H_0$: no outliers in the data 
+$H_1$: at least one outlier in the data
+
+The Grubbs' test statistic is defined as follows: 
+
+$$C=\frac{max|x_i-\overline{x}|}{s}$$
+
+where $\overline{x}$ and $s$ denote the mean and standard deviation of the X. 
+
+
+For the two-sided test, the hypothesis of no outliers is rejected ata significant level $\alpha$ if: 
+
+$$C>\frac{N-1}{\sqrt{N}}\sqrt{\frac{(t_{{\alpha}/{2N}, N-2)^2}}{N-2+(t_{{\alpha}/{2N},N-2)^2}}}$$
+
+where $t_{\alpha/{2N}, N-2}$ denotes the upper critical values of the t-distribution with N-2 degrees of freedom and a significance level of $\alpha/{2N}$. For one-sided tests, $\alpha/{2N}$ becomes $\alpha/N$. 
+
+Grubbs' test can be applied iteratively to detect multiple anomalies. 
+
+
+### 1.4.2 Extreme Studentized Deviate (ESD)
+
+The ESD can be used to detect multiple anomalies.  ESD computes the following test statistic for the k most extreme values in the data set. 
+
+$$C_k = \frac{max_k|x_k - \overline{x}|}{s}$$
+
+The test statistic is then compared with a critical value to determine whether a value is anomalous. 
+
+$$\lambda_k = \frac{(n-k)t_{p, n-k-1}}{\sqrt{(n-k-1 + t^2_{p, n-k-1})(n-k-1)}}$$
+
+ESD repeats this process k times. 
+
+
+```{r}
+#install.packages("EnvStats")
+esd_test <- EnvStats::rosnerTest(river$nitrate, 
+                     k = 3, alpha = 0.05) 
+
+esd_test$n.outliers
 
 ```
 
 
+### 1.4.3 Median and Median Absolute Deviation 
+
+Mean and standard deviation are sensitive to anomalous data. The use of the statistically robust median and the median absolute deviation (MAD) has been proposed to address these issues. 
+
+
+## 1.5 Hunting multiple outliers using Grubbs' test
+
+After revomving any previously identified outliers by Grubbs' test, further outliers can be found by repeating Grubbs' test. 
+
+```{r}
+# Apply Grubbs' test to the nitrate data
+outliers::grubbs.test(river$nitrate)
+
+# Find row index of the max of the nitrate data
+which.max(river$nitrate)
+
+# Runs Grubbs' test excluding row 156
+outliers::grubbs.test(river$nitrate[-which.max(river$nitrate)])
+
+```
+
+Did you notice the p-value in that last test? It was 0.07; since this is above 0.05, we wouldn't treat this point as an outlier.
+
+
+
+## 1.6 Detecting multiple anomalies in seasonal time series 
+
+For example: Monthly revenue data. In this case, Grubbs' test is not appropriate here, because seasonality may be present, and there may be multiple anomalies. 
+
+*Seasonal-Hybrid ESD algorithm:*
+
+The package of *AnomalyDetection* has the function  of *AnomalyDetectionVec*. 
+
+
+Time series data presence seasonality and trend. 
+
+
+
+
+
+
+
+
+
+
+# 2. Distance and Density Based Anomaly Detection
+
+In this chapter, you'll learn how to calculate the k-nearest neighbors distance and the local outlier factor, which are used to construct continuous anomaly scores for each data point when the data have multiple features. You'll learn the difference between local and global anomalies and how the two algorithms can help in each case.
+
+
+Outliers (anomalies) detection and clustering analysis are two highly related tasks. Clustering finds the majority of patterns in a data set, whereas outliers detection tries to capature exceptional cases. 
+
+Types of outliers: 
+
+* Global outlier
+
+* Contextual outlier
+
+* Collective outlier - A subset of data objects collectively deviate significantly from the whole data set. 
+
+
+
+
+## 2.1 k-nearest neighbors distance score
+
+Funiture dimenstions 
+```{r}
+furniture <- read_csv("data/furniture.csv") %>%
+  select(Height, Width)
+
+plot(Width ~ Height, data = furniture)
+```
+
+Anomalies usually lie far from their neighbors. 
+
+```{r}
+# calculate distance
+furniture_knn <- FNN::get.knn(data = furniture, k = 5)
+
+str(furniture_knn)
+
+# Average distance to nearest neighbors
+furniture_score <- rowMeans(furniture_knn$nn.dist)
+
+# top five
+furniture_score %>%
+  sort(decreasing = TRUE) %>%
+  head(n = 5)
+
+# Largest score
+which.max(furniture_score)
+```
+
+## 2.2 Exercise: 
+### 2.2.1 Exploring Wine
+
+*wine* data: 
+
+* pH: how acidic the wine is
+
+* alcohol: the wine's alcohol content (%)
+
+```{r}
+# View the contentst of the wine data
+wine <- read_csv("data/big_wine.csv") %>%
+  select(pH, alcohol)
+head(wine)
+str(wine)
+
+# Scatterplot of wine pH against alcohol
+plot(pH ~ alcohol, data = wine)
+```
+
+### 2.2.2 kNN distance matrix
+
+The kNN distance matrix is a necessary prior step to produce the kNN distance score. The distance matrix has :
+
+* n rows, where n is the number of data points
+
+* k columns, where k is the user-chose number of neighbors
+
+```{r}
+# Calculata the 5 nearest neighbors distance
+wine_nn <- wine %>%
+  select(pH, alcohol) %>%
+  FNN::get.knn(k = 5)
+
+# view the distance matrix
+head(wine_nn$nn.dist)
+
+
+# Distance from wine 5 to nearest neighbor
+wine_nn$nn.dist[5, 1]
+
+# Row index of wine 5's nearest neighbor 
+wine_nn$nn.ind[5, 1]
+
+# Return data for wine 5 and its nearest neighbor
+wine[c(5, 1751), ]
+```
+
+### 2.2.3 kNN distance score
+
+```{r}
+# Create score by averging distances
+wine_nnd <- rowMeans(wine_nn$nn.dist)
+
+# Print row index of the most anomalous point
+which.max(wine_nnd)
+```
+
+Now you know how to use a kNN distance matrix to create a kNN distance score. In the next lesson, we'll explore the distance score visually to understand how it works.
+
+
+## 2.3 Visualizing kNN distance score
+
+```{r}
+# standardizing features
+furniture_scaled <- scale(furniture)
+
+plot(Width ~ Height, data = furniture_scaled)
+
+# Distance matrix
+furniture_knn <- FNN::get.knn(furniture_scaled, k = 5)
+
+# Calculate and append score
+furniture$score <- rowMeans(furniture_knn$nn.dist)
+
+# plot
+plot(Width ~ Height, cex = sqrt(score), data = furniture, pch = 20)
+```
+
+## 2.4 Exercise
+### 2.4.1 Standardizing features
+
+It is important to ensure that the feature inputs to the kNN distance calculation are standardized using the scale() function. Standardization ensures that features with large mean or variance do not disproportionately influence the kNN distance score.
+
+```{r}
+# Without standardization, features have different scales
+summary(wine)
+
+# Standardize the wine columns
+wine_scaled <- scale(wine)
+
+# Standardized features have similar means and quartiles
+summary(wine_scaled)
+```
+### 2.4.2 Appending the kNN score
+
+```{r}
+# calculate 5 nearest neighbor distance score
+wine_nn <- FNN::get.knn(wine_scaled, k = 5)
+
+## distance score
+wine_nnd <- rowMeans(wine_nn$nn.dist)
+
+# Append the socre as new column
+wine$score <- wine_nnd
+
+# Scatterplot showing pH, alcohol and kNN score
+plot(pH ~ alcohol, data = wine, cex = sqrt(score), pch = 20)
+```
+
+## 2.5 The local outlier factor (LOF)
+
+kNN good for find the *global* anomalies, but not for *local* anomalies. 
+
+```{r}
+# Calculating LOF 
+## Obtaining LOF for furniture data
+furniture_lof <- dbscan::lof(scale(furniture), k = 5)
+
+```
+
+* LOF > 1 more likely to be anomalous
+
+* LOF <= 1 less likely to be anomalous
+
+```{r}
+# the lof as a new column
+furniture$score_lof <- furniture_lof
+
+# Plot
+plot(Width ~ Height, data = furniture, cex = score_lof, pch = 20)
+```
+
+
+## 2.6 Exercise
+
+### 2.6.1 LOF calculation 
+
+kNN is useful for finding global anomalies, but is less able to surface local outliers. In this exercise, you'll practise using the lof() function to calculate local outlier factors for the wine data.
+
+lof() has the arguments:
+
+x: the data for scoring
+k: the number of neighbors used to calculate the LOF
+
+```{r}
+# Calculate the LOF for wine data
+wine_lof <- dbscan::lof(scale(wine), k = 5)
+
+# Append the LOF score as a new colunm
+wine$score <- wine_lof
+
+# Scatterplot showing pH, alcohol and LOF score
+plot(pH ~ alcohol, data = wine, cex = score, pch = 20)
+```
+
+
+## 2.7 LOF vs kNN
+
+It is common to look first at the points with highest anomaly scores before taking any action. When several algorithms are used, the points with highest scores may differ.
+
+In this final exercise, you'll calculate new LOF and kNN distance scores for the wine data, and print the highest scoring point for each.
+
+
+```{r}
+# Scaled wine data
+wine_scaled <- scale(wine)
+
+# Calculate distance matrix
+wine_nn <- FNN::get.knn(wine_scaled, k = 10)
+
+# Append score column to data
+wine$score_knn <- rowMeans(wine_nn$nn.dist)
+
+# Calculate and append LOF as a new column
+wine$score_lof <- dbscan::lof(wine_scaled, k = 10)
+
+# Find the row location of highest kNN
+which.max(wine$score_knn)
+
+# Find the row location of highest LOF
+which.max(wine$score_lof)
+```
 

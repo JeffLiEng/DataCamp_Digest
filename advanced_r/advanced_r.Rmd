@@ -274,21 +274,113 @@ Metaprogramming.
 
 ## 18.1 Introduction 
 
+Take the following code, which multiplies a variable x by 10 and saves the result to a new variable called y. It doesn’t work because we haven’t defined a variable called "something":
+
+```{r}
+y <- something * 10
+```
+
+It would be nice if we could capture the intent of the code without executing it. In other words, how can we separate our description of the action from the action itself?
+
+One way is to use rlang::expr():
+
 ```{r}
 # Seperate code description from the action 
-z <- rlang::expr(y <- x * 10)
+z <- rlang::expr(y <- something * 10)
 z
 
 ```
 
 *expr()* returns an expression, an object that capture the structure of the code without evaluating it. 
 
+We can evaluate an expression with base::eval(): 
+
 ```{r}
 # Evaluate the expression
-x <- 1:4
+something <- 1:4
 eval(z)
 y
 ```
+
+The focus of this chapter is the data structures that underlie expressions. Mastering this knowledge will allow you to inspect and modify captured code, and to generate code with code.
+
+
+You’ll also need the rlang package to capture and compute on expressions, and the lobstr package to visualise them.
+
+```{r}
+library(rlang)
+library(lobstr)
+```
+
+## 18.2 Abstract syntax trees 
+
+Expressions are also called **abstract syntax trees** (ASTs) because the structure of code is hierarchical and can be naturally represented as a tree. Understanding this tree structure is crucial for inspecting and modifying expressions (i.e. metaprogramming).
+
+```{r}
+# making a very shallow tree
+lobstr::ast(f(x, "y", 1))
+```
+
+Creating a tree with multiple levels
+
+```{r}
+knitr::include_graphics("plots/tree_with_mult_levels.png")
+
+lobstr::ast(f(g(1, 2), h(3, 4, i())))
+```
+
+
+### 18.2.2 Non-code components
+
+They are abstract because they only capture important structural details of the code, not whitespace or comments:
+
+```{r}
+lobstr::ast(
+  f(x, y)
+)
+```
+
+### 18.2.3 Infix calls
+
+Every call in R can be written in tree form because any call can be written in prefix form (Section 6.8.1). Take y <- x * 10 again: what are the functions that are being called? It is not as easy to spot as f(x, 1) because this expression contains two infix calls: <- and *. That means that these two lines of code are equivalent:
+
+y <- x * 10
+`<-`(y, `*`(x, 10))
+
+```{r}
+lobstr::ast(y <- x * 10)
+
+```
+
+There really is no difference between the ASTs, and if you generate an expression with prefix calls, R will still print it in infix form:
+```{r}
+
+expr(`<-`(y, `*`(x, 10)))
+```
+
+### 18.2.4 Exercises
+
+```{r}
+# 1. 
+lobstr::ast(f(g(h( 1 + 2 + 3) * (x + y) * z)))
+
+
+lobstr::ast(f(g(h(i(1, 2, 3)))))
+
+lobstr::ast(f(1, g(2, h(3, i()))))
+
+lobstr::ast(f(g(1, 2), h(3, i(4, 5))))
+```
+
+## 18.3 Expressions
+
+An **expression** is any member of the set of base types created by parsing code: constant scalars, symbols, call objects, and pairlists. 
+
+### 18.3.1 Constants
+
+Scalar constants are the simplest component of the AST 
+
+
 
 
 
@@ -301,5 +393,68 @@ One of the fundamental ideas makes *expr()* and *ast()* work: quotation.
 Three pillars of tidy evaluation: quasiquotation, quosures, and data mask. 
 
 ## 19.2 Motivation 
+
+
+# 20. Evaluation 
+
+## 20.1 Introduction 
+
+The user-facing inverse of quotation is unquotation: it gives the user the ability to selectively evaluate parts of an otherwise quoted argument. 
+
+Tidy evaluation: quasiquotation, quosure, and data masks. 
+
+## 20.2 Evaluation basics
+
+The first argument, expr, is the object to evaluate. 
+
+The second argument, env, gives the environment in which the expression should be evaluated. By default, this is the current environment. 
+
+```{r}
+library(rlang)
+library(purrr)
+# expr and default env
+x <- 10
+
+eval(expr = expr(x), envir = parent.frame())
+
+y <- 2
+eval(expr = expr(x + y), envir = parent.frame())
+
+# override the envir
+eval(expr = expr(x + y), envir = env(x = 1000))
+
+# The first argument is evaluated, not quoted, which can lead to confusing results once if you use a custom enviroment and forget to manually quote: 
+eval(print(x + 1), envir = env(x = 1000))
+
+# vs this one 
+eval(expr = expr(print(x + 1)), envir = env(x = 1000))
+
+```
+
+
+
+
+
+
+
+
+## 20.5 Using tidy evaluation 
+How to use tidy evaluation for wrapping functions
+
+## 20.5.1 Quoting and unquoting
+
+Example: resamples a dataset
+
+```{r}
+# define a function 
+resample <- function(df, n) {
+  idx <- sample(nrow(df), n, replace = TRUE)
+  df[idx, , drop = FALSE]
+}
+
+# test
+resample(df = cars, n = 4)
+```
+
 
 
