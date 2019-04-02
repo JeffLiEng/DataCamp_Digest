@@ -1,0 +1,287 @@
+---
+title: "Spatial Analysis in R with sf and raster"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+
+"There has never been a better time to use R for spatial analysis! The brand new sf package has made working with vector data in R a breeze and the raster package provides a set of powerful and intuitive tools to work gridded data like satellite imagery. Instead of the painful process of performing your spatial analysis in GIS systems like ArcGIS or QGIS and then shuffling your results into another system for analysis you can move your entire spatial analysis workflow into R. In this course you will learn why the sf package is rapidly taking over spatial analysis in R. You will read in spatial data, manipulate vectors using the dplyr package and learn how to work with coordinate reference systems. You'll also learn how to perform geoprocessing of vectors including buffering, spatial joins, computing intersections, simplifying and measuring distance. With rasters you will aggregate, reclassify, crop, mask and extract. The last chapter of the course is devoted to showing you how to make maps in R with the ggplot2 and tmap packages and performing a fun mini-analysis that brings together all your new skills."
+
+Ref: Ross, Zev. Spatial Analysis in R with sf and raster", www.datacamp.com, 2019. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(spatstat)
+library(sf)
+library(raster)
+```
+
+
+# 1. Vector and Raster Spatial Data in R 
+
+An introduction to import/export, learning the formats and getting to know spatial data. Some discussion of why we're using sf rather than sp.
+
+
+## 1.1 Reading vector data
+
+The *sf* package, created by Edzer Pebesma and colleagues, has dramatically simplified reading vector spatial data into R.
+
+In this exercise you will read in three shapefiles (one point file and two polygon files) using *st_read()*. If you've read in the files correctly, you will see a standard R data frame except it will show some header metadata about the file and you'll see a special geometry column which we will discuss later.
+
+```{r}
+# Read in the trees shapefile
+trees <- sf::st_read("data/trees/trees.shp")
+
+# Read in the neighborhood shapefile
+neighborhoods <- st_read("data/neighborhoods/neighborhoods.shp")
+
+# Read in the parks shapefile
+parks <- st_read("data/parks/parks.shp")
+
+# View the first few trees
+head(trees)
+```
+
+
+It is very easy to read in shapefiles using *st_read()*. 
+
+
+
+## 1.2 Reading raster data
+
+The term "raster" refers to gridded data that can include satellite imagery, aerial photographs (like orthophotos) and other types. In R, raster data can be handled using the *raster* package created by Robert J. Hijmans.
+
+When working with raster data, one of the most important things to keep in mind is that the raw data can be what is known as "single-band" or "multi-band" and these are handled a little differently in R. Single-band rasters are the simplest, these have a single layer of raster values -- a classic example would be an elevation raster where each cell value represents the elevation at that location.
+
+Multi-band rasters will have more than one layer. An example is a color aerial photo in which there would be one band each representing red, green or blue light.
+
+```{r}
+# Load the raster package
+library(raster)
+
+# Read in the tree canopy single-band raster
+canopy <- raster("data/canopy/canopy.tif")
+
+# Read in the manhattan Landsat image multi-band raster
+manhattan <- brick("data/manhattan/manhattan.tif")
+
+# Get the class for the new objects
+class(canopy)
+class(manhattan)
+
+# Identify how many layers each object has
+nlayers(canopy)
+nlayers(manhattan)
+```
+
+
+## 1.3 sf objects are data frames
+
+As mentioned in the video, spatial objects in *sf* are just data frames with some special properties. This means that packages like dplyr can be used to manipulate sf objects. In this exercise, you will use the dplyr functions *select()* to select or drop variables, *filter()* to filter the data and *mutate()* to add or alter columns.
+
+We will also use the pipe operator (%>%) to save us some typing and simplify our code. If you're not familiar with the pipe, just think of it as the joints between an R workflow (pipeline) taking the result from the left hand side and sending it on to the next function. For example:
+
+*1:10 %>% mean %>% log* 
+
+will create a vector 1 to 10 and "pipe" it over to the mean() function, then it will pipe this result to the log() function (the result in this case is 1.704748).
+
+```{r}
+# Use filter() to limit to honey locust trees
+honeylocust <- trees %>% filter(species == "honeylocust")
+
+# Count the number of rows
+nrow(honeylocust)
+
+# Limit to tree_id and boroname variables
+honeylocust_lim <- honeylocust %>% dplyr::select(tree_id, boroname) 
+
+# Use head() to look at the first few records
+head(honeylocust_lim)
+
+str(honeylocust_lim)
+```
+
+
+## 1.4 Geometry is stored in list-columns
+
+A major innovation in *sf* is that spatial objects are data frames. This is possible thanks, in part, to the list-column.
+
+A list-column behaves, to a certain extent, like any other R column. The main difference is that instead of a standard value such as a single number, character or boolean value, each observation value in that column is a piece of an R list and this list can be as complex as needed. The list column allows you to store far more information in a single variable and sf takes advantage of this by storing all geographic information for each feature in the list.
+
+In this exercise, you will convert the data frame to what's called a tibble with tibble::as_tibble() (Note that dplyr::tbl_df() is now deprecated).
+
+```{r}
+# Create a standard, non-spatial data frame with one column
+df <- data.frame(a = 1:3)
+
+# Add a list column to your data frame
+df$b <- list(1:4, 1:5, 1:10)
+
+# Look at your data frame with head
+head(df)
+
+# Convert your data frame to a tibble and print on console
+as.tibble(df)
+
+# Pull out the third observation from both columns individually
+df$a[3]
+df$b[3]
+```
+
+List-columns are how sf stores detailed geographic information on each feature in a single record. Converting the data frame to a tibble is not necessary but a tibble can provide a better print out of the object.
+
+## 1.5 Extracting geometric information from your vector layers
+
+There are several functions in *sf* that allow you to access geometric information like area from your vector features. For example, the functions *st_area()* and *st_length()* return the area and length of your features, respectively.
+
+Note that the result of functions like *st_area()* and *st_length()* will not be a traditional vector. Instead the result has a class of units which means the vector result is accompanied by metadata describing the object's units. As a result, code like this won't quite work:
+
+This will not work: 
+
+result <- st_area(parks)
+result > 30000
+
+Instead you need to either remove the units with unclass():
+
+This will work: 
+
+val <- 30000
+unclass(result) > val
+
+or you need to convert val's class to units, for example:
+
+This will work: 
+
+units(val) <- units(result)
+
+result > val
+
+```{r}
+# Compute the areas of the parks
+areas <- st_area(parks)
+
+# Create a quick histogram of the areas using hist
+hist(areas, xlim = c(0, 200000), breaks = 1000)
+
+# Filter to parks greater than 30000 (square meters)
+big_parks <- parks %>% filter(unclass(areas) > 30000)
+
+# Plot just the geometry of big_parks
+plot(st_geometry(big_parks))
+```
+
+Computing geographic information for your vector layers can be done with functions like *st_area()* and *st_length()*. As you saw in this exercise, these functions produce a result that can be used in additional calculations but you need to be careful because the result is a units object that requires a little additional processing like using *unclass()*.
+
+## 1.6 First look at plotting vector spatial objects
+
+The function for making a quick map/plot is a function you are already familiar with, *plot()*. You can, for example, type plot(my_data) to see your spatial object. The default, though, may not be what you want. The plot() function, when applied to sf objects, will create a set of maps, one for each attribute in your data. Instead, if you want to create a map of a single attribute you can extract that attribute using, as an example, plot(my_data["my_variable"]).
+
+Frequently you just want to plot the raw geometry with no attribute color-coding (e.g., adding county boundaries to a map of points). For this, you can use the st_geometry() function to extract the geometry and plot the result. You can either create a new object or you can nest st_geometry() within the plot() function.
+
+
+```{r}
+# Plot the parks object using all defaults
+plot(parks)
+
+# Plot just the acres attribute of the parks data
+plot(parks["acres"])
+
+# Create a new object of just the parks geometry
+parks_geo <- st_geometry(parks)
+
+# Plot the geometry of the parks data
+plot(parks_geo)
+```
+
+Yes, these plots are not pretty but you can't beat *plot()* for a quick look using few keystrokes. And remember you can use *plot(st_geometry(geo_object))* to plot just the geometry of your object.
+
+
+
+## 1.7 Learning about your raster objects
+
+Instead of storing raster objects in data frames, the *raster* package stores spatial data in specially designed R classes that contain slots where the data and metadata are stored. The data and metadata can be accessed using a suite of functions. For example, the spatial extent (the bounding box) of the object can be accessed with *extent()*, the coordinate reference system can be accessed with *crs()* and the number of grid cells can be determined with *ncell()*.
+
+
+```{r}
+# Load the raster package
+library(raster)
+
+# Read in the rasters
+canopy <- raster("data/canopy/canopy.tif")
+manhattan <- brick("data/manhattan/manhattan.tif")
+
+# Get the extent of the canopy object
+extent(canopy)
+
+# Get the CRS of the manhattan object
+crs(manhattan)
+
+# Determine the number of grid cells in both raster objects
+ncell(manhattan)
+ncell(canopy)
+```
+
+ Although rasters are not stored as data frames, the metadata can easily be extracted using functions like extent(), crs() and ncell().
+ 
+ 
+ ## 1.8 Accessing raster data values
+ 
+ Raster data can be very big depending on the extent and resolution (grid size). In order to deal with this the *raster()* and *brick()* functions are designed to only read in the actual raster values as needed. To show that this is true, you can use the *inMemory()* function on an object and it will return *FALSE* if the values are not in memory. If you use the head() function, the raster package will read in only the values needed, not the full set of values. The raster values will be read in by default if you perform spatial analysis operations that require it or you can read in the values from a raster manually with the function *getValues()*.
+ 
+ 
+```{r}
+# Check if the data is in memory
+inMemory(canopy)
+
+# Use head() to peak at the first few records
+head(canopy)
+
+# Use getValues() to read the values into a vector
+vals <- getValues(canopy)
+
+# Use hist() to create a histogram of the values
+hist(vals)
+```
+ 
+ ## 1.8 Plot your raster object
+ 
+ Similar to what you saw in the exercises related to vector objects it's often useful to quickly look at a map of your raster objects with the plot() function.
+
+The raster package has added useful methods for plotting both single and multi-band rasters. For single-band rasters or for a map of each layer in a multi-band raster you can simply use *plot()*. If you have a multi-band raster with layers for red, green and blue light you can use the *plotRGB()* function to plot the raster layers together as a single image.
+
+
+```{r}
+# Plot the canopy raster (single raster)
+plot(canopy)
+
+# Plot the manhattan raster (as a single image for each layer)
+plot(manhattan)
+
+# Plot the manhattan raster as an image
+plotRGB(manhattan)
+```
+
+
+# 2. Preparing layers for spatial analysis
+
+In this lesson you will learn how to prepare layers so that you can conduct spatial analysis. This includes ensuring that the layers all share the same coordinate reference system.
+
+
+## 2.1 Vector and raster coordinate systems
+In order to perform any spatial analysis with more than one layer, your layers should share the same coordinate reference system (CRS) and the first step is determining what coordinate reference system your data has. To do this you can make use of the sf function *st_crs()* and the raster function *crs()*.
+
+When the geographic data you read in with *sf* already has a CRS defined both *sf* and *raster* will recognize and retain it. When the CRS is not defined you will need to define it yourself using either the EPSG number or the proj4string.
+

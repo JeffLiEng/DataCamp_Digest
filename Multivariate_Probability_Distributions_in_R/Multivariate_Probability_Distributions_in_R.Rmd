@@ -299,7 +299,88 @@ uniPlot(setosa, type = "qqplot")
 ```
 
 
+# 3. 
+
+# 4. Principal Component Analysis and Multidimensional Scaling 
+
+In the final chapter, you will be introduced to techniques for analyzing high dimensional data, including principal component analysis (PCA) and multidimensional scaling (MDS). You will also learn to implement these techniques by analyzing data.
+
+## 4.1 Using teh princomp function
+```{r}
+# Calculate PCs
+pca.state <- princomp(state.x77, cor = TRUE, scores = TRUE)
+
+# plot the PCA object
+plot(pca.state)
+
+# Print the summary of the PCs
+summary(pca.state)
+```
+
+## 4.2 Calculating the proportion of variation explained
+
+The proportion of variation and the cumulative proportion of variation explained by the leading PCs are widely used to determine the importance of the PCs and to decide the number of components to retain.
 
 
+```{r}
+# Variance explained by each PC
+pca.var <- pca.state$sdev^2
+
+# Proportion of variance explained by each PC
+pca.pvar <- pca.var/sum(pca.var)
+
+# screeplot
+screeplot(pca.state, type = "lines")
+```
+
+## 4.3 Choosing the number of PCs
+One of the main challenges with PCA is selecting the number of PCs, which can be done by determining the amount of the cumulative proportion of variance that is explained. We will use this method to select the number of PCs needed to explain 95% of the variation in the state.x77 data. The proportion of variation explained by each PC is preloaded for you as the object pca.pvar.
+
+
+```{r}
+# Proportion of variance explained by each principal component
+pca.pvar
+
+# Cumulative variance explained plot
+plot(cumsum(pca.pvar), 
+     xlab = "Principal component", 
+     ylab = "Cumulative Proportion of variance explained", 
+     ylim = c(0, 1), 
+     type = "b")
+grid()
+
+# Add a horizontal line
+abline(h = 0.95, col = "blue")
+
+```
+
+## 4.4 Number of PCs using scree plot
+
+Now you will implement the elbow method relating to the change in the relative importance of the variance to choose the number of components. We will use the pca.state object containing the PCs of the state.x77 to implement this method.
+
+```{r}
+# Draw screeplot
+screeplot(pca.state, type = "line")
+grid()
+```
+
+
+## 4.5 Loading and scores for the PCs
+
+The primary goal of PCA is dimension reduction, which is often necessary to view high dimentional data. Plotting the PC scores in two dimensions is one way to visualize high dimentional data. 
+
+```{r}
+# atributes of the PCA results
+attributes(pca.state)
+
+# Create dataframe of scores
+scores.state <- data.frame(pca.state$scores)
+
+# Plot of scores labeled by state name
+scores.state %>%
+   ggplot(aes(x = Comp.1, y = Comp.2, label = rownames(scores.state), color = state.region)) + 
+   geom_text(alpha = 0.8, size = 3) +
+   ggtitle("PCA of states data")
+```
 
 

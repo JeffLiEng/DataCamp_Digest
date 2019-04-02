@@ -1,0 +1,46 @@
+---
+title: "Design and Analysis of Experiments with R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+Reference: 
+John Lawson, "Desing and Analysis of Experiment with R". 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(samplesize)
+library(gsDesign)
+
+```
+
+# 5. Designs to Study Variances
+
+## 5.1 Introduction 
+
+This is another purpose of experimentation to study sources of variability in the response. 
+
+Three reasons to study the sources of variability: 
+
+* descriptive, and the variance components have values in themselves
+
+* quantifying the sources of variability to gain insight how to reduce the variance
+
+* stimulating ideas about the cuases of variability that could be tested in further experiments
+
+
+## 5.2 Random Factors and Random Sampling Experiments
+
+## 5.3 One-Factor Sampling Design 

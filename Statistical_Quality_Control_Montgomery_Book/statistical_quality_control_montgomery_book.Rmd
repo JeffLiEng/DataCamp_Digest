@@ -23,14 +23,16 @@ library(pdftools)
 
 
 
-# 6. control Charts for Variables 
+# Part 3-chp 6. control Charts for Variables 
 
-The $\bar{x}$ and R control charts are widely used to monitor the mean and variability of variables. 
+A quality characteristic that is measured on a numerical scale is called a **variable**. 
+
+The $\bar{x}$ and *R* control charts are widely used to monitor the mean and variability of variables. 
 
 
 ## 6.1 Introduction
 
-When dealing with a quality characteristic that is a variable, it is usually necessay to monitor both the mean and variabilit. 
+When dealing with a quality characteristic that is a variable, it is usually necessay to monitor both the mean and variability. 
 
 ```{r}
 # Define upper- and lower- specification limits
@@ -46,7 +48,7 @@ prod_x %>%
   ggplot(aes(x = x)) +
   geom_histogram(bins = 100) + 
   geom_histogram(aes(x = rnorm(n = 10000, mean = 12, sd = 1), alpha = 0.7), bins = 100) +
-   geom_histogram(aes(x = rnorm(n = 10000, mean = 10, sd = 2), alpha = 0.7), bins = 100) +
+  geom_histogram(aes(x = rnorm(n = 10000, mean = 10, sd = 2), alpha = 0.7), bins = 100) +
   geom_vline(xintercept = c(upper_specification_limit, lower_specification_limit, 10, 12))
 
 ```
@@ -54,18 +56,490 @@ prod_x %>%
 
 ## 6.2 Control Charts for X_bar and R 
 
-$\bar{x}$
+### 6.2.1 Statistical Basis of the Charts
+
+To estimate $\mu$ and $\sigma$ of a publication, at least 20 to 25 samples are needed. 
+
+m samples --> each containing n observations (typically, n: 4, 5, or 6). 
+
+The best estimator of $\mu$, the process average, is the *grand average*: 
+
+$$\overline{\overline{x}} = \frac{\overline{x}_1 + \overline{x}_2 + \dots + \overline{x}_m}{m}$$
+
+
+where $\overline{x}_1, \overline{x}_2, \dots, \overline{x}_m}$  are the average of each sample. 
+
+The average range: 
+
+$$\overline{R} = \frac{R_1 + R_2 + \dots + R_m}{m}$$
+
+
+Relative range: $W = \frac{R}{\sigma}$. The parameters of the distribution of W are a function of the sample size *n*. The mean of *W* is $d_2$. Consequently, an estimate of $\sigma$ is $\hat{\sigma} = \frac{\overline{R}}{d_2}$. This is an unbiased estimator of $\sigma$. 
+
+
+**Phase I Application of $\overline{x}$ adn R charts**: 
+
+If all points plot inside the control limits and no systematic behaviour is evident, we conclude that the process was in control in the past, and the trial control limits are suitable for controlling current or future production. 
+
+### 6.2.2 Development of Use of x-bar and R charts
+
+```{r}
+# Read data: Table 6.1: Flow Width Measurements (microns) for the Hard-Bake Process
+hard_bake_process <- readxl::read_excel("data/ch06.xlsx", 
+                                        sheet = "table6_1") %>%
+  separate(col = "values", into = c("sample_no", "1", "2", "3", "4", "5"), sep = "[:blank:]") %>%
+  mutate_all(.funs = as.numeric)
+
+
+# Reshape it to long 
+hard_bake_process_long <-
+  hard_bake_process %>% 
+  pivot_long(cols = -sample_no, names_to = "rep", values_to = "flow_width_mu")
+
+# Plot
+hard_bake_process_long %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu, group = sample_no)) +
+  geom_point() + 
+  geom_line() + 
+  labs(x = "Sample Number", y = "Flow width (microns)")
+```
+
+```{r}
+# calculate mean and range
+hard_bake_process_mean_range <- hard_bake_process_long %>%
+  group_by(sample_no) %>%
+  summarize(n = n(), 
+            flow_width_mu_mean = mean(flow_width_mu),
+            flow_width_mu_R = max(flow_width_mu) - min(flow_width_mu))
+
+# Grand mean 
+flow_width_mu_grand_mean <- mean(hard_bake_process_mean_range$flow_width_mu_mean)
+flow_width_mu_R_mean <- mean(hard_bake_process_mean_range$flow_width_mu_R)
+
+# calculate sigma based on range
+(sub_n <- mean(hard_bake_process_mean_range$n))
+d2 <- factors_4_control_chart %>% 
+  filter(n == sub_n) %>%
+  pull(d2)
+
+d3 <- factors_4_control_chart %>% 
+  filter(n == sub_n) %>%
+  pull(d3)
+
+# estiamte sigma based on range
+sigma_hat <- flow_width_mu_R_mean/d2  
+
+# calculate LCL and UCL 
+LCL_mean <- flow_width_mu_grand_mean - 3 * sigma_hat/sqrt(sub_n)
+UCL_mean <- flow_width_mu_grand_mean + 3 * sigma_hat/sqrt(sub_n)
+
+LCL_R <- max(0, flow_width_mu_R_mean - 3 * d3 * sigma_hat)
+UCL_R <- flow_width_mu_R_mean + 3 * d3 * sigma_hat
+
+
+# control chart for mean and Range
+hard_bake_process_mean_range %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu_mean)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL_mean, flow_width_mu_grand_mean, LCL_mean), 
+             linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Flow width (mu)", title = "The x-bar control chart")
+
+hard_bake_process_mean_range %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu_R)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL_R, flow_width_mu_R_mean, LCL_R), 
+             linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Flow width Range", title = "The R control chart")
+  
+```
+
+Since both the x-bar and R charts don't indicate any out-of-control conditions,  we would conclude that the process is in control at the stated levels and adopt the trial control limits for use in phase II, where monitoring of future production is of interest. 
+
+
+**Estimating Process Capability**: 
+```{r}
+# mean flow width and process standard deviation 
+flow_width_mu_grand_mean
+sigma_hat
+
+```
+
+The specification limits on flow width are $1.50 \pm 0.50$ microns.  
+
+```{r}
+# Estimate the fraction of nonconforming wafers produced: 
+LSL <- 1.50 - 0.5
+USL <- 1.50 + 0.5
+
+frac_below_LSL <- pnorm(q = LSL, mean = flow_width_mu_grand_mean, sd = sigma_hat, lower.tail = TRUE)
+frac_above_USL <- pnorm(q = USL, mean = flow_width_mu_grand_mean, sd = sigma_hat, lower.tail = FALSE)
+
+(frac_total <- frac_below_LSL + frac_above_USL)
+
+# process capability ratio (PCR)
+(cp_hat <- (USL - LSL)/(6 * sigma_hat))
+  
+```
+
+cp_hat = 1.192 implies that the "natural" tolerance limits in the process (three-sigma above adn below the mean) are inside the lower and upper specification limits. 
+
+```{r}
+1/cp_hat * 100
+```
+
+This is the process uses up about 84% of the specification band. 
 
 
 ```{r}
-sim <- NULL
+# if cp_hat = 1
+pnorm(q = -3) * 2 * 1000000
+```
+If cp_hat = 1, then the process has 2700 ppm nonconforming units. 
 
-for (i in seq(1:1e9)) {
-  sim[i] = diff(range(rnorm(n = 5), mean = 0, sd = 1))
-}
 
-mean(sim)
+**Phase II Operation of the x-bar and R charts**
 
+Once a set of reliable control limits is established, we use the control chart to monitoring future production. This is called *phase II control chart usage*. 
+
+```{r}
+# read data: Table 6.2 Additional Samples for example 6.1
+hard_bake_process_addition <- readxl::read_excel("data/ch06.xlsx", 
+                                        sheet = "table6_2") %>%
+  separate(col = "values", into = c("sample_no", "1", "2", "3", "4", "5"), sep = "[:blank:]") %>%
+  mutate_all(.funs = as.numeric) %>% 
+  pivot_long(cols = -sample_no, names_to = "rep", values_to = "flow_width_mu")
+
+# combined data
+hard_bake_process_I_II <- hard_bake_process_long %>%
+  bind_rows(hard_bake_process_addition)
+
+
+# calculate mean and range
+hard_bake_process_I_II_mean_range <- hard_bake_process_I_II %>%
+  group_by(sample_no) %>%
+  summarize(n = n(), 
+            flow_width_mu_mean = mean(flow_width_mu),
+            flow_width_mu_R = max(flow_width_mu) - min(flow_width_mu))
+
+
+# control chart for mean and Range
+hard_bake_process_I_II_mean_range %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu_mean)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = 26, linetype = "dashed", col = "red") +
+  geom_hline(yintercept = c(UCL_mean, flow_width_mu_grand_mean, LCL_mean), 
+             linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Flow width (mu)", title = "The x-bar control chart")
+
+hard_bake_process_I_II_mean_range %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu_R)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_vline(xintercept = 26, linetype = "dashed", col = "red") +
+  geom_hline(yintercept = c(UCL_R, flow_width_mu_R_mean, LCL_R), 
+             linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Flow width Range", title = "The R control chart")
+```
+
+
+In examining control chart data, another helpful chart is a run chart of the individual observation in each samples, and it is also called a tier chart or *tolerance diagram*. 
+
+
+```{r}
+
+hard_bake_process_I_II %>%
+  ggplot(aes(x = sample_no, y = flow_width_mu, group = sample_no)) + 
+  geom_boxplot() + 
+  #geom_point() + 
+  geom_vline(xintercept = 26, linetype = "dashed", col = "red") +
+  geom_hline(yintercept = c(2, flow_width_mu_grand_mean, 1.0), 
+             linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Flow width (mu)", title = "Tolerance diagram")
+```
+
+
+**Control Limits, Specification Limits, and Natural Tolerance Limits** 
+
+
+
+
+
+## 6.3 Control Charts for x_bar and s
+
+Two ways to estimate sd: 
+
+* indirectly through the use of the range R
+
+* directly 
+
+Gnerally, $\overline{x}$ and s chart are preferable to their more familar counterparts, $\overline{x}$ and R charts, when either: 
+
+* The sample size n is moderately large - say, n > 10 or 12. (The range method for estimating $\sigma$ loses statistical efficiency for moderate to larger samples.)
+
+* The sample size n is variable
+
+
+### 6.3.1 Construction and Operating of x-bar and s charts
+
+```{r}
+# Read data Table 6.3
+piston_ring_dia <- readxl::read_excel(path = "data/ch06.xlsx", 
+                   sheet = "table6_3") %>%
+  separate(col = values, 
+           into = c("rep1", "rep2", "rep3", "rep4", "rep5"), 
+           sep = "[:blank:]")  %>%
+  rownames_to_column(var = "sample_no") %>%
+  pivot_long(cols = -sample_no, names_to = "rep", values_to = "piston_ring_dia_mm") %>%
+  mutate(sample_no = as.numeric(sample_no), 
+         rep = as.factor(rep), 
+         piston_ring_dia_mm = as.numeric(piston_ring_dia_mm))
+
+# summary
+summary(piston_ring_dia)
+
+# plot
+piston_ring_dia %>%
+  ggplot(aes(x = sample_no, y = piston_ring_dia_mm)) +
+  geom_point() +
+  geom_line(aes(group = sample_no)) +
+  labs(x = "Sample No", y = "Engine Piston Rings Inside Diameter (mm)")
+
+# calculate x-bar, sd
+piston_ring_dia_mean_sd <- piston_ring_dia %>%
+  group_by(sample_no) %>%
+  summarise(n = n(), 
+            mean = mean(piston_ring_dia_mm), 
+            sd = sd(piston_ring_dia_mm)) %>%
+  arrange(sample_no)
+```
+
+If $\sigma^2$ is the unknown variance of a probability distribution, then an unbiased estimator of $\sigma^2$ is the sample variance: 
+
+$$s^2 = \frac{\sum_{i=1}^n(x_i - \overline{x})^2}{n-1}$$
+
+However, the sample standard deviation s is not an unbiased estimator of $\sigma$. If the underlying distribution is normal, then *s* actually estimates $c_4\sigma$, where $c_4$ is a constant that depends on the sample size n. Furthermore, the standard deviation of *s* is $\sigma \sqrt{1 - c_4^2}$
+
+
+
+Build the s chart
+```{r}
+# build s chart
+
+# c4 <- factors_4_control_chart %>% filter(n == 5) %>% pull(c4)
+n <- mean(piston_ring_dia_mean_sd$n)
+c4 <- 4*(n - 1)/(4 * n - 3)
+
+center_line <- mean(piston_ring_dia_mean_sd$sd)
+UCL <- center_line + 3 * center_line/c4 * sqrt(1 - c4^2)
+LCL <- max(0,  center_line - 3 * center_line/c4 * sqrt(1 - c4^2))
+
+# plot
+piston_ring_dia_mean_sd %>%
+  ggplot(aes(x = sample_no, y = sd)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL, center_line, LCL), linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "s", title = "The s control chart")
+
+```
+
+
+Build the x-bar chart
+```{r}
+# build x-bar chart
+
+# c4 <- factors_4_control_chart %>% filter(n == 5) %>% pull(c4)
+n <- mean(piston_ring_dia_mean_sd$n)
+c4 <- 4*(n - 1)/(4 * n - 3)
+
+s_bar <- mean(piston_ring_dia_mean_sd$sd)
+sigma <- s_bar/c4
+
+
+center_line <- mean(piston_ring_dia_mean_sd$mean)
+UCL <- center_line + 3 * sigma / sqrt(n)
+LCL <- center_line - 3 * sigma / sqrt(n)
+
+# plot
+piston_ring_dia_mean_sd %>%
+  ggplot(aes(x = sample_no, y = mean)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL, center_line, LCL), linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Engine Piston Rings Inside Diameter (mm)", title = "The x-bar control chart")
+
+```
+
+The Control charts of s and x-bar did not indicate that the process is out of control, so those limits could be adopted for phase II monitoring of the process. 
+
+
+### 6.3.2 The x-bar and s control charts with variable sample size
+
+If $n_i$ is the number of observation in the $i^{th}$ sample, then: 
+
+$$\overline{\overline{x}} = \frac{\sum_{i=1}^m n_i\overline{x_i}}{\sum_{i=1}^{m}{n_i}}$$
+
+
+```{r}
+# read data: 
+piston_ring <- readxl::read_excel(path = "data/ch06.xlsx", 
+                                  sheet = "table6_4") %>%
+  separate(col = values, 
+           into = c("sample_no", "1", "2", "3", "4", "5"), 
+           sep = "[:blank:]") %>%
+  mutate_all(.funs = as.numeric) %>%
+  pivot_long(cols = -sample_no, names_to = "rep", values_to = "ring_dia_mm") %>%
+  na.omit()
+
+# calculate n, mean, sd
+piston_ring_mean_sd <- piston_ring %>%
+  group_by(sample_no) %>%
+  summarize(n = n(), 
+         mean = mean(ring_dia_mm), 
+         sd = sd(ring_dia_mm), 
+         c4 = 4*(n - 1)/(4 * n - 3))
+
+# calculate x_double_bar
+weighted_grand_mean <- weighted.mean(x = piston_ring_mean_sd$mean, 
+                                     w = piston_ring_mean_sd$n)
+
+
+weighted_grand_sd <- piston_ring_mean_sd %>%
+  mutate(ni_1_si2 = (n - 1)*sd^2) %>%
+  summarise(weighted_grand_sd = sqrt(sum(ni_1_si2)/(sum(n) - n()))) %>%
+  pull()
+
+
+# the control limits for the s chart
+piston_ring_mean_sd %>%
+  mutate(UCL = mean + 3 * weighted_grand_sd/c4 * sqrt(1 - c4^2),
+         LCL = max(0, weighted_grand_sd - 3 * weighted_grand_sd/c4 * sqrt(1 - c4^2))) %>%
+  ggplot(aes(x = sample_no, y = sd)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_step(aes(y = UCL), linetype = "dashed") +
+  geom_step(aes(y = LCL), linetype = "dashed") +
+  geom_hline(yintercept = weighted_grand_sd, linetype =  "solid") +
+  labs(x = "Sample number", y = "s", title = "The s control chart")
+
+
+
+# the control limits for the x-bar chart
+piston_ring_mean_sd %>%
+  mutate(UCL = weighted_grand_mean + 3 * weighted_grand_sd/c4 * 1/sqrt(n),
+         LCL = weighted_grand_mean - 3 * weighted_grand_sd/c4 * 1/sqrt(n)) %>%
+  ggplot(aes(x = sample_no, y = mean)) + 
+  geom_point(alpha = 0.5) + 
+  geom_line() + 
+  geom_step(aes(y = UCL), linetype = "dashed") +
+  geom_step(aes(y = LCL), linetype = "dashed") +
+  geom_hline(yintercept = weighted_grand_mean, linetype =  "solid") +
+  labs(x = "Sample number", y = "s", title = "The x-bar control chart")
+
+
+
+# Build the x-bar chart  based on average sample size 
+
+# build x-bar chart
+
+n <- floor(mean(piston_ring_mean_sd$n))
+c4 <- 4*(n - 1)/(4 * n - 3)
+
+s_bar <- mean(piston_ring_mean_sd$sd)
+sigma <- s_bar/c4
+
+
+center_line <- mean(piston_ring_mean_sd$mean)
+UCL <- center_line + 3 * sigma / sqrt(n)
+LCL <- center_line - 3 * sigma / sqrt(n)
+
+# plot
+piston_ring_mean_sd %>%
+  ggplot(aes(x = sample_no, y = mean)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL, center_line, LCL), linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Engine Piston Rings Inside Diameter (mm)", title = "The x-bar control chart")
+```
+
+
+### 6.3.3 The S2 control chart
+
+
+## 6.4 The Shewhart Control Chart for Individual Measuremtns 
+
+There are many situations in which the sample size used for process monitoring is n = 1; that is, the sample consists of an individual unit.
+
+* 1. Automated inspection and measurement technology is used, and every unit manufactured is analyzed so there is no basis for rational subgrouping.
+
+* 2. Data comes available relatively slowly, and it is inconvenient to allow sample sizes of n > 1 to accumulate before analysis. The long interval between observations will cause problems with rational subgrouping. This occurs frequently in both manufacturing and nonmanufacturing situations.
+
+* 3. Repeat measurements on the process differ only because of laboratory or analysis error, as in many chemical processes.
+
+* 4. Multiple measurements are taken on the same unit of product, such as measuring oxide thickness at several different locations on a wafer in semiconductor manufacturing.
+
+* 5. In process plants, such as papermaking, measurements on some parameter such as coating thickness across the roll will differ very little and produce a standard deviation that is much too small if the objective is to control coating thickness along the roll.
+
+
+In many applications of the *individuals control chart*, the *moving range* two successive observations are used as the basis of estimating the process variability. 
+
+$$MR_i = |x_i - x_{i-1}|$$
+
+```{r}
+# read data
+mortgage_loan_applicaiton_processing_cost <-
+  readxl::read_excel(path = "data/ch06.xlsx", 
+                 sheet = "table6_6") %>%
+  separate(col = values, into = c("week", "cost")) %>%
+  mutate_all(.funs = as.numeric) %>%
+  mutate(MR = c(NA, abs(diff(cost))))
+```
+
+The control chart for individual value
+```{r}
+# control chart
+d2 <- factors_4_control_chart %>% filter(n == 2) %>% pull(d2)
+
+center_line <- mean(mortgage_loan_applicaiton_processing_cost$cost)
+MR_bar <- mean(mortgage_loan_applicaiton_processing_cost$MR, na.rm = TRUE)
+
+UCL <- center_line + 3 * MR_bar/d2
+LCL <- center_line - 3 * MR_bar/d2
+
+# plot
+mortgage_loan_applicaiton_processing_cost %>%
+  ggplot(aes(x = week, y = cost)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL, center_line, LCL), linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Cost", title = "The control chart for individual value")
+```
+
+
+The control chart for individual value (moving range): 
+
+
+```{r}
+# control chart
+d2 <- factors_4_control_chart %>% filter(n == 2) %>% pull(d2)
+
+center_line <- mean(mortgage_loan_applicaiton_processing_cost$cost)
+MR_bar <- mean(mortgage_loan_applicaiton_processing_cost$MR, na.rm = TRUE)
+
+UCL <- center_line + 3 * MR_bar/d2
+LCL <- center_line - 3 * MR_bar/d2
+
+# plot
+mortgage_loan_applicaiton_processing_cost %>%
+  ggplot(aes(x = week, y = cost)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_hline(yintercept = c(UCL, center_line, LCL), linetype = c("dashed", "solid", "dashed")) +
+  labs(x = "Sample number", y = "Cost", title = "The control chart for individual value")
 ```
 
 
@@ -375,3 +849,40 @@ By the standard measurems of gauge capability, this gauge would not be considere
 
 
 
+
+## Appendeix VI: Factors for Constructing Variables Control Charts
+```{r}
+# Factors for constructing variables control charts
+factors_4_control_chart <- readxl::read_excel(path = "data/appendix.xlsx", 
+                                              sheet = "vi_factors_4_cc") %>%
+  separate(col = values, 
+           into = c("n", "A", "A2", "A3", "c4", "1_c4", 
+                    "B3", "B4", "B5", "B6", "d2", "1_d2", 
+                    "d3", "D1", "D2", "D3", "D4"),
+           sep = "[:blank:]") %>%
+  mutate_all(.funs = as.numeric)
+
+str(factors_4_control_chart)
+
+# plot
+factors_4_control_chart %>%
+  ggplot(aes(x = n, y = c4)) +
+  geom_point(alpha = 0.5) + 
+  geom_line()
+
+factors_4_control_chart$c4 + 3 * sqrt(1 - factors_4_control_chart$c4^2)
+
+# c4 vs n
+c4_n_fn <- function(n) {4 * (n - 1)/(4 * n - 3)}
+
+ggplot(data.frame(n = 1:25), aes(x = n)) +
+  stat_function(fun = c4_n_fn) +
+  labs(y = "c4")
+
+# Save the data to R
+save(factors_4_control_chart, 
+     file = "data/spc.RData")
+
+# Load data into the workspace
+load("data/spc.RData")
+```

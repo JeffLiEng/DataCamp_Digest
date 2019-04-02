@@ -15,7 +15,7 @@ output:
 **Course Description**
 
 
-"Do patients taking the new drug survive longer than others? How fast do people get a new job after getting unemployed? What can I do to make my friends stay on the dancefloor at my party? All these questions require the analysis of time-to-event data, for which we use special statistical methods. This course introduces basic concepts of time-to-event data analysis, also called survival analysis. Learn how to deal with time-to-event data and how to compute, visualize and interpret survivor curves as well as Weibull and Cox models." 
+"Do patients taking the new drug survive longer than others? How fast do people get a new job after getting unemployed? What can I do to make my friends stay on the dance floor at my party? All these questions require the analysis of time-to-event data, for which we use special statistical methods. This course introduces basic concepts of time-to-event data analysis, also called survival analysis. Learn how to deal with time-to-event data and how to compute, visualize and interpret survivor curves as well as Weibull and Cox models." 
 
 Ref: Seibold, Heidi, 2018. "Survival Analysis in R". https://www.datacamp.com/courses/survival-analysis-in-r. 2018.
 
@@ -230,4 +230,89 @@ ggsurvplot(fit = km, risk.table = TRUE)
 ggsurvplot(fit = km, risk.table = TRUE, surv.median.line = "hv")
 
 ```
+
+
+
+
+
+# (I)  Extra Material 
+
+ref: https://www.datacamp.com/community/tutorials/survival-analysis-R
+
+## I.1 Glimpse Data
+```{r}
+# Import the ovarian cancer dataset and have a look at it
+data(ovarian)
+glimpse(ovarian)
+
+table(ovarian$fustat)
+```
+
+The *futime* column holds the survival times. This is the response variable. *fustat*, on the other hand, tells you if an individual patients’ survival time is censored. Apparently, the 26 patients in this study received either one of two therapy regimens (*rx*) and the attending physician assessed the regression of tumors (*resid.ds*) and patients’ performance (according to the standardized ECOG criteria; *ecog.ps*) at some point.
+
+
+## I.2 Dichotomize age and change data labels
+
+```{r}
+ovarian <- ovarian %>%
+  mutate(rx = factor(rx, levels = c(1, 2), labels = c("A", "B")),
+         resid.ds = factor(resid.ds, levels = c(1, 2), labels = c("no", "yes")),
+         ecog.ps = factor(ecog.ps, levels = c(1, 2), labels = c("good", "bad")), 
+         age_group = ifelse(age >= 50, "old", "young"), 
+         age_group = factor(age_group))
+
+```
+
+## I.3 Create a survival object
+
+```{r}
+# Fit survival data using the Kaplan-Meier method
+surv_object <- Surv(time = ovarian$futime, event = ovarian$fustat)
+surv_object
+
+str(surv_object)
+```
+
+The next step is to fit the Kaplan-Meier curves. You can easily do that by passing the surv_object to the survfit function. You can also stratify the curve depending on the treatment regimen rx that patients were assigned to. A summary() of the resulting fit1 object shows, among other things, survival times, the proportion of surviving patients at every time point, namely your p.1, p.2, ... from above, and treatment groups.
+
+```{r}
+fit1 <- survfit(surv_object ~ rx, data = ovarian)
+summary(fit1)
+```
+
+You can examine the corresponding survival curve by passing the survival object to the ggsurvplot function. The pval = TRUE argument is very useful, because it plots the p-value of a log rank test as well!
+
+```{r}
+ggsurvplot(fit1, data = ovarian, pval = TRUE)
+```
+
+By convention, vertical lines indicate censored data, their corresponding x values the time at which censoring occurred.
+
+The log-rank p-value of 0.3 indicates a non-significant result if you consider p < 0.05 to indicate statistical significance. In this study, none of the treatments examined were significantly superior, although patients receiving treatment B are doing better in the first month of follow-up. What about the other variables?
+
+```{r}
+# Examine prdictive value of residual disease status
+fit2 <- survfit(surv_object ~ resid.ds, data = ovarian)
+ggsurvplot(fit2, data = ovarian, pval = TRUE)
+```
+
+## I.4 Cox Proportional Hazards Model
+
+The Kaplan-Meier plots stratified according to residual disease status look a bit different: The curves diverge early and the log-rank test is almost significant. You might want to argue that a follow-up study with an increased sample size could validate these results, that is, that patients with positive residual disease status have a significantly worse prognosis compared to patients without residual disease.
+
+But is there a more systematic way to look at the different covariates? As you might remember from one of the previous passages, Cox proportional hazards models allow you to include covariates. You can build Cox proportional hazards models using the coxph function and visualize them using the ggforest. These type of plot is called a forest plot. It shows so-called hazard ratios (HR) which are derived from the model for all covariates that we included in the formula in coxph. Briefly, an HR > 1 indicates an increased risk of death (according to the definition of h(t)) if a specific condition is met by a patient. An HR < 1, on the other hand, indicates a decreased risk. Let's look at the output of the model:
+
+```{r}
+# Fit a Cox proportional hazards model
+fit.coxph <- coxph(surv_object ~ rx + resid.ds + age_group + ecog.ps, 
+                   data = ovarian)
+
+ggforest(fit.coxph, data = ovarian)
+```
+
+Every HR represents a relative risk of death that compares one instance of a binary feature to the other instance. For example, a hazard ratio of 0.25 for treatment groups tells you that patients who received treatment B have a reduced risk of dying compared to patients who received treatment A (which served as a reference to calculate the hazard ratio). As shown by the forest plot, the respective 95% confidence interval is 0.071 - 0.89 and this result is significant.
+
+Using this model, you can see that the treatment group, residual disease status, and age group variables significantly influence the patients' risk of death in this study. This is quite different from what you saw with the Kaplan-Meier estimator and the log-rank test. Whereas the former estimates the survival probability, the latter calculates the risk of death and respective hazard ratios. Your analysis shows that the results that these methods yield can differ in terms of significance.
+
+
 

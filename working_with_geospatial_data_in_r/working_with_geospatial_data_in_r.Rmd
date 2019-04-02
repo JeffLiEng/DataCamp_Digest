@@ -476,3 +476,187 @@ save_tmap(tm = my_map, filename = "population.png")
 save_tmap(my_map, filename = "population.html")
 ```
 
+
+
+# 4. Data Import and Projections 
+
+In this chapter you'll follow the creation of a visualization from raw spatial data files to adding a credit to a map. Along the way, you'll learn how to read spatial data into R, more about projections and coordinate reference systems, how to add additional data to a spatial object, and some tips for polishing your maps.
+
+## 4.1 Reading in a shapefile 
+
+*Shapefiles* are one of the most common ways spatial data are shared and are easily read into R using *readOGR()* from the *rgdal* package. *readOGR()* has two important arguments: *dsn* and *layer*. Exactly what you pass to these arguments depends on what kind of data you are reading in. You learned in the video that for shapefiles, dsn should be the path to the directory that holds the files that make up the shapefile and layer is the file name of the particular shapefile (without any extension).
+
+For your map, you want neighborhood boundaries. We downloaded the Neighborhood Tabulation Areas, as defined by the City of New York, from the Open Data Platform of the Department of City Planning. The download was in the form of a zip archive and we have put the result of unzipping the downloaded file in your working directory.
+
+You'll use the dir() function from base R to examine the contents of your working directory, then read in the shapefile to R.
+
+```{r}
+library(sp)
+library(rgdal)
+library(sf)
+
+# Use dir() to find directory name
+dir()
+
+# Call dir() with directory name
+dir("data/nynta_19a")
+
+# Read in shapefile with readOGR(): neighborhoods
+neighborhoods <- readOGR("data/nynta_19a", "nynta")
+
+# using the package of sf
+neighborhoods_2 <- sf::st_read("data/nynta_19a/nynta.shp")
+
+
+# summary() of neighborhoods
+summary(neighborhoods)
+summary(neighborhoods_2)
+
+# Plot neighboorhoods
+plot(neighborhoods)
+# Plot the same data imported using sf::st_read
+plot(neighborhoods_2)
+
+# Plot just the geometry of big_parks
+plot(st_geometry(neighborhoods_2))
+```
+
+## 4.2 Reading in a raster file
+
+Raster files are most easily read in to R with the *raster()* function from the *raster* package. You simply pass in the filename (including the extension) of the raster as the first argument, x.
+
+The *raster()* function uses some native raster package functions for reading in certain file types (based on the extension in the file name) and otherwise hands the reading of the file on to *readGDAL()* from the *rgdal* package. The benefit of not using *readGDAL()* directly is simply that *raster()* returns a RasterLayer object.
+
+A common kind of raster file is the GeoTIFF, with file extension .tif or .tiff. 
+
+```{r}
+library(raster) 
+
+# Call dir()
+dir("data")
+
+# Use raster() with file path: income_grid
+income_grid <- raster::raster("data/m5602ahhi00.tif")
+
+# Call summary() on income_grid
+summary(income_grid)
+
+# Call plot() on income_grid
+plot(income_grid)
+```
+
+## 4.3 Getting data using a package
+
+Reading in spatial data from a file is one way to get spatial data into R, but there are also some packages that provide commonly used spatial data. For example, the *rnaturalearth* package provides data from Natural Earth, a source of high resolution world maps including coastlines, states, and populated places. In fact, this was the source of the data from Chapter 2.
+
+You will be examining median income at the census tract level in New York County (a.k.a. the Bourough of Manhattan), but to do this you'll need to know the boundaries of the census tracts. The *tigris* package in R provides a way to easily download and import shapefiles based on US Census geographies. You'll use the *tracts()* function to download tract boundaries, but *tigris* also provides *states()*, *counties()*, *places()* and many other functions that match the various levels of geographic entities defined by the Census.
+
+Let's grab the spatial data for the tracts.
+
+```{r}
+library(sp)
+library(tigris)
+
+# Call tracts(): nyc_tracts
+nyc_tracts <- tracts(state = "NY", county = "New York", cb = TRUE)
+
+alameda_tracts <- tracts(state = "CA", county = "Alameda", cb = TRUE)
+
+# Call summary() on nyc_tracts
+summary(nyc_tracts)
+
+# Plot nyc_tracts
+plot(nyc_tracts)
+
+# Plot Alameda County, CA
+plot(alameda_tracts)
+```
+
+In case you were wondering, the final argument cb = TRUE downloads the lower resolution boundaries which makes for a quicker download.
+
+
+## 4.4 Merging data from different CRS/projections
+
+Every spatial object has a coordinate reference system (CRS) associated with it. Generally, this is set when the data are imported and will be read directly from the spatial files. This is how the *neighborhoods* and *nyc_tracts* obtained their coordinate system information.
+
+Both the *sp* and *raster* packages have a *proj4string()* function that returns the CRS of the object it's called on.
+
+Trying to work with spatial data using different CRSs is a bit like trying to work with a dataset in miles and another in kilometers. They are measuring the same thing, but the numbers aren't directly comparable.
+
+```{r}
+library(sp)
+
+# proj4string() on nyc_tracts and neighborhoods
+proj4string(nyc_tracts)
+proj4string(neighborhoods)
+
+
+# coordinates() on nyc_tracts and neighborhoods
+head(coordinates(nyc_tracts))
+head(coordinates(neighborhoods))
+
+
+# plot() neighborhoods and nyc_tracts
+plot(neighborhoods)
+plot(nyc_tracts, col = "red", add = TRUE)
+
+```
+Why didn't we see the tracts on our plot of neighborhoods? Simply because the coordinates of the tracts put them way off the boundaries of our plot.
+
+
+## 4.5 Converting from one CRS/projection to another
+
+The process of converting from one CRS or projection to another is handled by the *spTransform()* methods in the *rgdal* package. *spTransform()* has methods for all *sp* objects including *SpatialPolygonsDataFrame*, but doesn't work on *raster* objects. This is because transforming a *raster* is a little more complicated; the transformed rectangular grid will no longer be rectangular. You can look at *?raster::projectRaster* if you are curious about transforming rasters.
+
+Transformation is simple. The first argument to *spTransform()*, x, is the spatial object to be transformed and the second, CRS, is a specification of the desired *CRS*. The CRS can be specified by a PROJ4 string, which you could construct by hand, but it's much easier to take it from an existing object (e.g. with the *proj4string()* function).
+
+Time to get your two polygons datasets into the same CRS.
+
+```{r}
+library(sp)
+library(raster)
+
+# Use spTransform on neighborhoods: neighborhoods
+spTransform(neighborhoods, proj4string(nyc_tracts))
+
+
+# head() on coordinates() of neighborhoods
+head(neighborhoods)
+coordinates(neighborhoods)
+
+data(water)
+
+# Plot neighborhoods, nyc_tracts and water
+plot(neighborhoods)
+plot(nyc_tracts, add = TRUE, col = "red")
+plot(water, add = TRUE, col = "blue")
+```
+
+## 4.6 The wrong way
+
+When a *Spatial***DataFrame* object is created, there are two ways the spatial objects (e.g. Polygons) might be matched up to the rows of the data. The most robust is to use IDs on the spatial objects that are matched up to row names in the data. This ensures if there are any that don't match you are quickly alerted. The other way is simply by order -- the first spatial object is assumed to correspond to the first row of data.
+
+Once created, the correspondence is based purely on order. If you manipulate the data slot, there is no checking the spatial objects still correspond to the right rows. What does this mean in practice? It's very dangerous to manipulate the data slot directly!
+
+To create your plot of income, you need to match up the income data frame with the tracts SpatialPolygonsDataFrame. To illustrate the danger of manipulating @data directly, let's see what happens if you try to force nyc_income in to nyc_tracts.
+
+
+```{r}
+library(sp)
+
+# Use str() on nyc_income 
+data("nyc_income")
+str(nyc_income)
+
+# ...and on nyc_tracts@data
+str(nyc_tracts@data)
+
+# Highlight tract 002201 in nyc_tracts
+plot(nyc_tracts)
+plot(nyc_tracts[nyc_tracts$TRACTCE == "002201", ], 
+     col = "red", add = TRUE)
+
+
+
+```
+
