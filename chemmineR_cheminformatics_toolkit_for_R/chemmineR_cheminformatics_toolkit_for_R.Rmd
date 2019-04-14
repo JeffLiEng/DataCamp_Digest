@@ -1,0 +1,38 @@
+---
+title: "chemmineR_cheminformatics_toolkit_for_R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+## (I) Installation
+```{r}
+if (!requireNamespace("tidyverse", quietly=TRUE))
+     install.packages("tidyverse")
+
+if (!requireNamespace("BiocManager", quietly=TRUE))
+     install.packages("BiocManager")
+
+
+
+
+ BiocManager::install("ChemmineR")
+```
+
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(ade4)
+```

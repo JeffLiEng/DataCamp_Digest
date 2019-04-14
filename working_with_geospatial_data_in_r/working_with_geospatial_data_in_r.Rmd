@@ -34,6 +34,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(ggmap)
+
+library(raster)
 ```
 
 
@@ -50,7 +52,7 @@ What is spatial data?
 
 * Locations described by coordinates + a coordinate reference system (CRS)
 
-* Commom CRS: longitude, latitude describes locations on the surface of the Earth. 
+* common CRS: longitude, latitude describes locations on the surface of the Earth. 
 
 
 Point data: 
@@ -59,7 +61,7 @@ locations are points, described by single pair of coordinates
 
 ### 1.1.1 Grabbing a background map 
 
-There are two steps to add a mpa to a *ggplot2* plot with *ggmap*: 
+There are two steps to add a map to a *ggplot2* plot with *ggmap*: 
 
 * 1. Download a map using *get_map()*
 
@@ -69,7 +71,7 @@ There are two steps to add a mpa to a *ggplot2* plot with *ggmap*:
 *get_map()* has a number of arguments that control what kind of map to get. 
 
 ```{r}
-# a location 
+# register a Google API
 register_google(key = Sys.getenv("register_google_api")) 
 
 visalia <- c(lon = -119.2921, lat = 36.3302 )
@@ -283,7 +285,7 @@ library(sp)
 
 countries_sp <- read_rds("data/02_countries_sp.rds")
 
-# Print countries_sp
+
 # print(countries_sp)
 class(countries_sp)
 
@@ -477,6 +479,343 @@ save_tmap(my_map, filename = "population.html")
 ```
 
 
+# 3. Raster data and color
+
+While the sp package provides some classes for raster data, the raster package provides more useful classes. You'll be introduced to these classes and their advantages and then learn to display them. The examples continue with the theme of population from Chapter 2, but you'll look at some much finer detail datasets, both spatially and demographically. In the second half of the chapter you'll learn about color -- an essential part of any visual display, but especially important for maps.
+
+
+Data frames aren't a great way to store spatial data: 
+
+* No CRS information
+
+* Inefficient storage
+
+* Inefficient display
+
+A better structure for raster data: data matrix + information on grid + CRS
+
+
+The *raster* package: 
+
+* Easier import of rasters
+
+* large rasters aren't read into memory
+
+* provides functions for raster type operations
+
+* Uses S4 and when appropriate provides same functions
+
+## 3.1 What's a raster object? 
+
+```{r}
+data(pop)
+
+# Print pop
+pop
+
+# Call str on pop, with max.level = 2
+str(pop, max.level = 2)
+
+# Call cummary on pop
+summary(pop)
+
+
+```
+
+
+## 3.2 Some useful method
+
+*pop* is a *RasterLayer* object, which contains the population around the Boston and NYC areas. Each grid cell simply contains a count of the number of people that live inside that cell.
+
+You saw in the previous exercise that *print()* gives a useful summary of the object including the coordinate reference system, the size of the grid (both in number of rows and columns and geographical coordinates), and some basic info on the values stored in the grid. But it was very succinct; what if you want to see some of the values in the object?
+
+The first way is to simply *plot()* the object. There is a *plot()* method for *raster* objects that creates a heatmap of the values.
+
+If you want to extract the values from a *raster* object you can use the *values()* function, which pulls out a vector of the values. There are 316,800 values in the pop raster, so you won't want to print them all out, but you can use *str()* and *head()* to take a peek.
+
+```{r}
+# Call plot() on pop
+plot(pop)
+
+# Call str() on value(pop)
+str(values(pop))
+
+# call head
+head(values(pop))
+```
+
+## 3.3 A more complicated object
+
+The raster package provides the *RasterLayer* object, but also a couple of more complicated objects: *RasterStack* and *RasterBrick*. These two objects are designed for storing many rasters, all of the same extents and dimension (a.k.a. multi-band, or multi-layer rasters).
+
+You can think of *RasterLayer* like a matrix, but *RasterStack* and *RasterBrick* objects are more like three dimensional arrays. One additional thing you need to know to handle them is how to specify a particular layer.
+
+You can use *$* or *[[* subsetting on a RasterStack or RasterBrick to grab one layer and return a new RasterLayer object. For example, if x is a RasterStack, *x$layer_name* or x[["layer_name"]] will return a RasterLayer with only the layer called layer_name in it.
+
+Let's look at a RasterStack object called pop_by_age that covers the same area as pop but now contains layers for population broken into few different age groups.
+
+```{r}
+data("pop_by_age")
+
+# print pop_by_age
+pop_by_age
+
+# Subset out the under_1 layer using [[
+pop_by_age[["under_1"]]
+
+# Plot the under_1 layer
+plot(pop_by_age[["under_1"]])
+```
+
+## 3.4 A package that uses Raster objects
+
+You saw the tmap package makes visualizing spatial classes in sp easy. The good news is that it works with the raster classes too! You simply pass your Raster___ object as the shp argument to the tm_shape() function, and then add a tm_raster() layer like this:
+
+tm_shape(raster_object) +
+    tm_raster()
+When working with a RasterStack or a RasterBrick object, such as the pop_by_age object you created in the last exercise, you can display one of its layers using the col (short for "color") argument in tm_raster(), surrounding the layer name in quotes.
+
+You'll work with tmap throughout the course, but we also want to show you another package, rasterVis, also designed specifically for visualizing raster objects. There are a few different functions you can use in rasterVis to make plots, but let's just try one of them for now: levelplot().
+
+```{r}
+library(tmap)
+
+# Specify pop as the shp and add a tm_raster() layer
+tm_shape(pop) +
+  tm_raster()
+
+# Plot the under_1 layer in pop_by_age
+tm_shape(pop_by_age) +
+tm_raster(col = "under_1" )
+
+
+library(rasterVis)
+# Call levelplot() on pop
+levelplot(pop)
+```
+
+None of these plots are very informative, because the color scales aren't great. 
+
+
+## 3.5 Picking the right palette and Adding a custom continuous color palette to ggplot2 plots
+
+The most versatile way to add a custom continuous scale to ggplot2 plots is with scale_color_gradientn() or scale_fill_gradientn(). How do you know which to use? Match the function to the aesthetic you have mapped. For example, in your plot of predicted house price from Chapter 1, you mapped fill to price, so you'd need to use scale_fill_gradientn().
+
+These two functions take an argument colors where you pass a vector of colors that defines your palette. This is where the versatility comes in. You can generate your palette in any way you choose, automatically using something like RColorBrewer or viridisLite, or manually by specifying colors by name or hex code.
+
+The scale___gradientn() functions handle how these colors are mapped to values of your variable, although there is control available through the values argument.
+
+```{r}
+library(RColorBrewer)
+
+# 9 steps on the RColorBrewer "BuPu" palette: blups
+
+blups <- RColorBrewer::brewer.pal(n = 9, name = "BuPu")
+
+# Add scale_fill_gradientn() with the blups palette
+data(preds)
+
+ggplot(preds) +
+  geom_tile(aes(lon, lat, fill = predicted_price), alpha = 0.8) +
+  scale_fill_gradientn(colors = blups)
+
+
+
+library(viridisLite)
+# viridisLite viridis palette with 9 steps: vir
+vir <- viridis(n = 9)
+
+# Add scale_fill_gradientn() with the vir palette
+ggplot(preds) +
+  geom_tile(aes(lon, lat, fill = predicted_price), alpha = 0.8)  +
+  scale_fill_gradientn(colors = vir)
+
+
+# mag: a viridisLite magma palette with 9 steps
+mag <- magma(n = 9)
+
+# Add scale_fill_gradientn() with the mag palette
+ggplot(preds) +
+  geom_tile(aes(lon, lat, fill = predicted_price), alpha = 0.8) +
+  scale_fill_gradientn(colors = mag)
+```
+
+Great work! If you know you want a RColorBrewer palette, there is a shortcut. Add scale_xxx_distiller and you only need to specify the palette name in the palette argument. See ?scale_fill_distiller
+
+
+## 3.6 Custom palette in tmap
+
+Unlike *ggplot2*, where setting a custom color scale happens in a *scale_* call, colors in *tmap* layers are specified in the layer in which they are mapped. For example, take a plot of the age_18_24 variable from prop_by_age:
+
+*tm_shape(prop_by_age) +*
+  *tm_raster(col = "age_18_24")* 
+  
+Since color is mapped in the *tm_raster()* call, the specification of the palette also occurs in this call. You simply specify a vector of colors in the palette argument. This is a another reason it's worth learning ways to generate a vector of colors. While different packages could have very different shortcuts for specifying palettes from color packages, they will generally always have a way to pass in a vector of colors.
+
+```{r}
+# Generate palettes from last time
+library(RColorBrewer)
+blups <- brewer.pal(9, "BuPu")
+
+library(viridisLite)
+vir <- viridis(9)
+mag <- magma(9)
+
+# Use the blups palette
+data(prop_by_age)
+
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = blups) +
+  tm_legend(position = c("right", "bottom"))
+
+# Use the vir palette
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = vir) +
+  tm_legend(position = c("right", "bottom"))
+
+# Use the mag palette but reverse the order
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = rev(mag)) +
+  tm_legend(position = c("right", "bottom"))
+```
+
+
+## 3.7 An interval scale example
+
+
+Let's return to your plot of the proportion of the population that is between 18 and 24:
+
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = vir) +
+  tm_legend(position = c("right", "bottom"))
+  
+Your plot was problematic because most of the proportions fell in the lowest color level and consequently you didn't see much detail in your plot. One way to solve this problem is this: instead of breaking the range of your variable into equal length bins, you can break it into more useful categories.
+
+Let's start by replicating the tmap default bins: five categories, cut using "pretty" breaks. Then you can try out a few of the other methods to cut a variable into intervals. Using the classIntervals() function directly gives you quick feedback on what the breaks will be, but the best way to try out a set of breaks is to plot them.
+
+(As an aside, another way to solve this kind of problem is to look for a transform of the variable so that equal length bins of the transformed scale are more useful.)
+
+
+```{r}
+mag <- viridisLite::magma(7)
+
+library(classInt)
+
+# Create 5 "pretty" breaks with classIntervals()
+classIntervals(values(prop_by_age[["age_18_24"]]), n = 5, style = "pretty")
+
+
+# Create 5 "quantile" breaks with classIntervals()
+classIntervals(values(prop_by_age[["age_18_24"]]), n = 5, style = "quantile")
+
+
+# Use 5 "quantile" breaks in tm_raster()
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = mag, n = 5, style = "quantile") +
+  tm_legend(position = c("right", "bottom"))
+
+# Create histogram of proportions
+hist(values(prop_by_age[["age_18_24"]]))
+
+# Use fixed breaks in tm_raster()
+tm_shape(prop_by_age) +
+  tm_raster("age_18_24", palette = mag,
+    style = "fixed", breaks = c(0.025, 0.05, 0.1, 0.2, 0.25, 0.3, 1))
+
+# Save your plot to "prop_18-24.html"
+save_tmap(filename = "prop_18-24.html")
+```
+
+## 3.8 A diverging scale example
+
+Let's take a look at another dataset where the default color scale isn't appropriate. This raster, migration, has an estimate of the net number of people who have moved into each cell of the raster between the years of 1990 and 2000. A positive number indicates a net immigration, and a negative number an emigration. Take a look:
+
+tm_shape(migration) +
+  tm_raster() +
+  tm_legend(outside = TRUE, 
+            outside.position = c("bottom"))
+The default color scale doesn't look very helpful, but tmap is actually doing something quite clever: it has automatically chosen a diverging color scale. A diverging scale is appropriate since large movements of people are large positive numbers or large (in magnitude) negative numbers. Zero (i.e. no net migration) is a natural midpoint.
+
+tmap chooses a diverging scale when there are both positive and negative values in the mapped variable and chooses zero as the midpoint. This isn't always the right approach. Imagine you are mapping a relative change as percentages; 100% might be the most intuitive midpoint. If you need something different, the best way to proceed is to generate a diverging palette (with an odd number of steps, so there is a middle color) and specify the breaks yourself.
+
+```{r}
+# print migration  to verify this is a RasterLayer object and take a look at the range in migration values.
+data("migration")
+migration
+
+# Diverging "RdGy" pallette
+red_gray <- brewer.pal(n = 7, name = "RdGy")
+
+
+# Use red_gray as the palette 
+tm_shape(migration) +
+  tm_raster(palette = red_gray) +
+  tm_legend(outside = TRUE, outside.position = c("bottom"))
+
+# Add fixed breaks 
+tm_shape(migration) +
+  tm_raster(palette = red_gray, style = "fixed", breaks = c(-5e6, -5e3, -5e2, -5e1, 5e1, 5e2, 5e3, 5e6)) +
+  tm_legend(outside = TRUE, outside.position = c("bottom"))
+
+```
+
+## 3.9 A qualitative example 
+
+Finally, let's look at an example of a categorical variable. The land_cover raster contains a gridded categorization of the earth's surface. Have a look at land_cover by printing it:
+
+land_cover
+You will notice that the values are numeric, but there are attributes that map these numbers to categories (just like the way factors work).
+
+Choosing colors for categorical variables depends a lot on the purpose of the graphic. When you want the categories to have roughly equal visual weight -- that is, you don't want one category to stand out more than the others -- one approach is to use colors of varying hues, but equal chroma (a measure of vibrancy) and lightness (this is default for discrete color scales in ggplot2 and can be generated using the hcl() function).
+
+The RColorBrewer qualitative palettes balance having equal visual weight colors with ease of color identification. The "paired" and "accent" schemes deviate from this by providing pairs of colors of different lightness and a palette with some more intense colors that may be used to highlight certain categories, respectively.
+
+For this particular data, it might make more sense to choose intuitive colors, like green for forest and blue for water. Whichever is more appropriate, setting new colors is just a matter of passing in a vector of colors through the palette argument in the corresponding tm_*** layer.
+
+
+```{r}
+library(raster)
+
+# Plot land_cover
+data("land_cover")
+
+tm_shape(land_cover) + 
+  tm_raster()
+
+
+# Palette like the ggplot2 default
+hcl_cols <- hcl(h = seq(15, 375, length = 9),
+                c = 100, l = 65)[-9]
+
+# Use hcl_cols as the palette
+tm_shape(land_cover) +
+  tm_raster(palette = hcl_cols)
+
+
+# Examine levels of land_cover
+levels(land_cover)
+
+# A set of intuitive colors
+intuitive_cols <- c(
+  "darkgreen",
+  "darkolivegreen4",
+  "goldenrod2",
+  "seagreen",
+  "wheat",
+  "slategrey",
+  "white",
+  "lightskyblue1"
+)
+
+# Use intuitive_cols as palette
+tm_shape(land_cover) +
+  tm_raster(palette = intuitive_cols) + 
+  tm_legend(position = c("left", "bottom"))
+
+
+```
+
+
 
 # 4. Data Import and Projections 
 
@@ -649,14 +988,189 @@ data("nyc_income")
 str(nyc_income)
 
 # ...and on nyc_tracts@data
+nyc_tracts <- tigris::tracts(state = "NY", county = "New York", cb = TRUE)
+
 str(nyc_tracts@data)
 
 # Highlight tract 002201 in nyc_tracts
 plot(nyc_tracts)
 plot(nyc_tracts[nyc_tracts$TRACTCE == "002201", ], 
      col = "red", add = TRUE)
+     
+# Set nyc_tracts@data to nyc_income
+nyc_tracts@data <- nyc_income
+
+# Highlight tract 002201 again
+plot(nyc_tracts)
+plot(nyc_tracts[nyc_tracts$tract == "002201", ], 
+     col = "red", add = TRUE)
+
+```
+
+## 4.7 Checking data will match
+Forcing your data into the data slot doesn't work because you lose the correct correspondence between rows and spatial objects. How do you add the income data to the polygon data? The merge() function in sp is designed exactly for this purpose.
+
+You might have seen merge() before with data frames. sp::merge() has almost the exact same structure, but you pass it a Spatial*** object and a data frame and it returns a new Spatial*** object where the data slot is now a merge of the original data slot and the data frame. To do this merge, you'll require both the spatial object and data frame to have a column that contains IDs to match on.
+
+Both nyc_tracts and nyc_income have columns with tract IDs, so these are great candidates for merging the two datasets. However, it's always a good idea to check that the proposed IDs are unique and that there is a match for every row in both datasets.
+
+```{r}
+
+# Check for duplicates in nyc_income
+any(duplicated(nyc_income$tract))
+
+# Check for duplicates in nyc_tracts
+any(duplicated(nyc_tracts$TRACTCE))
+
+# Check nyc_tracts in nyc_income
+all(nyc_tracts$TRACTCE %in% nyc_income$tract)
+
+# Check nyc_income in nyc_tracts
+all(nyc_income$tract %in% nyc_tracts$TRACTCE)
+
+```
+
+Looks like the tract column in nyc_income and the TRACTCE column in nyc_income are ideal for merging on.
+
+## 4.8 Merging data attributes
+
+```{r}
+library(sp)
+library(tmap)
+
+# Merge nyc_tracts and nyc_income: nyc_tracts_merge
+nyc_tracts_merge <- merge(nyc_tracts, nyc_income, by.x = "TRACTCE", by.y = "tract")
+
+# Call summary() on nyc_tracts_merge
+summary(nyc_tracts_merge)
+
+# Choropleth with col mapped to estimate
+tm_shape(shp = nyc_tracts_merge) +
+  tm_fill( col = 'estimate')
+```
+
+## 4.9 A first plot
+
+So far, you've read in some spatial files, transformed spatial data to the same projection, and merged a data frame with a spatial object. Time to put your work together and see how your map looks. For each dataset, you need a tm_shape() call to specify the data source, followed by a tm_* layer (like tm_fill(), tm_borders() or tm_bubbles()) to draw on the map.
+
+First, you'll add the neighborhoods and water areas to your plot from the previous exercise.
+
+```{r}
+data("water")
+data('neighborhoods')
+
+library(tmap)
+
+tm_shape(nyc_tracts_merge) +
+  tm_fill(col = "estimate") +
+  # Add a water layer, tm_fill() with col = "grey90"
+  tm_shape(water) +
+  tm_fill(col = "grey90") +
+  #Add a neighborhood layer, tm_borders()
+  tm_shape(neighborhoods) +
+  tm_borders()
+```
+
+## 4.10 Subsetting the neighborhoods
+
+You don't need all those extraneous neighborhoods in New York, so you'll subset out just the neighborhoods in New York County. You already know how!
+
+neighborhoods is a SpatialPolygonsDataFrame and you learned back in Chapter 2 how to subset based on the column in the data slot. The key was creating a logical vector, then subsetting the SpatialPolygonsDataFrame like a data frame.
+
+How can you identify the right neighborhoods? Check out:
+
+head(neighborhoods@data)
+The CountyFIPS is a numeric code that identifies the county. If you can figure out the code for New York County, you can keep just the rows with that value.
+
+
+```{r}
+library(tmap)
+
+# Find unique() nyc_tracts_merge$COUNTYFP
+unique(nyc_tracts_merge$COUNTYFP)
+
+# Add logical expression to pull out New York County
+head(neighborhoods@data)
+manhat_hoods <- neighborhoods[neighborhoods$CountyFIPS == "061", ]
+
+tm_shape(nyc_tracts_merge) +
+  tm_fill(col = "estimate") +
+  tm_shape(water) +
+  tm_fill(col = "grey90") +
+  # Edit to use manhat_hoods instead
+  tm_shape(manhat_hoods) +
+  tm_borders() +
+  # Add a tm_text() layer
+  tm_text("NTAName")
+  
+    
+```
+
+## 4.11 Adding neighborhood labels
+
+The neighborhood labels are so long and big they are obscuring our data. Take a look at manhat_hoods$NTAName. You'll see some neighborhoods are really the combination of a couple of places. One option to make the names a little more concise is to split them into a few lines. For example, turning
+
+Midtown-Midtown South
+into
+
+Midtown /
+Midtown 
+South
+
+To do this, you can make use of the gsub() function in base R. gsub() replaces the first argument by the second argument in the strings provided in the third argument. For example, gsub("a", "A", x) replaces all the "a"s in x with "A".
+
+You also might play with the size of the text to shrink the impact of the neighborhood names.
+
+```{r}
+library(tmap)
+
+# gsub() to replace " " with "\n"
+manhat_hoods$name <- gsub(" ", "\n", manhat_hoods$NTAName)
+
+# gsub() to replace "-" with "/\n"
+manhat_hoods$name <- gsub("-", "/\n", manhat_hoods$name)
+
+# Edit to map text to name, set size to 0.5
+tm_shape(nyc_tracts_merge) +
+    tm_fill(col = "estimate") +
+  tm_shape(water) +
+    tm_fill(col = "grey90") +
+  tm_shape(manhat_hoods) +
+    tm_borders() +
+    tm_text(text = "name", size = 0.5)
+```
+
+## 4.12 Tidying up the legend and some final tweaks
+
+Time for some final tweaks and then to save your plot.
+
+Every element in your plot is a target for tweaks. Is it the right color? Is it the right size? Does it have intuitive labels? Your goal is to emphasize the data and de-emphasise the non-data elements.
+
+We've got some ideas for this plot. Let's tweak a few things.
 
 
 
+```{r}
+library(tmap)
+
+tm_shape(nyc_tracts_merge) +
+  # Add title and change palette
+  tm_fill(col = "estimate", 
+          title = "Median Income",
+          palette = "Greens") +
+  # Add tm_borders()
+  tm_borders(col = "grey60", lwd = 0.5) +
+  tm_shape(water) +
+  tm_fill(col = "grey90") +
+  tm_shape(manhat_hoods) +
+  # Change col and lwd of neighborhood boundaries
+  tm_borders(col = "grey40", lwd = 2) +
+  tm_text(text = "name", size = 0.5) +
+  # Add tm_credits()
+  tm_credits("Source: ACS 2014 5-year Estimates, \n accessed via acs package", position = c("right", "bottom"))
+  
+        
+# Save map as "nyc_income_map.png"
+tmap_save(filename = "nyc_income_map.png", width = 4, height = 7)
 ```
 

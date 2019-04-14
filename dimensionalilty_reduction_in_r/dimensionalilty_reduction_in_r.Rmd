@@ -1,0 +1,755 @@
+---
+title: "Dimensionality Reduction in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+"Real-world datasets often include values for dozens, hundreds, or even thousands of variables. Our minds cannot efficiently process such high-dimensional datasets to come up with useful, actionable insights. How do you deal with these multi-dimensional swarms of data points? How do you uncover and visualize hidden patterns in the data? In this course, you'll learn how to answer these questions by mastering three fundamental dimensionality reduction techniques - Principal component analysis (PCA), non-negative matrix factorisation (NNMF), and exploratory factor analysis (EFA)."
+
+Ref: Tantos, Alexandros. 2019. "Dimensionality Reduction in R", www.datacamp.com, 2019. 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(ade4)
+```
+
+# 1. Principal component analysis (PCA)
+
+As a data scientist, you'll frequently have to deal with messy and high-dimensional datasets. In this chapter, you'll learn how to use Principal Component Analysis (PCA) to effectively reduce the dimensionality of such datasets so that it becomes easier to extract actionable insights from them.
+
+Explaining data variations and handling correlation efficiently are the two key reasons for conducting dimentionality reduction. 
+
+# 1.1 Exploring multivariate data
+
+We've loaded a data frame called cars into your workspace. Go ahead and explore it! It includes features of a big range of brands of cars from 2004. In this exercise, you will explore the dataset and attempt to draw useful conclusions from the correlation matrix. Recall that correlation reveals feature resemblance and it will help us infer how cars are related to each other based on their features' values. To this end, you will discover how difficult it is to trace patterns based solely on the correlation structure.
+
+```{r}
+# PM2.5 Using Hourly Measurements of Elemental Tracers and Major Constituents in an Urban Environment (Dr. Yu 2018)
+# ref: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2017JD027877
+
+pm25_yu_2018 <- read_csv("data/jgrd54605-sup-0002-dataset_s1.csv", skip = 1) %>%
+  clean_names()
+
+dim(pm25_yu_2018)
+# summary
+summary(pm25_yu_2018)
+
+# Get the correlation matrix with cor()
+correl <- cor(pm25_yu_2018[, -1], use = "complete.obs")
+
+# Use ggcorrplot() to explore the correction matrix
+ggcorrplot::ggcorrplot(correl)
+
+# conduct hierarchical clustering on the correlation matrix
+ggcorrplot_clustered <- ggcorrplot::ggcorrplot(correl, hc.order = TRUE, type = "lower")
+ggcorrplot_clustered
+
+# Produce a matrix of plots
+selected_data <- pm25_yu_2018 %>% select(pm2_5, no3, nh4, cr, ni, oc, ec, cu, ca, ba)
+
+gg <- GGally::ggpairs(data = selected_data)
+#gg
+
+```
+
+## 1.2 Getting PCA to working with FactoMineR
+
+conceptually   --> practically
+
+* Removes correlation  --> Decomposes the correlation matrix
+
+* Extracts new dimensions (principal components) --> changes the coordinate system
+
+* Reveals the true dimenstionality of the data --> helps reduce the number of dimensions
+
+
+**PCA: The five steps to perform**
+
+Centering --> standardisation --> rotation --> projection --> Reduction
+
+Pre-processing steps --> changes of coordinate system --> Explained variance
+
+
+
+*FactoMineR* is a very useful package, rich in functionality, that implements a number of dimensionality reduction methods. Its function for doing PCA is *PCA()* - easy to remember! Recall that *PCA()*, by default, generates 2 graphs and extracts the first 5 PCs. You can use the ncp argument to manually set the number of dimensions to keep.
+
+You can also use the *summary()* function to get a quick overview of the indices of the first three principal components. Moreover, for extracting summaries of some of the rows in a dataset, you can specify the *nbelements* argument. You'll have a chance to practice all of these and more in this exercise!
+
+```{r}
+# FactoMineR
+library(FactoMineR)
+
+# Run a PCA
+pca_output_v <- PCA(X = pm25_yu_2018[, -1], 
+                    scale.unit = TRUE, 
+                    ncp = 5)
+
+# Get the summary of the first 100 data points
+summary(pca_output_v, nbelements = 100)
+
+# Get the variance of the first 3 new dimensions
+pca_output_v$eig[,2][1:3]
+
+# Get the cumulative variance.
+pca_output_v$eig[,3][1:3]
+```
+
+
+## 1.3 Exploring PCA()
+
+*PCA()* provides great flexibility in its usage. You can choose to ignore some of the original variables or individuals in building a PCA model by supplying *PCA()* with the *ind.sup* argument for supplementary individuals and *quanti.sup* or *quali.sup* for quantitative and qualitative variables respectively. Supplementary individuals and variables are rows and variables of the original data ignored while building the model.
+
+Your learning objectives in this exercise are:
+
+* To conduct PCA considering parts of a dataset
+
+* To inspect the most correlated variables with a specified principal component
+
+* To find the contribution of variables in the designation of the first 5 principal components
+
+```{r}
+
+# Get the most correlated variables
+dimdesc(pca_output_v, axes = 1:2)
+
+
+# Run a PCA on the first 100 observation
+pca_output_hundred <- PCA(pm25_yu_2018[, -1], ind.sup = 101:nrow(pm25_yu_2018))
+
+# Trace variable contributions in pca_output_hundred
+pca_output_hundred$var$contrib
+
+```
+
+## 1.4 PCA with ade4
+
+Alright! Now that you've got some real hands-on experience with *FactoMineR*, let's have a look at *ade4*, a well-known and well-maintained R package with a large number of numerical methods for building and handling PCA models. *dudi.pca()* is the main function that implements PCA for *ade4* and by default, it is interactive: It lets the user insert the number of retained dimensions. For suppressing the interactive mode and inserting the number of axes within the *dudi.pca()* function, you need to set the *scannf* argument to *FALSE* and then use the *nf* argument for setting the number of axes to retain. So, let's put *ade4* into practice and compare it with *FactoMineR*.
+
+
+```{r}
+# Run a PCA using the 10 non-binary numeric variables.
+pm25_pca <- ade4::dudi.pca(pm25_yu_2018[, -1], scannf = FALSE, nf = 4)
+
+# Explore the summary of cars_pca.
+summary(pm25_pca)
+
+# Explore the summary of pca_output_ten_v.
+summary(pca_output_v)
+```
+
+## 1.5 Plotting cos2
+
+You're getting the hang of PCA now! As Alex demonstrated in the video, an important index included in your PCA models is the squared cosine, abbreviated in *FactoMineR* and *factoextra* as *cos2*. This shows how accurate the representation of your variables or individuals on the PC plane is.
+
+The *factoextra* package is excellent at handling PCA models built using *FactoMineR*. Here, you're going to explore the functionality of *factoextra*. You'll be using the *pca_output_all* object that you computed earlier and create plots based on its cos2. Visual aids are key to understanding cos2.
+
+
+```{r}
+# Create a factor map for the variables.
+factoextra::fviz_pca_var(pca_output_v, select.var = list(cos2 = 0.7), repel = TRUE)
+
+# Modify the code to create a factor map for the individuals.
+factoextra::fviz_pca_ind(pca_output_v,  select.ind = list(cos2 = 0.7), repel = TRUE)
+
+# Create a barplot for the variables with the highest cos2 in the 1st PC.
+factoextra::fviz_cos2(pca_output_v, 
+                      choice = "var", 
+                      axes = 1, 
+                      top = 10)
+
+# Create a barplot for the variables with the highest cos2 in the 2nd PC.
+factoextra::fviz_cos2(pca_output_v, 
+                      choice = "var", 
+                      axes = 2, 
+                      top = 10)
+```
+
+
+## 1.6 Plotting contributions
+
+In this exercise, you will be asked to prepare a number of plots to help you get a better feeling of the variables' contributions on the extracted principal components. It is important to keep in mind that the contributions of the variables essentially signify their importance for the construction of a given principal component.
+
+```{r}
+# Create a factor map for the top 5 variables with the highest contributions.
+factoextra::fviz_pca_var(pca_output_v, 
+                         select.var = list(contrib = 10), 
+                         repel = TRUE)
+
+# Create a factor map for the top 5 individuals with the highest contributions.
+factoextra::fviz_pca_ind(pca_output_v, 
+                         select.ind = list(contrib = 5) , 
+                         repel = TRUE)
+
+# Create a barplot for the variables with the highest contributions to the 1st PC.
+factoextra::fviz_contrib(pca_output_v, 
+                         choice = "var",
+                         axes = 1,
+                         top = 9)
+
+# Create a barplot for the variables with the highest contributions to the 2nd PC.
+factoextra::fviz_contrib(pca_output_v, 
+                         choice = "var",
+                         axes = 2,
+                         top = 9)
+
+```
+
+Now, you know what it means that a variable is important in the extraction of the principal components! You could compare the two different graphs.
+
+
+## 1.7 Biplots and their ellipsoids
+
+As mentioned in the video, biplots are graphs that provide a compact way of summarizing the relationships between individuals, variables, and also between variables and individuals within the same plot. Moreover, ellipsoids can be added on top of a biplot and offer a much better overview of the biplot based on the groupings of variables and individuals.
+
+In this exercise, your job is to create biplots and ellipsoids using *factoextra*'s graphical utilities.
+
+
+```{r}
+# Create a biplot with no labels for all individuals with the geom argument.
+factoextra::fviz_pca_biplot(pca_output_v)
+
+# Create ellipsoids for wheeltype columns respectively.
+factoextra::fviz_pca_ind(pca_output_v, addEllipses = TRUE)
+
+# Create the biplot with ellipsoids
+factoextra::fviz_pca_biplot(pca_output_v, addEllipses = TRUE, alpha.var = "cos2")
+
+```
+
+
+# 2. Advanced PCA & Non-negative matrix factorization (NNMF)
+
+Here, you'll build on your knowledge of PCA by tackling more advanced applications, such as dealing with missing data. You'll also become familiar with another essential dimensionality reduction technique called Non-negative matrix factorization (NNMF) and how to use it in R.
+
+
+Choosing the right number of PCs: 
+
+* The Scree test
+
+* The Kaiser-Guttman rule
+
+* Paralle analysis
+
+## 2.1 The Kaiser-Guttman rule and the scree test
+
+```{r}
+# air quality in R
+airquality2 <- airquality %>%
+  na.omit()
+
+head(airquality2)
+summary(airquality2)
+dim(airquality2)
+
+
+# conduct a PCA on the airquality dataset
+pca_air <- PCA(airquality2)
+
+
+# Apply the Kaiser-Guttman rule
+summary(pca_air, ncp = 4)
+
+
+# Perform the screeplot test
+factoextra::fviz_screeplot(pca_air, ncp = 5)
+```
+
+
+2.2 Parallel Analysis with paran()
+
+In this exercise, you will use two R functions for conducting parallel analysis for PCA:
+
+*paran()* of the paran package and *fa.parallel()* of the *psych* package.
+
+*fa.parallel()* has one advantage over the *paran()* function; it allows you to use more of your data while building the correlation matrix. On the other hand, *paran()* does not handle missing data and you should first exclude missing values before passing the data to the function. For checking out the suggested number of PCs to retain, *fa.parallel()'s* output object includes the attribute ncomp.
+
+The built-in R dataset airquality, on which you will be doing your parallel analyses, describes daily air quality measurements in New York from May to September 1973 and includes missing values.
+
+
+```{r}
+# Subset the complete rows of airquality.
+airquality_complete <- airquality[complete.cases(airquality), ]
+
+# Conduct a parallel analysis with paran().
+air_paran <- paran::paran(airquality_complete, seed = 1)
+
+# Check out air_paran's suggested number of PCs to retain.
+air_paran$Retained
+
+# Conduct a parallel analysis with fa.parallel().
+air_fa_parallel <- psych::fa.parallel(airquality)
+
+# Check out air_fa_parallel's suggested number of PCs to retain.
+air_fa_parallel$Retained
+```
+
+## 2.2 Estimating missing values with missMDA
+
+As you saw in the video, In R, there are two packages for conducting *PCA* to a dataset with missing values; *pcaMethods* and *missMDA*. In this exercise, you are going to use the first method introduced in the video: combining *missMDA* and *FactoMineR*. Both packages are loaded for you in this exercise.
+
+The two-step procedure includes a) the estimation of missing values by using an iterative PCA algorithm in the first place and b) number of dimensions for PCA by cross-validation.
+
+In this exercise, you will be working with the ozone dataset of the missMDA package that includes 112 daily measurements of meteorological variables (wind speed, temperature, rainfall, etc.) and ozone concentration recorded in Rennes (France) during the summer 2001.
+
+```{r}
+library(missMDA)
+# Check out the number of cells with missing values.
+data(ozone)
+sum(is.na(ozone[,1:11]))
+
+summary(ozone)
+
+# Estimate the optimal number of dimensions for imputation.
+ozone_ncp <- estim_ncpPCA(ozone[,1:11]) 
+
+# Do the actual data imputation. 
+complete_ozone <- imputePCA(ozone[,1:11], ncp = ozone_ncp$ncp, scale = TRUE)
+names(complete_ozone)
+
+# summary of complete_ozone
+summary(complete_ozone$fittedX)
+summary(complete_ozone$completeObs)
+```
+
+
+## 2.3 N-NMF and topic detection with nmf()
+
+N-NMF: Tearing the data apart
+
+m x n into:  Bases matrix:  m x r,  and coefficients matrix: r x n 
+
+Objective function for minimizing: 
+
+* The square of the Euclidean distance
+
+* Kullback-Leibler divergence
+
+
+Text mining and dimensionality reduction: 
+
+What is topci modeling? 
+
+* Unsupervised approach to automatically identify topics
+
+* Topics are cluster of words that frequently occure together
+
+Why is dimensionality reduction important? 
+
+* Data sparseness of frequency data
+
+* Word co-occurrence
+
+* Identifies topics with the new *r* dimensions
+
+
+### 2.3.1 NMF package 
+
+```{r}
+library(NMF)
+```
+
+### 2.3.2 Nonnegative Matrix Factorization
+
+Let X be a n x P non-negative matrix, Non-negative matrix Factorization (NMF) consists in fiding an approximation: 
+
+$$X = WH$$
+
+Where W, H are n x r and r x p non-negative matrices, respectively. In practice, the factorization rand r is ofter chosen such that r << min(n, p). 
+
+Depending on the application field, these factors are given different names: basis images, metagenes, source signals. 
+
+```{r}
+# list all avaialable algorithms
+nmfAlgorithm()
+
+# Retrive a specific algorithm: "brunet"
+nmfAlgorithm('brunet')
+```
+
+
+### 2.3.3 Initialization: seeding methods 
+Seed: Wo and Ho.
+
+Because there is no global minimization algorithm, and due to the problem's high dimensionality, the choice of the initialization is in fact very important to ensure meaningsul result. 
+
+```{r}
+# list all available seeding methods
+nmfSeed()
+
+# How to cite the package NMF
+citation("NMF")
+```
+
+## 2.4 Topic detection with N-NMF: part 1
+
+In the next two exercises, you will be detecting topics in corpora. *corpus_tdm* (3137 x 50) is loaded into your workspace, a term-document matrix of 50 texts sampled from the BBCsport dataset, classified in 5 different subject areas (i.e. athletics, cricket, football, rugby, tennis). For getting a verbose output of the *nmf()* output with details about the runtime and the number of iterations required while processing, you simply need to set its *.options* argument to *"v"*.
+
+In this exercise, your goal is to extract the *basis* matrix, *W*. The columns of W can be easily interpreted as the conditional probabilities of the terms in a corpus given a topic, if we normalize their column values to sum to 1. We have prepared and loaded the function normal() for you that achieves just that.
+
+```{r, eval=FALSE}
+# Get a 5-rank approximation of corpus_tdm.
+bbc_res <- nmf(corpus_tdm, 5, .options = 'v')
+
+# Get the term-topic matrix W.
+W <- basis(bbc_res)
+
+# Check out the dimensions of W.
+dim(W)
+
+# Normalize W.
+normal_W <- apply(W, 2, normal)
+```
+
+## 2.5 Topic detection with N-NMF: Part II
+
+The next step in topic detection is to extract the topic-text, or coefficient matrix, *H*. The columns of H can be interpreted as the conditional probabilities of the topics given a corpus of texts, respectively, if we normalize their column values to sum to 1. We have prepared and loaded for you that achieves just that. bbc_res, the 5-rank approximation of corpus_tdm created in the last exercise, is at your disposal as well as the function normal() for achieving the normalization.
+
+```{r}
+# Get the topic-text matrix H.
+H <- coef(bbc_res)
+
+# Check out the dimensions of H.
+dim(H)
+
+# Normalize H.
+normal_H <- apply(H, 2, normal)
+```
+
+## 2.6 Trying different N-NMF algorithms
+
+The main differences between the algorithms are in the computation of the objective function and the optimization techniques used for the update steps. By default, the NMF package runs *brunet*, but you can choose any of the 11 algorithms implemented within the *NMF* package, and put it as the third argument of *nmf()*. For browsing through the available N-NMF algorithms implemented in NMF you can simply use the *nmfAlgorithm()* function. Using *nmfAlgorithm()* without arguments, a vector with all the 11 algorithms, optimized in C++, is returned. For extracting the older versions of some of these algorithms, written in R, you can use the version argument and set it to R in order to get the older versions. Let's put all this into practice!
+
+```{r}
+# Explore the nmf's algorithms
+alg <- nmfAlgorithm()
+alg
+
+# Choose the old implementations of the algorithms, written in R, and store the result to R_alg. Check out which of the arguments of the relevant function is the correct for picking R's version of the algorithms.
+R_alg <- nmfAlgorithm(version = "R")
+R_alg
+
+# Get a 5-rank approximation of corpus_tdm.
+bbc_double_opt <- nmf(corpus_tdm, rank = 5, method = R_alg, .options = 'v')
+
+```
+
+## 2.7 Air quality data nmf
+
+```{r}
+# data 
+head(pm25_yu_2018)
+
+# mass balance closure
+pm25_yu_2018_2 <- pm25_yu_2018 %>%
+  mutate(oc = 1.9 * oc) %>%
+  select(time, pm2_5, everything()) %>%
+  mutate(comp_sum = select(., k:ec) %>% rowSums(na.rm = TRUE))
+  
+
+# plot 
+
+pm25_yu_2018_2 %>%
+  ggplot(aes(x = pm2_5, y = comp_sum)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, col = "red", linetype = "dashed")
+
+
+
+# transpose 
+t_pm25_yu_2018 <- t(pm25_yu_2018 %>% select(-c(time, pm2_5))) %>% 
+  as.data.frame() %>%
+  set_names(nm = t(pm25_yu_2018[, 1]))
+
+# Get a 5-rank approximation of air quality data
+air_nmf_output <- nmf(x = t_pm25_yu_2018, rank = 5)
+
+# Get the term-topic matrix W.
+W <- basis(air_nmf_output)
+
+# 
+head(W)
+view(W)
+plot(W)
+
+non# Get the topic-text matrix H.
+H <- coef(air_nmf_output)
+
+# Check out the dimensions of H.
+dim(H)
+
+head(H)
+
+
+plot(air_nmf_output)
+view(H)
+
+
+```
+
+
+# 3. Exploratory factor analysis (EFA)
+
+Become familiar with exploratory factor analysis (EFA), another dimensionality reduction technique that is a natural extension to PCA.
+
+
+**Steps to perform EFA**:
+
+* Check for data factorability
+
+* Extract factors
+
+* Choose the "right" number of factors to retain
+
+* Rotate factors
+
+* Interpret the results
+
+
+## 3.1 The Humor Styles Questionnaire dataset
+
+Two data frames - *hsq* and *hsq_correl* - have been loaded. *hsq* contains the Humor Styles Questionnaire [HSQ] dataset, which includes responses from 1071 participants on 32 questions. We also calculated the polychoric correlation for you using the *mixedCor()* function of the *psych* package:
+
+hsq_correl <- mixedCor(humor_styles, c=NULL, p=1:32)
+
+Polychoric correlation is the correlation between ordinal variables. Above, we indicated that columns 1 to 32 are ordinal by specifying p, and that there are no numeric variables by setting c to NULL.
+
+Another way of calculating polychoric correlations is by using the *hetcor()* function of the *polycor* package. It stores the correlation matrix in the *correlations* attribute of the calculated object.
+
+```{r}
+dir("data/")
+
+# read data
+hsq <- read_delim("data/humor_dataset.csv", delim = ";") %>%
+  filter(age < 100) %>%
+  select(Q1:Q32) 
+
+# check out the data
+head(hsq)
+summary(hsq)
+dim(hsq)
+
+# Calculate the polychoric correlation 
+hsq_correl <- psych::mixedCor(hsq, c = NULL, p = 1:32)
+
+# Explore teh correlation object hsq_correl
+str(hsq_correl)
+
+# Getting the correlation matrix of the dataset.
+hsq_polychoric <- hsq_correl$rho
+
+# Explore the correlation structure of the dataset.
+ggcorrplot::ggcorrplot(hsq_polychoric)
+```
+
+## 3.2 How Factorable is our Dataset?
+
+As mentioned in the video, before reducing dimensions with EFA, we first need to make sure that our dataset is factorable. In other words, the first step in performing *EFA* is to check whether it is even worth doing it. This dilemma is captured by the following question: Is there sufficient correlation among the observed variables of our dataset to allow for dimensionality reduction in the first place?
+
+*hsq_polychoric*, calculated with the *hetcor()* function of the *polycor* package, is the correlation matrix of the Humor Styles Questionnaire [HSQ] dataset that you will be working throughout this and part of the next chapter.
+
+In this exercise, your mission is to decide whether HSQ is factorable enough to allow an EFA.
+
+```{r}
+# Apply the Bartlett sphericity test on hsq_polychoric. For an EFA to be considered suitable, the Bartlett sphericity test result must be less than 0.05 to be deemed statistically significant.
+library(polycor)
+psych::cortest.bartlett(hsq_polychoric)
+
+# The second test we will use is the Kaiser-Meyer-Olkin (KMO) measure of sampling adequacy. Recall that the closer the value to 1 is the more effectively and reliably the reduction will be. Notice the indices for each variable in the output.
+
+psych::KMO(hsq_polychoric)
+```
+Both the p.value attribute of cortest.bartlett()'s output is very much lower than 0.05 and the MSA attribute of KMO()'s output, 0.87, is close to 1, which means that they both recommend that EFA.
+
+
+## 3.3 EFA with MinRes and MLE
+
+It is about time to turn our attention to creating our first *EFA* model object. As mentioned in the video, the default extraction method in the *fa()* function of the *psych* package is minimum residuals, *minres*. Recall that *fa()* takes as its main argument either a dataframe or a correlation matrix. In this exercise, your job is to manipulate the values of the function's default arguments and inspect the EFA model object's attributes to find out which of the variables load well on the 4 factors that we choose to extract below.
+
+For conducting EFA, you will use the correlation matrix hsq_polychoric, loaded in your workspace and calculated with the *mixedCor()* function on our initial dataset, hsq.
+
+```{r}
+library(psych)
+
+# EFA with 4 factors. 
+f_hsq <- fa(hsq_polychoric, nfactors = 4)
+
+# Inspect the resulting EFA object.
+str(f_hsq, max.level = 2)
+""
+# Use maximum likelihood for extracting factors.
+fa(hsq_polychoric, nfactors = 4, fm = "ml")
+```
+
+## 3.4 EFA with Principal Axis Factoring
+
+Let's look at another popular extraction method, *Principal Axis Factoring (PAF)*. PAF's main idea is that communality has a central role in extracting factors, since it can be interpreted as a measure of an item’s relation to all other items. An iterative approach is adopted. Initially, an estimate of the common variance is given in which the communalities are less than 1. After replacing the main diagonal of the correlation matrix (which usually consists of ones) with these estimates of the communalities, the new correlation matrix is updated and further replacements are repeated based on the new communalities until a number of iterations is reached or the communalities converge to a point that there is too little difference between two consecutive communalities.
+
+
+```{r}
+# Use PAF on hsq_polychoric
+hsq_correl_pa <- fa(hsq_polychoric, nfactors = 4, fm = "pa")
+
+# Sort the communalities of the hsq_correl_a
+sort(hsq_correl_pa$communality, decreasing = TRUE) %>%
+  data.frame()
+
+# Sort the uniqueness of the f_hsq_pa
+sort(hsq_correl_pa$uniquenesses, decreasing = TRUE) %>%
+  data.frame()
+
+```
+
+
+## 3.5 Determining the number of factors
+
+Let's briefly visit the three tests for deciding on the number of factors to retain.
+
+In this exercise, you will use the correlation matrix, *hsq_polychoric*, computed based on the initial dataset, *hsq*, that has 1069 observations.
+
+
+```{r}
+# Check out the scree test and the Kaiser-Guttman criterion.
+scree(hsq_polychoric)
+
+# Use parallel analysis for estimation with the minres extraction method.
+fa.parallel(hsq_polychoric, n.obs = 1070, fm = "minres", fa = "fa")
+
+# Use parallel analysis for estimation with the mle extraction method.
+fa.parallel(hsq_polychoric, n.obs = 1070, fm = "mle", fa = "fa")
+
+# use the original data matrix
+fa.parallel(x = hsq, cor = "poly", fm = "minres", fa = "fa")
+```
+
+
+# 4. Advanced EFA
+
+Round out your mastery of dimensionality reduction in R by extending your knowledge of EFA to cover more advanced applications.
+
+
+## 4.1 Rotating the extracted factors
+
+According to Martin et al. (2003), the *HSQ* represents a comprehensive self-report measure of everyday functions of humor. Following Martin et al.’s (2003) theory, humor is directly related to psychosocial well-being, i.e. humor is a social phenomenon and the different humor styles reflect different social traits of the individual, such as social control, status maintenance and group cohesion.
+
+Let's apply some rotation methods offered by the *fa()* function, in order to check whether Martin et al's (2003) theory cofirms the observations in the HSQ dataset. For completing the exercise, the EFA model object *f_hsq* and the correlation matrix *hsq_polychoric* are at your disposal. Recall that *hsq_polychoric*, was calculated with the *mixedCor()* function on our initial dataset, *hsq*.
+
+```{r}
+# Check the default rotation method.
+f_hsq$rotation
+
+# Try Promax with 4 factors.
+f_hsq_promax <- fa(hsq_polychoric, nfactors = 4, rotate = "promax")
+f_hsq_promax
+# Now, try Varimax, again with 4 factors.
+f_hsq_varimax <- fa(hsq_polychoric, nfactors = 4, rotate = "varimax")
+f_hsq_varimax
+
+# Creating the path diagram
+fa.diagram(f_hsq_varimax)
+
+```
+
+## 4.2 Interpreting humor styles and visual aid
+
+The study of factor loadings offered by our EFA models is a valuable tool for interpreting the various humor styles. Even more helpful is the guidance of the path diagram. In this exercise, you are asked to create, retrieve both f_hsq's factor loadings matrix and path diagram. Recall that the loaded f_hsq object represents an EFA model of 4 factors. Below are the questionnaire items as they were initially grouped, based on the type of humour that they encode:
+
+affiliative: 'Q1', 'Q5', 'Q9', 'Q13', 'Q17', 'Q21', 'Q25', 'Q29' self-enhancing: 'Q2', 'Q6', 'Q10', 'Q14', 'Q18', 'Q22', 'Q26', 'Q30' aggressive: 'Q3', 'Q7', 'Q11', 'Q15', 'Q19', 'Q23', 'Q27', 'Q31' self-defeating: 'Q4', 'Q8', 'Q12', 'Q16', 'Q20', 'Q24', 'Q28', 'Q32'
+
+```{r}
+# Check the factor loadings.
+print(f_hsq$loadings, cut = 0)
+
+# Create the path diagram of the latent factors.
+fa.diagram(f_hsq)
+```
+
+## 4.3 EFA: Case Study - The Short Dark Triad
+
+A dataset that resulted from measuring the 3 dark personality traits:
+
+* machiavellianism (a manipulative behaviour)
+
+* narcissism (excessive self-admiration), and 
+
+* psychopathy (lack of empathy)5
+
+### 4.3.1 Factorability check
+
+In this exercise, you will implement the first step in the workflow of *Exploratory Factor Analysis*; namely to conduct a factorability check on a sample of 100 observations of the original SD3 dataset, presented in the last video, and determine whether you can potentially provide insights of hidden factors based on the dataset.
+
+To complete this exercise, the *sdt_sub_correl* correlation object is available in your workspace. *sdt_sub_correl* has been calculated with the *hetcor()* function of the *polycor* package and contains the actual correlation matrix in one of its attributes, the correlations attribute. The *sdt_sub* dataframe, the sample of the SD3 dataset based on which *sdt_sub_correl* was computed, is also loaded for you and you can access it at any time in the console.
+
+```{r}
+# Read "SD3" data
+sd3 <- read_rds("data/SD3.RDS")
+
+# summary of daa
+summary(sd3)
+
+# create correlation 
+sdt_sub_correl <- polycor::hetcor(data = sd3)
+
+# Explore sdt_sub_correl.
+str(sdt_sub_correl)
+
+# Get the correlation matrix of the sdt_sub_correl.
+sdt_polychoric <- sdt_sub_correl$correlations
+
+# Apply the Bartlett test on the correlation matrix.
+cortest.bartlett(sdt_polychoric)
+
+# Check the KMO index.
+KMO(sdt_polychoric)
+```
+
+### 4.3.2 Extracting adn choosing the number of factors
+
+```{r}
+# Check out the scree test and the Kaiser-Guttman criterion
+scree(sdt_polychoric)
+
+
+# Use parallel analysis for estimation with the minres extraction method
+fa.parallel(sdt_polychoric, n.obs = 100, fa = "fa")
+
+# Perform EFA with MLE
+fa(sdt_polychoric, nfactors = 4, fm = "ml")
+```
+
+### 4.3.3 Factor rotation and interpretation
+
+Finally, undertaking the interpretation of *EFA* means to focus on factor loadings and to prepare the path diagram. By observing the arrow connections between the underlying factors and the observed variables in the path diagram, you can clearly trace variable groupings.
+
+Observe the path diagram and try to draw conclusions about the underlying factors in the dataset. Do the twenty seven statements of the short dark triad test correspond well to the three personality traits, machiavellianism (a manipulative attitude), narcissism (excessive self-love), and psychopathy (lack of empathy)?
+
+
+```{r}
+# EFA with 4 factors. 
+f_sdt <- fa(sdt_polychoric, nfactors = 4)
+
+# Check the factor loadings.
+print(f_sdt$loadings, cut = 0)
+
+# Create the path diagram of the latent factors.
+fa.diagram(f_sdt)
+```
+
+The path diagram shows that out of the 4 factors we extracted, only one of them is clearly mapped to machiavellianism (the M indices). One factor is isolated and the two others express a mixture of personality traits.
+
+
+When the data is numeric and you choose to retain those components that explain a big part of the whole variance in the data you can use PCA. When the data is numeric and you need a computationally more efficient solution you can use N-NMF. When the data is numeric but you need expert's domain knowledge for the parametrisation and the interpretation you can use EFA.
