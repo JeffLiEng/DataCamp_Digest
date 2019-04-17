@@ -1,0 +1,223 @@
+---
+title: "Feature Engineering in R"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+“Give me six hours to chop down a tree and I will spend the first four sharpening the ax.”  ~ Abraham Lincoln 
+
+
+**Course Description**
+
+"Feature engineering helps you uncover useful insights from your machine learning models. The model building process is iterative and requires creating new features using existing variables that make your model more efficient. In this course, you will explore different data sets and apply a variety of feature engineering techniques to both continuous and discrete variables." 
+
+
+
+Ref: Hernandez, Jose (2019) "Feature Engineering in R". https://www.datacamp.com/courses
+
+
+Note: Some course materials and data have been digested and adapted for my teaching. 
+
+
+
+# (I) Load Required Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# (b) Load libraries
+library(tidyverse)
+library(NHANES)
+library(infer)
+```
+
+# 1. Creating Features from Categorical Data
+
+In this chapter, you will learn how to change categorical features into numerical representations that models can interpret. You'll learn about one-hot encoding and using binning for categorical features.
+
+## 1.1 One-hot encoding
+
+The *discipline_logs* dataset is loaded in your workspace. These data contain information on student discipline events that occurred during a school day. It contains an assortment of variable types including string variables with various categories. Since most machine learning algorithms cannot interpret this kind of information, we have to encode them as numerical features. One common practice previously discussed is one-hot encoding, in which each row of the column contains zeros, except for the rows that correspond to the specific category, which is set to one.
+
+```{r, eval=FALSE}
+# Load dplyr
+library(dplyr)
+
+discipline_logs <- discipline_logs %>%	
+	mutate( 
+  		# Create male column
+  		male = ifelse(gender == "Male", 1, 0),
+  		# Create female column
+  		female = ifelse(gender == "Female", 1, 0))
+```
+
+Most algorithms cannot make sense of string inputs, and one-hot encoding is one way to numerically represent contextual information.
+
+
+## 1.2 Leveraging content knowledge
+We have prior knowledge that the type of school a student goes to, elementary school, middle school, or high school, is more informative than the student's specific grade.
+
+Let's create a feature that captures the school types using the grade column, where elementary_school contains 1st through 5th grade, middle_school contains 6th through 8th grade, and high_school contains 9th through 12th grade.
+
+```{r}
+# Create a new column with the proper string encodings
+discipline_logs_new <-  discipline_logs %>%
+  mutate(school_type = 
+           case_when(grade >= 1 & grade <= 5 ~ "elementary_school",
+                     grade >= 6 & grade <= 8 ~ "middle_school",
+                     grade <= 12 & grade >=  9 ~ "high_school"))
+
+# Look at a table of the new column 
+discipline_logs_new %>%
+  select(school_type) %>%
+  table()
+
+
+discipline_logs_new <- discipline_logs_new %>%	
+	mutate( 
+  			# Create elem_sch column
+  			elem_sch = ifelse(school_type == "elementary_school", 1, 0),
+
+ 			# Create mid_sch column
+  			mid_sch = ifelse(school_type == "middle_school", 1, 0),
+
+  			# Create high_sch column
+  			high_sch = ifelse(school_type == "high_school", 1, 0))
+```
+
+
+## 1.3 Categorical proportions by outcome
+
+The grade variable in the discipline_logs dataset contains 12 distinct categories we wish to incorporate into our model that predict whether or not a student received a disciplinary action. We want to reduce these 12 categories in a meaningful way that leverages the outcomes associated with these grade levels. The discipline variable indicates whether a student received disciplinary action.
+
+```{r}
+# Create a table of the frequencies
+discipline_table <- discipline_logs %>%
+select(grade, discipline) %>%
+table()
+
+# Create a table of the proportions
+prop_table <- prop.table(discipline_table, 1)
+```
+
+
+## 1.4 Reducing categories using outcome
+
+Previously, we determined the proportions of discipline infractions for all 12 grade levels. We can create a data table, dgr_prop, containing these grade proportions mapping with grade and proportion columns. The proportions correspond to a student receiving disciplinary action during that grade.
+
+View(dgr_prop)
+
+   grade proportion
+1      1 0.04813478
+2      2 0.04603581
+3      3 0.04000000
+4      4 0In this chapter, you will learn how to manipulate numerical features to create meaningful features that can give better insights into your model. You will also learn how to work with dates in the context of feature engineering..06042654
+5      5 0.04519119
+6      6 0.21577726
+7      7 0.21153846
+8      8 0.20161290
+9      9 0.75153752
+10    10 0.75413712
+11    11 0.71428571
+12    12 0.76079347
+
+```{r}
+# Combine the proportions and discipline logs data
+discipline <- inner_join(discipline_logs, dgr_prop, by = "grade")
+
+# Display a glimpse of the new data frame
+glimpse(discipline)
+
+# Create a new column with three levels using the proportions as ranges
+discipline_ed <- discipline %>%
+   mutate(education_levels = 
+      case_when(proportion >= 0 & proportion <= .20 ~ "low_grade",
+                proportion >= .20 & proportion <= .25 ~ "middle_grade", 
+                proportion >= .25 & proportion <= 1 ~ "high_grade"))
+```
+
+
+# 2. Creating Features from Numeric Data
+
+In this chapter, you will learn how to manipulate numerical features to create meaningful features that can give better insights into your model. You will also learn how to work with dates in the context of feature engineering.
+
+## 2.1 Visualizing the distribution
+
+The online_retail dataset contains information about online sales, including how many items were purchased per transaction.
+
+```{r}
+# Summarize the Quantity variable
+online_retail %>%
+select(Quantity) %>%
+summary()
+
+# Create a histogram of the possible variable values
+ggplot(oneline_retail, aes(x = Quantity)) + 
+  geom_histogram(stat = "count")
+```
+
+## 2.2 Creating uniform buckets from a distribution
+
+We can see that the Quantity variable ranges from 1 to 50, meaning individuals buy between 1 and 50 items per transaction.
+
+```{r}
+# Use the cut function to create a variable quant_cat
+online_retail <- online_retail %>% 
+  mutate(quant_cat = cut(Quantity, breaks = seq(1, 50, by = 5)))
+
+# Create a table of the new column quant_cat
+online_retail %>%
+	select(quant_cat) %>%
+	table()
+
+# Create new columns from the quant_cat feature
+head(model.matrix(~ quant_cat -1, data = online_retail))
+```
+
+## 2.3 Balanced bucketing
+
+The *Quantity* variable in the *online_retail* dataset has a very skewed distribution. That is, most individuals buy 1 to 5 items, but a small number buy close to 50. How can we better capture this type of distribution using buckets?
+
+online_retail %>% 
+    select(quant_cat) %>%
+    table()
+
+(1,6]  (6,11] (11,16] (16,21] (21,26] (26,31] (31,36] (36,41] (41,46] 
+38915    6362   10646    1099    4744     295     896     208      24 
+
+
+```{r}
+# Break the Quantity variable into 3 buckets
+online_retail <- online_retail %>% 
+  mutate(quant_q = ntile(Quantity, 3))
+
+# Use table to look at the new variable
+table(online_retail$quant_q)
+```
+
+## 2.4 Full matrix encoding
+
+You created a feature that captures the age ranges. You have to numerically encode these features in a way that they can be incorporated into your model. Now, let's assume you are going to work with a linear model that requires a full rank matrix for these one-hot encoded features.
+
+
+```{r}
+# Use table to look at the new variable
+table(online_retail$quant_q)
+
+# Specify a full rank representation of the new column
+head(model.matrix(~quant_q, data = online_retail))
+```
+
+
+
+
+
+
+
+
+
