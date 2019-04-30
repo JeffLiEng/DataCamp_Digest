@@ -1,0 +1,65 @@
+---
+title: "An Introduction to Statistical Learning"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+ 
+
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+```
+
+
+
+# 10. Unsupervised Learning
+
+We have only a set of features: $X_1, X_2, \dots, X_p$ measured on n observations. We are not interesed in prediction, because we do not have an associated response variable *Y*.  
+
+* Is there an informative way to visualize the data? 
+
+* Can we discover subgroups among the variables or among the observations? 
+
+
+*Principal Components Analysis*: a tool used for data visualization or data pre-processing before supervised techniques are applied. 
+
+## 10.1 The Challenge of Unsuprvised Learning
+
+## 10.2 Principal Components Analysis
+
+See section 6.3.1 - Principal components regression: simply use principal components as predictors in a regression model in place of the original larger set of variables. 
+
+Whe faced with a large set of correlated variables, principal components allow us to summarize this set with a smaller number of representative variables that collectively explain most of the variability in the original set. 
+
+*Principal component analysis (PCA)* refers to the process by which principal components are computed, and the subsequent use of these components in understanding the data. 
+
+PCA: a good tool for unsupervised data exploration
+
+### 10.2.1 What Are Principal Components? 
+
+A set of p features: $X_1, X_2, \dots, X_p$. Most likely none of them will be informative since they each contain just a small fraction of the total information present in the data set. 
+
+The *first principal component* of a set of features $X_1, X_2, \dots, X_p$ is the normalized linear combination of the features: 
+
+$$Z_1 = \phi_{11}X_1 + \phi_{21}X_2 + ... + \phi_{p1}X_p$$   (10.1) 
+
+that has the largest variance. By *normalized*, we mean that $\sum_{j=1}^p\phi_{j1}^2 = 1$. We refer to the elements $\phi_{11}, \phi_{21}, \dots, \phi_{p1}$ as the *loadings* of the first principal component. 
+
+Loading vector: $\phi_1 = (\phi_{11}, \phi_{21}, ..., \phi)^T$
+
+
+

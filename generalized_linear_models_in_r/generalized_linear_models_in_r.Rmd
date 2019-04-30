@@ -222,3 +222,202 @@ tidy(lmOut)
 tidy(poissonOut)
 ```
 
+### 1.3.2 Extracting Coefficients from glm()
+```{r}
+# Extract the regression coefficients
+coef(poissonOut)
+
+# Extract the confidence intervals
+confint(poissonOut)
+```
+
+### 1.3.3 Predicting with glm()
+
+Recall that the Poisson slope and intercept estimates are on the natural log scale and can be exponentiated to be more easily understood. You can do this by specifying type = "response" with the predict function.
+
+
+# 2. Logistic Regression 
+
+* Binary data: (0/1)
+
+## 2.1 Fitting a logistic regression
+
+Pittsburgh is a city located in Allegheny County, PA, USA. Commuters living in this area have different options for commuting to work, including taking the bus. Using, data from 2015 you will see if the number of commuting days per week increases the chance somebody will use ride the bus. The choice of riding the bus is a binary outcome, hence you will use a logistic regression to model this data.
+
+```{r}
+# read the bus data
+bus <- read_csv("data/busData.csv") %>% mutate_if(is.character, as.factor)
+
+# summary 
+summary(bus)
+
+# Build a glm that models Bus predicted by CommuteDays
+busOut <- glm(Bus ~ CommuteDays, data = bus, family = "binomial")
+```
+
+## 2.2 Examining logistic regression outputs
+
+In the previous exercise, you fit a logistic regression, busOut. During this exercise, you will examine the busOut, using the tools you learned about in Chapter 1:
+
+* print() includes the coefficient estimates (i.e., slopes and intercepts) for different predictor variables and information about the model fit such as deviance.
+
+* summary() includes the print() outputs as well as standard errors, z-scores, and P-values for the coefficient estimates.
+
+* tidy() includes the summary() coefficient table as a tidy data frame.
+
+```{r}
+# print the busOut
+print(busOut)
+
+# summary
+summary(busOut)
+
+# The tidy output using tidy()
+tidy(busOut)
+```
+
+Interpreting logistic regression outputs: 
+
+Notice how the trend estimate is both significantly different than zero and positive. This model tells us that commuting more days increases the chance someone takes the bus.
+
+
+## 2.3 Bernoulli versus binomial
+
+The Bernoulli distribution is a special case of the binomial with only one draw from the distribution. 
+
+
+## 2.4 Simulating binary data
+
+A *Bernoulli* distribution is a special case of a *binomial*. Next, you will see how to simulate both in R and then examine the outputs to see how they are similar. Both distributions can be simulated with the random binomial function: *rbinom()*. *rbinom()* requires 3 arguments: n, which is the number of draws or random numbers, size, which is the number of samples per draw, and prob, which is the probability for the simulation. To sample with a Bernoulli, you simply use size = 1.
+
+If we take a single sample (size = 1) from a binomial distribution with a large sample size (e.g., n = 100), we should get similar results as a taking a many samples (e.g., size = 100) from a single sample (n = 1).
+
+```{r}
+# Simulate 1 draw with a sample size of 100
+binomialSim <- rbinom(n = 1, size = 100, p = 0.5)
+
+# Simulate 100 draw with a sample size of 1 
+BernoulliSim <- rbinom(n = 100, size = 1, p = 0.5)
+
+# Print the results from the binomial
+print(binomialSim)
+
+# Sum the results from the Bernoulli
+sum(BernoulliSim)
+```
+
+Notice how the two results are similar, but not exactly the same. This is due to the inherent randomness of the simulated numbers.
+
+## 2.5 Long-form logistic regression input
+
+As you learned about in the video, a binomial regression can take inputs in three different formats. The first requires data to be in "long" format and directly models each observation (e.g., a response of numeric 0/1 or a factor of yes/no):
+
+  x    y
+1 a fail
+2 a fail
+ ...
+
+In this format, the formula response predicted by predictor (or response ~ predictor in R's formula syntax) is used. During this exercise, you'll fit a regression using this format.
+
+```{r}
+# Fit a a long format logistic regression
+lr_1 <- glm(y ~ x, data = dataLong, family = "binomial")
+print(lr_1)
+```
+
+You've just fit the long dataset, which had 28 entries. You may have noticed how your degrees of freedom were 27. This is because degrees of freedom are usually the number of data points minus the number of parameters estimated.
+
+
+## 2.6 Wide-form input logistic regression
+
+The second and third approaches for fitting logistic regressions require "wide" format data:
+
+      x fail success Total successProportion
+    1 a   12       2    14         0.1428571
+    2 b    3      11    14         0.7857143
+    
+For the second approach, model a 2 column matrix of success and failures (e.g., number of no's and yes's per group).
+
+In this format, use the formula *cbind(success, fail) ~ predictor*.
+
+For the third approach, model the probability of success (e.g., group 1 had 75% yes and group 2 had 65% no) and the weight or number of observations per group (e.g., there were 40 individuals in group 1 and 100 individuals in group 2).
+
+In this format, the formula *proportion of successes ~ response variable* is used with *weights = number in treatment*.
+
+
+```{r}
+# Fit a wide form logistic regression
+lr_2 <- glm(cbind(success, fail) ~ x, data = dataWide, family = "binomial")
+
+# Fit a a weighted form logistic regression
+lr_3 <- glm(successProportion ~ x, data = dataWide, weights = Total, family = "binomial")
+
+# print your results
+print(lr_2)
+print(lr_3)
+```
+
+
+Comparing logistic regression outputs: 
+
+When building models, you want to have more observations than parameters that are estimated for the model. These extra variables are called degrees of freedom. The wide versus long input formats for the glm() produce different degrees of freedom because there are different numbers of rows.
+
+The degrees of freedom differ between models, but the other outputs are the same.
+
+
+## 2.7 Probit regression 
+
+* Both probit and logistic regression have a link function. 
+
+* The logit model has a wider tail than the probit
+
+* the logit model is the default for a binomial family in R
+
+
+Fitting probits and logits
+
+During this exercise, you will fit a probit and logit model to the Pittsburgh bus data. This will show you how to change link functions. After you build the models, examine the outputs. Do the results differ?
+
+```{r}
+# Fit a GLM with a logit link and save it as busLogit
+busLogit <- glm(Bus ~ CommuteDays, data = bus, family = binomial(link = "logit"))
+
+# Fit a GLM with a probit link and save it as busProbit
+busProbit <- glm(Bus ~ CommuteDays, data = bus, family = binomial(link = "probit"))
+
+# Print model summaries
+summary(busLogit)
+
+summary(busProbit)
+```
+
+Both model produce the same statistically result, but have different coefficient estimates because both models have different link functions.
+
+## 2.8 Simulating a logit
+
+Simulations can help us to understand distributions, evaluate our models, and compare study designs. During this exercise, you will simulate a logit distribution. This will allow to generate data with known parameters. This can be helpful when testing models or comparing study designs (e.g., how many samples do we need to collect?).
+
+```{r}
+# Using the plogis() function, convert 0 on the logit scale to a probability. Save the output as p.
+p <- plogis(q = 0)
+
+# Using the rbinom function, generate 10 samples (n = 10) with a size of 1 (size = 1) using the probability p.
+rbinom(n = 10, size = 1, prob = p)
+```
+
+## 2.9 Simulating a probit
+
+During the previous exercise, you simulated a logit. During this exercise, you will simulate a probit. First, you will convert from the probit scale to a probability. Second, you will use this probability to simulate from a binomial distribution.
+
+```{r}
+# Using function pnorm() to convert 0 on the probit scale to a probability. Save the output as p
+p <- pnorm(q = 0)
+
+# Using the rbinom function, generate 10 samples (n = 10) with a size of 1 (size = 1) using the probability p.
+rbinom(n = 10, size = 1, prob = p)
+```
+
+# 3. Interpreting and visualizing GLMs
+
+Poisson regression coefficients
+

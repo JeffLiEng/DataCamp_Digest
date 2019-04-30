@@ -1,0 +1,310 @@
+---
+title: "Applied Predictive Modeling - Max Kuhn and Kjell Johnson"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+**Course Description:**
+ 
+weblinke related with the book: http://appliedpredictivemodeling.com/
+
+## (I) Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(readxl)
+
+library(AppliedPredictiveModeling)
+library(caret)
+library(corrplot)
+library(e1071)
+```
+
+# 1. Introduction 
+
+
+# 2. A Short Tour of the Predictive Modeling Process
+
+* The first step in any model building is to understand the data. 
+
+```{r}
+# Fuel Economy Data
+data(FuelEconomy)
+head(cars2011)
+
+library(lattice)
+
+# Plot shown in the text
+cars2010 <- cars2010[order(cars2010$EngDispl), ]
+cars2011 <- cars2011[order(cars2011$EngDispl), ]
+
+# Add the "year"
+plotData <- cars2010 %>% mutate(Year = "2010 Model Year") %>%
+  bind_rows(cars2011 %>% mutate(Year = "2011 Model Year")) %>%
+  mutate(Year = factor(Year))
+
+str(plotData)
+
+## Plot
+plotData %>%
+  ggplot(aes(x = EngDispl, y = FE)) +
+  geom_point(alpha = 0.5) +
+  labs(x = "Engine Displacement", 
+       y = "Fuel Efficiency (MPG)", 
+       title = "The relationship between engine displacement and fuel efficiency")  +
+  facet_wrap(~ Year)
+```
+
+The relationship is somewhat linear but does exhibit some curvature towards the extreme ends of the displacement axis. 
+
+
+After first understanding the data, the next step is to build and evaluate a model on the data. 
+
+
+A simple model: 2010 as Training set
+
+```{r}
+model_lm <- lm(FE ~ EngDispl, data = cars2010)
+
+summary(model_lm)
+
+# predicted value
+predicted <- predict(object = model_lm, data = cars2010)
+
+# plot
+cars2010 %>%
+  mutate(predicted = predict(object = model_lm, data = .)) %>%
+  ggplot(aes(x = FE, y = predicted)) +
+  geom_point() + 
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", size = 1, col = "red") +
+  scale_x_continuous(limits = c(10, 70)) + 
+  scale_y_continuous(limits = c(10, 70))
+
+```
+
+# 3. Data Pre-processing
+
+## 3.1 Case Study: Cell Segmentation in High-Content Screeening
+
+
+## 3.2 Data Transformations for Individual Predictors
+
+* Centering and Scaling
+
+* Transformations to Resolve Skewness
+
+
+## 3.3 Data Transformations for Multiple Predictors 
+
+* Transformations to Resolve Outliers
+
+Outliers are samples that are exeptionally far from the mainstream of the data. 
+
+* Data Reduction and Feature Extraction 
+
+
+## 3.4 Dealing with Missing Values
+
+"informative missingness", which can induce significant bias in the model. 
+
+
+## 3.5 Removing Predictors
+
+A predictor variable that has a single unique value: a Zero variance predictor. 
+
+Some predictors might have only a handful of unique values that occure with very low frequencies: "near-zero variance predictors". 
+
+A rule of thumb for detecting near-zero variance predictors is: 
+
+* The fraction of unique values over the sample size is low (say 10%)
+
+* The ratio of the frequency of the most prevalent value to the frequency of the second most prevalent value is large (say around 20)
+
+
+Between-predictor correlations: 
+
+Collinearity is the technical term for the situation where a pair of predictor variables have a substantial correltion with each other. 
+
+
+## 3.6 Adding Predictors
+
+
+## 3.7 Binning Predictors
+
+## 3.8 Computing 
+
+```{r}
+# Find functions for creating a confusion matrix within the currently loaded packages
+apropos("confusion")
+
+```
+
+```{r}
+# Raw segmentation data set
+data("segmentationOriginal")
+
+# feasture names
+names(segmentationOriginal)
+
+# just focus on the training set samples
+segData <- subset(x = segmentationOriginal, Case == "Train")
+
+# The Class and Cell fields are saved into separate vectors
+callID <- segData$Cell
+class <- segData$Class
+case <- segData$Case
+
+# Now remove the columns
+segData <- segData[, -(1:3)]
+
+
+# The original data contained several "status" columns and remove them-- A good method to remove columns 
+statusColNum <- grep(pattern = "Status", x = names(segData))
+
+segData <- segData[, -statusColNum]
+
+dim(segData)
+```
+
+### 3.8.1 Transformations
+
+```{r}
+# Calculates the sample skewness statistic for each predictor: 
+e1071::skewness(segData$AngleCh1)
+
+# Calculate the skewness across columns
+skewValues <- map_df(segData, .f = e1071::skewness)
+
+head(skewValues)
+
+max(skewValues)
+
+# Determine which type of transformation should be used, the MASS package contains the boxcox function. Although this funciton estimates lambda, it does not creat the transformed variables. 
+
+
+# BoxCox transformations
+Ch1AreaTrans <- caret::BoxCoxTrans(y = segData$AreaCh1)
+Ch1AreaTrans
+
+class(Ch1AreaTrans)
+
+
+# The original data
+head(segData$AreaCh1)
+
+# After transformation 
+predict(object = Ch1AreaTrans, head(segData$AreaCh1))
+
+(head(segData$AreaCh1)^(-0.9) - 1)/(-0.9)
+
+
+# Another caret function, preProcess
+# ?caret::preProcess
+
+# The base R funciton *prcomp* can be used for PCA
+
+pcaObject <- prcomp(x = segData, center = TRUE, scale. = TRUE)
+names(pcaObject)
+
+# Calculate the cumulative percentage of variance which each component account  for 
+percentVariance <- pcaObject$sdev^2/sum(pcaObject$sdev^2) * 100
+
+percentVariance[1:5]
+
+
+var(pcaObject$x[, 1:5]) # PC1 has the largest variance
+cor(pcaObject$x[, 1:5]) # no correlation among PC1, PC2
+
+
+# the transformed values are store in pcaObject as a sub-object called x: 
+head(pcaObject$x[, 1:5])
+
+# Variable loadings
+head(pcaObject$rotation[, 1:5])
+
+# spatiaSign Transformation
+spatialSign(rnorm(5))
+
+spatialSign(matrix(rnorm(12), ncol = 3))
+
+
+
+```
+
+To administer a series of transformations to multiple data sets, the caret
+class preProcess has the ability to transform, center, scale, or impute values,
+as well as apply the spatial sign transformation and feature extraction. The
+function calculates the required quantities for the transformation. After calling
+the preProcess function, the predict method applies the results to a set
+of data. For example, to Box–Cox transform, center, and scale the data, then
+execute PCA for signal extraction, the syntax would be:
+
+```{r}
+trans <- preProcess(segData, method = c("BoxCox", "center", "scale", "pca"))
+
+trans
+
+# Apply the transformations:
+transformed <- predict(trans, segData)
+head(transformed)
+```
+The order in which the possible transformation are applied is *transformation*,
+*centering*, *scaling*, *imputation*, *feature extraction*, and then *spatial sign*.
+Many of the modeling functions have options to center and scale prior
+to modeling. For example, when using the *train* function (discussed in later
+chapters), there is an option to use *preProcess* prior to modeling within the
+resampling iterations.
+
+### 3.8.2 Filtering 
+
+To filter for near-zero variance predictors, the *caret* package function *nearZeroVar* will return the column numbers of any predictors that fulfill the conditions outlined in Sect. 3.5.
+
+```{r}
+nearZeroVar(segData)
+```
+
+Similarly, to filter on between-predictor correlations, the cor function can
+calculate the correlations between predictor variables:
+
+
+```{r}
+correlations <- cor(segData)
+dim(correlations)
+correlations[1:4, 1:4]
+
+```
+
+To visually examine the correlation structure of the data, the corrplot package
+contains an excellent function of the same name. The function has many
+options including one that will reorder the variables in a way that reveals
+clusters of highly correlated predictors.
+
+```{r}
+corrplot::corrplot(correlations, order = "hclust")
+```
+
+To filter based on correlations, the findCorrelation function will apply the
+algorithm in Sect. 3.5. For a given threshold of pairwise correlations, the function
+returns column numbers denoting the predictors that are recommended
+for deletion:
+
+```{r}
+highCorr <- caret::findCorrelation(correlations, cutoff = 0.75)
+highCorr
+
+filteredSegData <- segData[, -highCorr]
+
+dim(filteredSegData)
+```
+
+### 3.8.3 Creating Dummy Variables 
+
