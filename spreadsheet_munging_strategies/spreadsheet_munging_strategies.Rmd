@@ -1,0 +1,263 @@
+---
+title: "Spreadsheet Munging Strategies"
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"I maintained my edge by always being a student; you will always have something new to learn". - Jackie Joyner Kersee
+
+
+ref: Duncan Garmonsway. "Spreadsheet Munging Strategies". https://nacnudus.github.io/spreadsheet-munging-strategies/index.html
+
+
+
+# 1. Setup
+## 1.1 Load Required Libraries
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(janitor)
+library(readxl)
+
+# three packages from Duncan
+library(tidyxl)
+library(unpivotr)
+# devtools::install_github('nacnudus/smungs')
+library(smungs)
+```
+
+## 1.2 Data
+
+```{r}
+original_path <- system.file("extdata", "worked-examples.xlsx", package = "unpivotr")
+
+
+# Copying to the data folder
+path <- "data/worked-examples.xlsx"
+```
+
+# 2. Tidy-ish tables
+## 2.1 Clean & Tidy Tables
+
+For clean tables, we should use the *readxl* package. The following example is to how to emulate *readxl* with *tidyxl* and *unpivotr*. 
+
+```{r}
+# imports the spreadsheet into a data frame, where each row of the data frame describes one cell of the spreadsheet
+xlsx_cells(path , sheets = "clean") %>%
+  # takes one level of headers from a pivot table and makes it part of the data
+  behead("N", header) %>%
+  select(row, data_type, header, character, numeric) %>%
+  # spreads key-value pairs across multiple columns
+  spatter(header) %>%
+  select(-row)
+
+
+# imports the spreadsheet into a data frame, where each row of the data frame describes one cell of the spreadsheet
+xlsx_cells(path = , sheets = "clean") %>%
+  select(row, col, data_type, character, numeric) %>%
+  # takes one level of headers from a pivot table and makes it part of the data
+  behead("N", header) %>%
+  # spreads key-value pairs across multiple columns. Extraneous data will make it confused, so the col is droped first
+  select(-col) %>%
+  spatter(header) %>%
+  select(-row)
+
+# In case the table has no column headers, you can spatter the col column instead of a nonexistent header column.
+xlsx_cells(path = , sheets = "clean") %>%
+  dplyr::filter(row >= 2) %>%
+  select(row, col, data_type, character, numeric) %>%
+  spatter(col) %>%
+  select(-row) %>%
+  # cleans names
+  janitor::clean_names()
+
+
+# for a clean table, there are always some easy ways
+read_excel(path , sheet = "clean") %>%
+  janitor::clean_names()
+
+read_excel(path , 
+           sheet = "clean", 
+           col_names = FALSE, 
+           skip = 1) %>%
+  janitor::clean_names()
+
+```
+
+## 2.2 Almost-tidy tables
+2.2.1 Transposed Data
+
+Transposed data have headers in the first row and data to the right. 
+
+A tedious way to do it: 
+
+* Read_excel without any headers
+
+* transposing and outputing as a matrix
+
+* placing the headers as names
+
+```{r}
+# Read data using the read_excel
+read_excel(path, sheet = "transposed", col_names = FALSE) %>%
+  t() %>%
+  `colnames<-`(.[1, ]) %>%
+  .[-1, ] %>%
+  as_tibble()
+```
+
+A better way 
+
+```{r}
+xlsx_cells(path, sheets = "transposed") %>%
+  # using the "W" (west) direction instead of "N" (north) beheading
+  behead("W", header) %>%
+  select(col, data_type, header, character, numeric) %>%
+  spatter(header) %>%
+  select(Name, Age)
+```
+
+### 2.2.2 Other stuff on the same sheet
+
+If I know the table detail, then I will do like this: 
+
+```{r}
+readxl::read_excel(path, 
+                   sheet = "notes",
+                   skip = 2, 
+                   n_max = 33, 
+                   col_types = c("guess", "guess", "skip")) %>%
+  drop_na()
+```
+
+However, it is hard to know the data sheet
+
+```{r}
+# Step 1: read the spreadsheet and filter for sentinel values to detect the top-left adn bottom-right cells
+cells <- xlsx_cells(path, sheet = "notes")
+
+# display cells as though in a spreadsheet
+rectify(cells)
+
+top_left <- cells %>%
+  dplyr::filter(character == "Name") %>%
+  select(row, col)
+print(top_left)
+
+# It can be tricky to find the bottom-right cell because we have to make
+# some assumptions. Here we assume that only cells within the table are numeric
+bottom_right <- 
+  dplyr::filter(cells, data_type == "numeric") %>%
+  summarize(row = max(row), col = max(col))
+print(bottom_right)
+
+# Step 2: construct the argument 'skip' and 'n_max' for read_excel()
+skip <- top_left$row - 1L
+n_rows <- bottom_right$row - top_left$row + 1L
+
+read_excel(path, sheet = "notes", skip = skip, n_max = n_rows)
+
+```
+
+Another way using only tidyxl and unpivotr
+
+```{r}
+cells %>% 
+  dplyr::filter(between(row, top_left$row, bottom_right$row), 
+                between(col, top_left$col, bottom_right$col)) %>%
+  select(row, col, data_type, character, numeric) %>%
+  behead("N", header) %>%
+  select(-col) %>%
+  spatter(header) %>%
+  select(Name, Age)
+```
+
+## 2.3 Meaningfully formatted rows
+
+https://nacnudus.github.io/spreadsheet-munging-strategies/tidy-formatted-rows.html
+
+## 2.4 Meaningfully formatted cells
+
+## 2.5 Layered meaningful formatting
+
+## 2.6 Hierarchies in formating
+
+## 2.7 Sentinel values in non-text columns
+
+
+
+# 3. Pivot tables
+
+## 3.1 Simple unpivoting 
+
+### 3.1.1 Two clear rows of text column headers, left-aligned
+
+### 3.1.2 Two clear rows and columns of text headers, top-aligned and left-aligned
+
+### 3.1.3 
+
+### 3.1.4 
+
+### 3.1.5 Mixed levels of headers in the same row/column, distinguished by formatting
+
+## 3.2 Complex unpivoting
+
+
+# 4. Small multiples
+
+## 4.1 Small multiples with all headers present for each multiple
+```{r}
+knitr::include_graphics("png/4.1_Small_multiples.png")
+```
+
+
+## 4.2 Same table in several worksheets/files (using the sheet/file name)
+
+## 4.3 Same table in several worksheets/files but in different positions
+
+Both tables begin in the same column, but there is an extra row of notes above one of the tables
+```{r}
+knitr::include_graphics("png/same_table_different_positions.png")
+```
+
+
+```{r}
+# read all cells
+all_cells <- xlsx_cells(path, sheets = c("female",  "male")) %>% 
+  dplyr::filter(!is_blank) %>%
+  select(sheet, row, col, data_type, character, numeric)
+
+# define a function 
+unpivot <- function(cells) {
+  cells %>%
+    dplyr::filter(character == "Subject") %>%
+    pull(row) %>%
+    {dplyr::filter(cells, row >= .)} %>%
+    behead("N", name) %>%
+    behead("W", subject) 
+}
+
+
+# using the defined function 
+all_cells %>%
+  nest(-sheet) %>%
+  mutate(data = map(data, unpivot)) %>%
+  unnest() %>%
+  select(sex = sheet, name, subject, score = numeric)
+```
+
+## 4.4 Implied multiples
+
+```{r}
+knitr::include_graphics("png/4.4_implied_multiples.png")
+```
+
+
+# 5. Formatting
+

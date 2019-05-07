@@ -1,0 +1,110 @@
+---
+title: "Tidy My Messy Excel Data"
+author: "Prepared by: Jeff Li"
+date:  "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    fig.cap: true
+    fig_width: 7
+    fig_height: 6
+fontsize: 11pt
+fontfamily: mathpazo
+---
+
+Ref: https://statbandit.wordpress.com/2018/05/08/tidying-messy-excel-data-tidyxl/
+
+# (I) Set-up and Load Related Libraries 
+```{r setup_library, include = FALSE}
+# Need the knitr package to set chunk options
+library(knitr)
+# Set knitr options for knitting code into the report:
+opts_chunk$set(echo = FALSE,              # - Don't print out code (echo)
+               cache = TRUE,              # - Save results so that code blocks aren't re-run unless code changes (cache)
+               autodep = TRUE,           # _or_ a relevant earlier code block changed (autodep), but don't re-run if the
+               cache.comments = FALSE,   # only thing that changed was the comments (cache.comments)
+               message = FALSE,          # - Don't clutter R output with messages or warnings (message, warning)
+               warning = FALSE)
+
+library(tidyverse)
+library(janitor)
+```
+
+# 1. Using readxl
+
+```{r}
+df1 <- readxl::read_excel("data/messy_data_1.xlsx", 
+                          sheet = "Sheet2") %>%
+  clean_names()
+
+head(df1)
+```
+
+Using *read_excel* and with the help of *clean_names()*, it looks OK. However, the headers leaked into the data rows, all columns are character rather than numeric. 
+
+
+# 2. Using tidyxl
+
+```{r}
+# Import xlsx (Excel) Cell contents into a tidy structure
+df2_sheet1 <- tidyxl::xlsx_cells(path = "data/messy_data_1.xlsx", sheets = "Sheet1")
+df2_sheet2 <- tidyxl::xlsx_cells(path = "data/messy_data_1.xlsx", sheets = "Sheet2")
+
+# Head of two data frame
+head(df2_sheet1)
+head(df2_sheet2)
+
+```
+
+The *xlsx_cells* captures the data in a tidy fashion, explicitly calling out rows and columns and other metadata within each cell. 
+
+```{r}
+angle <- df2_sheet2 %>% filter(row >= 4, col == 1) %>% pull(numeric)
+name <- df2_sheet2 %>% 
+  filter(row %in% c(1,3), col >= 3) %>%
+  mutate(character = ifelse(is.na(character), as.character(numeric), character)) %>%
+  select(row, col, character) %>%
+  filter(!is.na(character)) %>%
+  #spread(key = row, value = character) %>%
+  pivot_wide(names_from = row, values_from = character) %>%
+  clean_names() %>%
+  unite(ID, x1, x3, sep = "_") %>%
+  pull(ID)
+
+data <- df2_sheet2 %>% 
+  filter(row >= 4, col >= 3) %>%
+  filter(!is.na(numeric)) %>%
+  select(row, col, numeric) %>%
+  pivot_wide(names_from = col, values_from = numeric) %>%
+  select(-row) %>%
+  set_names(name) %>%
+  bind_cols(angle = angle) %>%
+  pivot_long(cols = -angle, names_to = "variable", values_to = "value") %>%
+  separate(variable, c("ID", "Measure"), sep = "_") %>%
+  pivot_wide(names_from = Measure, values_from = value) %>%
+  select(ID, angle, A, B) %>%
+  arrange(ID, angle)
+
+```
+
+# 3. tidyxl + unpivotr
+
+```{r}
+library(unpivotr)
+
+df2_sheet2 %>%
+  select(row, col, data_type, numeric, character) %>%
+  # strip a level of header from a pivot table: strip the cells in row 1 (the original headers) and use them as data
+  behead("N", ID) %>%
+  behead("N", spine) %>%
+  behead("N", variable) %>%
+  behead("W", angles) %>%
+  select(numeric, ID:angles, data_type, -spine) %>%
+  filter(variable %in% c("A", "B")) %>%
+  spatter(variable)
+
+
+```
+

@@ -187,7 +187,9 @@ skewValues <- map_df(segData, .f = e1071::skewness)
 head(skewValues)
 
 max(skewValues)
+```
 
+```{r}
 # Determine which type of transformation should be used, the MASS package contains the boxcox function. Although this funciton estimates lambda, it does not creat the transformed variables. 
 
 
@@ -205,7 +207,9 @@ head(segData$AreaCh1)
 predict(object = Ch1AreaTrans, head(segData$AreaCh1))
 
 (head(segData$AreaCh1)^(-0.9) - 1)/(-0.9)
+```
 
+```{r}
 
 # Another caret function, preProcess
 # ?caret::preProcess
@@ -249,6 +253,7 @@ of data. For example, to Box–Cox transform, center, and scale the data, then
 execute PCA for signal extraction, the syntax would be:
 
 ```{r}
+# Box-Cox transformation --> centering --> scaling --> PCA for signal extraction
 trans <- preProcess(segData, method = c("BoxCox", "center", "scale", "pca"))
 
 trans
@@ -257,6 +262,7 @@ trans
 transformed <- predict(trans, segData)
 head(transformed)
 ```
+
 The order in which the possible transformation are applied is *transformation*,
 *centering*, *scaling*, *imputation*, *feature extraction*, and then *spatial sign*.
 Many of the modeling functions have options to center and scale prior
@@ -264,12 +270,28 @@ to modeling. For example, when using the *train* function (discussed in later
 chapters), there is an option to use *preProcess* prior to modeling within the
 resampling iterations.
 
+
 ### 3.8.2 Filtering 
 
-To filter for near-zero variance predictors, the *caret* package function *nearZeroVar* will return the column numbers of any predictors that fulfill the conditions outlined in Sect. 3.5.
+To filter for near-zero variance predictors, the *caret* package function *nearZeroVar* will return the column numbers of any predictors that fulfill the conditions.
 
 ```{r}
-nearZeroVar(segData)
+# add zero and near-zero variance predictors
+temp <- segData
+temp$zeroV <- 1
+
+temp$nearZeroV <- c(rep(3, nrow(temp) - 10), rep(2, 10))
+temp$nearZeroV2 <- c(rep(3, nrow(temp) - 50), rep(2, 25), rep(4, 25))
+
+# find which columns have zero and near-zero variance 
+near_zero_col <- nearZeroVar(temp)
+near_zero_col
+
+# remove the near-zero variance predictors
+temp2 <- temp[, -near_zero_col]
+
+# calculate how many columns were removed
+ncol(temp) - ncol(temp2)
 ```
 
 Similarly, to filter on between-predictor correlations, the cor function can
@@ -277,10 +299,12 @@ calculate the correlations between predictor variables:
 
 
 ```{r}
+# correlation maxtrices
 correlations <- cor(segData)
 dim(correlations)
-correlations[1:4, 1:4]
 
+# show rows: 1:4, and cols: 1:4
+correlations[1:4, 1:4]
 ```
 
 To visually examine the correlation structure of the data, the corrplot package
@@ -289,7 +313,8 @@ options including one that will reorder the variables in a way that reveals
 clusters of highly correlated predictors.
 
 ```{r}
-corrplot::corrplot(correlations, order = "hclust")
+# A graphical display of a correlation matrix 
+corrplot::corrplot(correlations, type = "full", order = "hclust")
 ```
 
 To filter based on correlations, the findCorrelation function will apply the
@@ -298,7 +323,11 @@ returns column numbers denoting the predictors that are recommended
 for deletion:
 
 ```{r}
-highCorr <- caret::findCorrelation(correlations, cutoff = 0.75)
+# Determine highly correlated variables
+highCorr <- caret::findCorrelation(correlations, 
+                                   verbose = TRUE, 
+                                   cutoff = 0.75,
+                                   names = FALSE)
 highCorr
 
 filteredSegData <- segData[, -highCorr]
@@ -307,4 +336,976 @@ dim(filteredSegData)
 ```
 
 ### 3.8.3 Creating Dummy Variables 
+
+When working with tree-based models, the full set is recommended. 
+
+```{r}
+# car subset data
+data_test <- data.frame(x1 = 1:5, x2 = c("a", "b", "c", "c", "c"), y = 4:8)
+
+levels(data_test$y)
+
+# creating dummy variables based on the formula method
+simpleMod <- dummyVars( ~ x1 + x2, 
+                        data = data_test, 
+                        # remove the variable name from the column name
+                        levelsOnly = TRUE)
+simpleMod
+
+# generate the dummy variables 
+predict(simpleMod, data_test)
+
+```
+
+```{r}
+# More advance model with an interaction
+withInteraction <- dummyVars(~ x1 + x2 + x1:x2, 
+                             data = data_test, 
+                             levelsOnly = TRUE)
+
+withInteraction
+
+# generate the dummy variable 
+predict(withInteraction, data_test)
+```
+
+## 3.9 Exercises
+### 3.9.1  Glass Samples 
+```{r}
+# Glass samples 
+library(mlbench)
+data(Glass)
+head(Glass)
+glimpse(Glass)
+summary(Glass)
+
+# Predictor variables distributions and relationships between predictors
+Glass2 <- Glass %>% select(-Type)
+
+GGally::ggpairs(data = Glass2)
+```
+
+
+# 4. Over-Fitting and Model Tuning
+
+If models are built on small data sets, then the data quality must be sufficient and representive of the entire sample population. 
+
+## 4.1 The Problem of Over-Fitting
+
+## 4.2 Model Tuning
+
+Many models have important parameters which cannot be directly estimated from the data. 
+
+For example, in the K-nearest neighbor classification model, a new sample is predicted based on the K-closest data points in the training set. 
+
+Model tuning parameter can not be calculated using analytical formula.  
+
+Resampling the training set. 
+
+
+## 4.3 Data Splitting
+
+A few of the common steps in model buidling are: 
+
+* Pre-processing the predictor data
+
+* Estimating model parameters
+
+* Selecting predictors for the model
+
+* Evaluating model performance
+
+* Fine tuning class prediction rules
+
+
+When a larger amount of daa is at hand, a set of samples can be set aside to evaluate the final model. 
+
+However, when the number of sample is not large, a strong case can be made that a test set should be avoided because every sample may be needed for model building. Additionally, the size of the test set may not have sufficient power or precision to make reasonable judgements. 
+
+One good method: *maximum dissimilarity sampling*. 
+
+
+## 4.4 Resampling Techniques
+
+*k-Fold Cross-Validation* 
+
+*Generalized Cross-Validatiaon*
+
+*Repated Training/Test Splits*: is also known as "leave-group-out cross-valication" or "Monte Carlo Cross-Validation". 
+
+*Bootstrap*: A bootstrap sample is a random sample of the data taken with replacement. Some samples will be represented multiple times in the bootstrap sample while others will not be selected at all. The samples not selected are usually referred to as the "out-of-bag" samples. 
+
+
+## 4.5 Case Study: Credit Scoring 
+
+To predict the probability that applicants have good credit. 
+
+## 4.6 Choosing Final Tuning Parameters
+
+## 4.7 Data Splitting Recommendations
+
+## 4.8 Choosing Between Models
+
+## 4.9 Computing 
+
+### 4.9.1 Data Splitting
+
+```{r}
+# two-class data
+library(AppliedPredictiveModeling)
+data(twoClassData)
+
+# summary 
+summary(predictors)
+summary(classes)
+str(predictors)
+str(classes)
+```
+
+```{r}
+# Base R function sample
+sample(x = 1:nrow(predictors), 
+       size = round(0.8*nrow(predictors)))
+
+# Using the createDataPartition function 
+
+# set the random seed so the results can be reproduced. 
+set.seed(1234)
+trainingRows <- createDataPartition(
+  # create stratified random splits 
+  y = classes,
+  # the percent of data for training
+  p = 0.80, 
+  # to generate a matrix of row numbers
+  list = FALSE)
+
+head(trainingRows)
+
+# Subset the data into objects for training using integer sub-setting
+trainPredictors <- predictors[trainingRows, ]
+trainClasses <- classes[trainingRows]
+
+# Create the test using negative integers
+testPredictors <- predictors[-trainingRows, ]
+testClasses <- classes[-trainingRows]
+
+# structure of the training and the test data sets
+str(trainPredictors)
+str(testPredictors)
+
+```
+
+Generate a test set using maiximum dissimilarity sampling
+
+```{r}
+# Start with 5 data points
+start <- sample(1:nrow(predictors), 5)
+base <- predictors[start, ]
+pool <- predictors[-start, ]
+
+# select 35  addition 
+newSampl <- maxDissim(a = base, b = pool, n = 35, randomFrac = 1, obj = minDiss)
+
+# all sample
+allSampl <- c(start, newSampl)
+
+
+# Plot 
+predictors[-newSampl, ] %>%
+  ggplot(aes(x = PredictorA, y = PredictorB)) +
+  geom_point(col = "darkgrey") + 
+  geom_point(mapping = aes(x = PredictorA, y = PredictorB), data = base, shape = 16, size = 2) +
+  geom_point(mapping = aes(x = PredictorA, y = PredictorB), 
+             data = pool[newSampl, ], col = "darkred")
+
+```
+
+
+### 4.9.2 Resampling
+
+Repeated training/test splits: 
+
+```{r}
+# generate 3 resampled training sets
+repeatedSplits <- createDataPartition(trainClasses, 
+                                       p = .80, times = 3)
+str(repeatedSplits)
+```
+
+Bootstrapping: 
+
+```{r}
+createResample(trainClasses, times = 2)
+
+```
+
+k-fold cross-validatiaon
+```{r}
+# Create 10-fold cross-validation
+set.seed(1)
+cvSplits <- createFolds(trainClasses, 
+                        k = 10, 
+                        returnTrain = TRUE)
+str(cvSplits)
+
+
+# Get the first set of row numbers from the list
+fold1 <- cvSplits[[1]]
+
+# To Get the first 90% of the data (the first fold):
+cvPredictors1 <- trainPredictors[fold1, ]
+cvClasses1 <- trainClasses[fold1]
+nrow(trainPredictors)
+nrow(cvPredictors1)
+```
+
+### 4.9.3 Basic Model Building in R
+
+Fit a 5-nearest neighbor classification model to the training data adn use it to predict the test set. 
+
+*knn* from the *MASS* package
+
+*ipredknn* from the *ipred* package
+
+*knn3* from the *caret* package, which can produce class prediction as well as the proportion of neighbors for each class. 
+
+```{r}
+# build a 5-nearest neighbor model 
+trainPredictors <- as.matrix(trainPredictors)
+
+knnFit <- knn3(x = trainPredictors, 
+               y = trainClasses, 
+               # number of neighbors considered
+               k = 5)
+
+knnFit
+
+# Predict new samples
+testPredictions <- predict(knnFit, 
+                           newdata = testPredictors, 
+                           type = "class")
+head(testPredictions)
+str(testPredictions)
+
+# accuracy 
+mean(testPredictions == testClasses)
+```
+
+### 4.9.4 Determination of Tuning Parameters
+
+* the *tune* function from the *e1071* package: can evalute four types of models across a range of parameters. 
+
+* the *errortest* function from the *ipred* package: resample single models. 
+
+* the *train* function from the *caret* package: has many built-in modules (144+) models, includes capabilites for different resampling methods, performances measures, and algorithms for choosing the best model from the profile. Also, this function has capabilities for parallel processing so that the resampled model fits can be executed across multiple computers or processors. 
+
+
+```{r}
+# Credit scoring data
+data("GermanCredit")
+german_credit <- GermanCredit %>%
+  janitor::clean_names()
+
+# near_zero variance
+nearzero_var_index <- nearZeroVar(german_credit %>% select(-class), 
+                                  freqCut = 90/10, 
+                                  uniqueCut = 10)
+
+# omit near_zero_variance
+german_credit_clean <- german_credit %>% select(-nearzero_var_index)
+
+# summary of data
+head(german_credit_clean)
+str(german_credit_clean)
+
+
+# split data
+train_index <- createDataPartition(y = german_credit_clean$class, p = 0.8, list = FALSE)
+german_credit_train <- german_credit_clean[train_index, ]
+german_credit_test <- german_credit_clean[-train_index, ]
+
+```
+
+Build SVM model:
+
+```{r}
+# build a SVM model
+set.seed(1234)
+svm_fit <- train(class ~ ., 
+                 data = german_credit_train, 
+                 # model type
+                 method = "svmRadial", 
+                 # pre-process the predictor data
+                 preProc = c("center", "scale"), 
+                 # Specify the exact cost values to investigate
+                 tuneLength = 10, 
+                 # Calculate performance measures
+                 trControl = trainControl(method = "repeatedcv", 
+                                          repeats = 5)
+                 )
+
+svm_fit
+
+# Visualize the performance profile for the training set
+plot(svm_fit, scales = list(x = list(log = 2)))
+
+# Predict new samples 
+predicted_class <- predict(svm_fit, german_credit_test)
+str(predicted_class)
+
+# Accuracy 
+mean(predicted_class == german_credit_test$class)
+
+
+# predict class probabilities
+predicted_probs <- predict(svm_fit, 
+                           newdata = german_credit_test, 
+                           type = "prob")
+
+head(predicted_probs)
+```
+
+
+### 4.9.5 Between-Model comparisons
+
+```{r}
+# Basic logistic regression 
+set.seed(1234)
+logist_reg <- train(class ~ ., 
+                    data = german_credit_train, 
+                    # generalized linear model
+                    method = "glm", 
+                    # resampling used to evaluate the performance of the model
+                    trControl = trainControl(method = "repeatedcv", repeats = 5)
+                    )
+
+logist_reg
+```
+
+To compare these two models based on their cross-validatiaon statistics, the *resamples* function can be used with models that share a common set of resampled data sets. Since the random number seed was initialized prior to running the SVM and logistic models, paired accuracy measurments exist for each data set. 
+
+```{r}
+# Create a resamples object from the models
+resamp <- resamples(list(SVM = svm_fit, Logistic = logist_reg))
+
+# See the performance distributions 
+summary(resamp)
+
+# assess possible differences between the models
+model_differences <- diff(resamp)
+
+# get the p-values for the model comparisons  (p >0.05 indicates that the models fail to show any difference in performance)
+summary(model_differences)
+
+
+```
+
+## 4.10 Excercise
+
+### 4.10.1 Uncertainty of a test set
+
+One method for understanding the uncertainty of a test set is to use a confidence interval. 
+
+```{r}
+# 16 out of 20 correct (80% accurate in small size test sample)
+binom.test(x = 16, n = 20) 
+
+# 160 out of 200 correct (80% accurate in large size test sample)
+binom.test(x = 160, n = 200) 
+
+
+# 1600 out of 2000 correct (80% accurate in even large size test sample)
+binom.test(x = 1600, n = 2000) 
+```
+
+
+# 5. Measuring Performance in Regression Models
+
+To understand the strengths and weaknesses of a particular model, relying solely on a single metric is problematic. Visualizations of the model fit, particularly residual plots, are critical to understanding whether the model is fit for purpose. 
+
+## 5.1 Quantitative Measures of Performance
+
+* *MSE*: Mean suqared error.  $MSE = \frac{\sum_{i = 1}^{N}(\hat{y}_i - y_i)^2}{N}$. 
+
+* *RMSE*: the root mean squared error. $RMSE = \sqrt{\frac{\sum_{i = 1}^{N}(\hat{y}_i - y_i)^2}{N}}$.  
+
+* *Coefficient of determination*. $R^2$ The proportion of the information in the data that is explained by the model.  It is a measure of correlation, not accuracy. 
+R^2 depends on the outcome variance. For example, a model is used to model the house price (60K to 2M, note: high variance).  The model that has a $R^2= 0.9$ might be viewed as a good one, but the RMSE may be in the tens of thousands of dollars - poor predictive accuracy for anyone selling a moderately priced property. 
+
+* *Rank correlation*: A good choice for a model that is to model biologically active new chemical compounds for pharmaceutical scientists.  The rank correlation takes the ranks of the observed outcome values and evaluates how close these are to ranks of the model predictions. To calculate this value, the ranks of the observed adn predicted outcomes are obtained and the correlation coefficient between ranks is calculated. This metric is commonly known as *Spearman's rank correlation*. 
+
+
+## 5.3 The Variance-Bias Trade-off
+
+The MSE can be decomposed into more specific pieces. Formally, the MSE of a model is:
+
+$$MSE = \frac{\sum_{i = 1}^{n}(\hat{y}_i - y_i)^2}{n} $$
+
+If we assume that the data points are statistically independent and that the residuals have a theoretical mean of zero and a constant variance of $\sigma^2$, then: 
+
+$$E[MSE] = \sigma^2 + {(Model Bias)}^2 + (Model Variances)$$
+
+
+## 5.4 Computing 
+
+```{r}
+# Create two vectors to illustrate the techniques
+observed <- c(0.22, 0.83, -0.12, 0.89, -0.23, -1.30, -0.15, -1.4, 
+              0.62, 0.99, -0.18, 0.32, 0.34, -0.30, 0.04, -0.87, 
+              0.55, -1.30, -1.15, 0.20)
+
+predicted <- c(0.24, 0.78, -0.66, 0.53, 0.70, -0.75, -0.41, -0.43, 
+               0.49, 0.79, -1.19, 0.06, 0.75, -0.07, 0.43, -0.42, 
+               -0.25, -0.64, -1.26, -0.07)
+
+residual_values <- observed - predicted
+
+# summary of residuals 
+summary(residual_values)
+
+# plot 
+
+df <- data.frame(observed = observed, predicted = predicted, residual_values = residual_values) %>%
+  pivot_long(cols = c(predicted, residual_values), names_to = "name", values_to = "value") %>%
+  mutate(name = as.factor(name))
+
+ggplot(data = df, aes(x = observed, y = value)) +
+  geom_point(alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~name, scales = "free_y", nrow = 2)
+
+# R2
+caret::R2(predicted, observed)
+
+# RMSE
+RMSE(predicted, observed)
+
+# Simple correlation
+cor(predicted, observed)
+
+# Rank correlation
+cor(predicted, observed, method = "spearman")
+
+```
+
+
+# 6. Linear Regression and Its Cousins
+
+Ordinary linear regression, partial least squares (PLS), and penalized models (such as ridge regression, the lasso and the elastic net)  can directly or indireectly be written in the form: 
+
+$$y_i = b_0 + b_1x_{x1} + b_2 x_{i2} +\dots+ b_p{x_{ip} + e_i} $$
+
+Ordinary linear regression, at one extreme, finds parameter estimates that have minimum bias, wheres ridge regression, the lasso, and the elastic net find estimates that have lower variance. 
+
+## 6.1 Case Study: Quantitative Structure-Activity Relationship Modeling
+
+## 6.2 Linear Regression
+
+Ordinary least squares linear regression is to find the plane to minimize the sum-of-squared errors (SSE). 
+
+$$SSE = \sum_{i=1}^n(y_i - \hat{y_i})^2 $$
+
+
+## 6.3 Partial Least Squares
+
+Partial Least Squares finds components that maximally summarize the variation of the predictors while simultaneously requiring these components to have maximum correlation with the response. 
+
+PLS can be viewed as a *supervised* dimension reduction procedure; PCR is an *unsupervised* procedure. 
+
+In practice, PCR produces models with similar predictive ability to PLS. 
+
+
+## 6.4 Penalized Models
+
+*Ridge regression* adds a penalty on the sum of the squared regression parameters:
+
+$$SSE_{L_2} = \sum_{i = 1}^n(y_i - \hat{y_i)^2} + \lambda \sum_{j=1}^P\beta_i^2 $$
+
+The L2 signifies that a second-order penalty. 
+
+This method *shrinks* the estimates towards 0 as the $\lambda$ penalty becomes large (these techniques are sometimes called "shrinkage methods"). 
+
+
+A popular alternative to ridge regression is the least absolute shrinkage adn selection operator model, frequently called the *lasso* (Tibshirani 1996). This model uses a similar penaly to ridge regression: 
+
+$$SSE_{L_1} = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \lambda \sum_{j=1}^{P}|{\beta_j}|$$
+
+While this may seem like a small modification, the practical implications are significant. 
+
+
+A generalization of the lasso model is the *elastic net*. 
+
+$$SSE_{E_{net}} = \sum_{i=1}^n(y_i-\hat{y_i})^2 + \lambda_1 \sum_{j=1}^P\beta_j^2 + \lambda_2\sum_{j=1}^P|\beta_j|$$
+
+
+## 6.5 Computing 
+
+The R packages *elasticnet*, *caret*, *lars*, *MASS*, *pls*, and *stats* will be referenced. 
+
+### 6.5.1 Solubility Data
+```{r}
+# solubility data
+library(AppliedPredictiveModeling)
+data(solubility)
+
+# list the data objects begin with "sol": 
+ls(pattern = "^solT")
+
+# Training set
+head(solTrainX)
+dim(solTestX)
+
+# test set 
+head(solTestX)
+dim(solTestX)
+
+# Box-Cox transformed data frames
+head(solTrainXtrans)
+head(solTestXtrans)
+
+# solubility values for each compound 
+head(solTrainY)
+head(solTestY)
+```
+
+### 6.5.2 Ordinary Linear Regression 
+
+Traditional way: 
+
+```{r}
+# Creat a dataframe
+training_data <- bind_cols(solTrainXtrans, Solubility = solTrainY)
+
+# Fit all predictors (wrong ways)
+lm_fit_all_predictors <- lm(Solubility ~ ., data = training_data)
+
+summary(lm_fit_all_predictors)
+
+# predict
+lm_pred1 <- predict(lm_fit_all_predictors, solTestXtrans)
+head(lm_pred1)
+
+# collect the observed and predicted vaues into a data frame
+lm_values1 <- data.frame(obs = solTestY, pred = lm_pred1)
+
+# use the caret funtion defaultSummary to estimate the test set performance: 
+defaultSummary(lm_values1)
+
+```
+
+Robust linear regression model: 
+
+```{r}
+# Robust linear regression model
+library(MASS)
+rlm_fit_all_predictors <- MASS::rlm(Solubility ~ ., data = training_data)
+
+# Prediction on the test set
+lm_pred_rlm <- predict(rlm_fit_all_predictors, newdata = solTestXtrans)
+
+# Performance
+defaultSummary(data.frame(obs = solTestY, pred = lm_pred_rlm))
+```
+
+Caret: train fuction 
+
+```{r}
+# specifies the type of resampling
+ctrl <- trainControl(method = "cv", number = 10)
+
+# Train
+set.seed(100)
+lm_fit1 <- train(x = solTrainXtrans, y = solTrainY, 
+                 method = "lm", trControl = ctrl)
+
+# results
+lm_fit1
+
+# Residuals check: Training set 
+xyplot(solTrainY ~ predict(lm_fit1), 
+       type = c("p", "g"), 
+       xlab = "Predicted", ylab = "Observed")
+
+xyplot(resid(lm_fit1) ~ predict(lm_fit1), 
+       type = c("p", "g"),
+       xlab = "Predicted", ylab = "Residuals")
+```
+
+
+Build a smaller model without predictors with extremely high correlations: 
+```{r}
+# filter high correlated predictors
+corThresh <- 0.9
+tooHigh <- findCorrelation(cor(solTrainXtrans), cutoff = corThresh)
+
+# High correlated predictors
+corrPred <- names(solTrainXtrans)[tooHigh]
+
+# fitered data 
+trainXfiltered <- solTrainXtrans[, -tooHigh]
+
+testXfiltered <- solTestXtrans[, -tooHigh]
+
+# build a model using the filtered data
+set.seed(100)
+lmFiltered <- train(x = trainXfiltered, 
+                    y = solTrainY, 
+                    method = "lm", 
+                    trControl = ctrl)
+
+lmFiltered
+
+```
+
+Robust linear regression using the *train* funciton 
+
+```{r}
+# train
+set.seed(100)
+rlmPCA <- train(x = solTrainXtrans, 
+                y = solTrainY, 
+                # robust lienar regression 
+                method = "rlm", 
+                # ensure that predictors are not singular, pre-process the predictors using PCA
+                preProcess = "pca", 
+                trControl = trainControl(method = "cv", 
+                                         number = 10, 
+                                         preProcOptions = list(pcaComp = 40))
+                )
+
+rlmPCA
+```
+
+
+### 6.5.3 Partial Least Squares
+
+The *pls* package has functions for *PLS* and *PCR*. 
+
+```{r}
+#  Partial Least Squares and Principal Component Regression
+library(pls)
+pcrFit <- pcr(Solubility ~., data = training_data)
+plsFit <- plsr(Solubility ~., data = training_data)
+
+# summary of model
+pcrFit
+plsFit
+
+# predict
+predict(pcrFit, solTestXtrans[1:5, ], ncomp = 1:2)
+```
+
+
+Using the function of *train* in  the *caret*. 
+
+```{r}
+#  PLS
+set.seed(100)
+plsTune <- train(x = solTrainXtrans, 
+                 y = solTrainY, 
+                 method = "pls", 
+                 # the default tuning grid evaluate components 1...tuneLength
+                 tuneLength = 20, 
+                 trControl = trainControl(method = "cv", number = 10 ),
+                 preProcess = c("center", "scale"))
+
+plot(plsTune)
+
+
+#  PCR
+set.seed(100)
+pcrTune <- train(x = solTrainXtrans, 
+                 y = solTrainY, 
+                 method = "pcr", 
+                 # the default tuning grid evaluate components 1...tuneLength
+                 tuneLength = 40, 
+                 trControl = trainControl(method = "cv", number = 10 ),
+                 preProcess = c("center", "scale"))
+
+plot(pcrTune)
+```
+
+
+### 6.5.4 Penalized Regression Models
+
+Ridge-regression models can be creaed using the *lm.ridge* function in the *MASS* package or the *enet* function in the *elasticnet* package. 
+
+```{r}
+# When calling the enet function, the lambda argument specifies the ridge-regression penalty:
+# install.packages("elasticnet")
+ridgeModel <- elasticnet::enet(x = as.matrix(solTrainXtrans), 
+                               y = solTrainY, 
+                               # fixed the ridge penalty
+                               lambda = 0.001)
+
+# For ridge regression, we define a single lasso penalty of 0
+ridgePred <- predict(ridgeModel, 
+                     newx = as.matrix(solTestXtrans), 
+                     s = 1, 
+                     mode = "fraction", 
+                     type = "fit")
+
+head(ridgePred$fit)
+```
+
+```{r}
+# to tune over the penalty
+ridgeGrid <- data.frame(.lambda = seq(0, 0.1, length = 15))
+
+set.seed(100)
+ridgeRegFit <- train(x = solTrainXtrans, y = solTrainY, 
+                     method = "ridge", 
+                     # fit the model over many penalty values
+                     tuneGrid = ridgeGrid, 
+                     trControl = trainControl(method = "cv", number = 10), 
+                     # put the predictors on the same scale
+                     preProcess = c("center", "scale"))
+                     
+ridgeRegFit
+
+```
+
+The *lasso* model can be estimated: the *lars* function in the *lars* package; the *elasticnet* package has *enet*. 
+
+
+```{r}
+# fits Elastic Net regression models
+library(elasticnet)
+enetModel <- enet(
+  # matrix of predictors
+  x = as.matrix(solTrainXtrans), 
+  # response
+  y = solTrainY,
+  # control the ridge-regression: Quadratic penalty parameter. Lambda = 0 performs the Lasso fit
+  lambda = 0.01, 
+                  # standardization
+                  normalize = TRUE)
+
+# returned itesm
+names(enetModel)
+
+plot(enetModel)
+
+# The lasso penalty is specified until the time of prediction
+enetPred <- predict(enetModel, 
+                    newx = as.matrix(solTestXtrans), 
+                    s = .1, 
+                    mode = "fraction", 
+                    type = "fit")
+names(enetPred)
+
+# fit values
+head(enetPred$fit)
+
+# To determin which predictors are used in the model, the predict method is used wiht type = "coefficients"
+
+enetCoef <- predict(enetModel, newx = as.matrix(solTestXtrans), 
+                     s = 0.1, mode = "fraction", 
+                     type = "coefficients")
+
+head(enetCoef$coefficients)
+tail(enetCoef$coefficients)
+```
+
+
+Tune the elastic net model using *train*: 
+```{r}
+# define tune grid
+enetGrid <- expand.grid(.lambda = c(0, 0.01, 0.1), 
+                        .fraction = seq(0.05, 1, length = 20))
+
+# tune the elastic net model
+set.seed(100)
+enetTune <- train(x = solTrainXtrans, 
+                  y = solTrainY, 
+                  method = "enet", 
+                  tuneGrid = enetGrid, 
+                  trControl = trainControl(method = "cv", number = 10), 
+                  preProcess = c("center", "scale"))
+
+plot(enetTune)
+
+# predict
+enet_predicted <- predict(object = enetTune, newdata = solTestXtrans) 
+head(enet_predicted)
+
+plot(enet_predicted, solTestY)
+
+
+# collect the observed and predicted vaues into a data frame
+enetTune_values1 <- data.frame(obs = solTestY, pred = enet_predicted)
+
+# use the caret funtion defaultSummary to estimate the test set performance: 
+defaultSummary(enetTune_values1)
+```
+
+
+# 7. Nonlinear Regression Models
+
+Several nonlinear regression models: neural networks, multivariate adaptive regression splines (MARS), support vector machines (SVMs), and K-nearest neighbors (KNNs). 
+
+
+## 7.1 Neural Networks
+
+Each hidden unit is a linear combination of some or all the predictor variables, then this linear combination is typically transformed by a nonlinear function *g(.)*, such as the logistic (i.e., sigmoidal) function: 
+
+$$h_x(X) = g(\beta_{0k} + \sum_{i = 1}^Px_j\beta_{jk}) $$ 
+
+Where $g(u) = \frac{1}{1+e^{-u}}$
+
+ANNs: the optimization prodced would try to minimize an alternative version of the sum of the squared errors: 
+
+$$\sum_{i=1}^n(y_i - f_i(x))^2 + \lambda\sum_{k=1}^H\sum_{j=0}^P\beta_{jk}^2+\lambda\sum_{k=0}^H\gamma_k^2$$
+
+
+## 7.2 Multivariate Adaptive Regression Splines (MARS)
+
+
+
+## 7.3 Support Vector Machines (page 151)
+
+SVMs are a class of powerful, highly fexible modeling techniques. For regression, it is *a robust regression* where the effect of outliers are minimized. Also, it is a *E-insensitive regression*. 
+
+If the threshold is set to a relative large value, then the outliers are the only points that define the regression line! 
+
+## 7.4 K-Nearest Neighbors
+
+The KNN approach simply predicts a new sample using the K-closest samples from the training set. 
+
+
+## 7.5 computing 
+
+### 7.5.1 Neural Networks
+
+
+```{r}
+# find high correlated variables
+tooHigh <- findCorrelation(cor(solTrainXtrans), cutoff = 0.75)
+trainXnnet <- solTrainXtrans[, -tooHigh]
+testXnnet <- solTestXtrans[, -tooHigh]
+
+# Create a specific candidate set of models to evaluate
+nnetGrid <- expand.grid(.decay = c(0, 0.01, 0.1), 
+                        .size = c(1:10), 
+                        # use bagging 
+                        .bag = FALSE)
+
+
+# train
+set.seed(100)
+nnetTune <- train(solTrainXtrans, 
+                  solTrainY, 
+                  tuneGrid = nnetGrid, 
+                  method = "avNNet", 
+                  trControl = trainControl(method = "cv", number = 10), 
+                  # automatically standardize data 
+                  preProcess = c("center", "scale"), 
+                  lineout = TRUE, 
+                  trace = FALSE, 
+                  MaxNWts = 10 * (ncol(trainXnnet) + 1) + 10 + 1, 
+                  maxit = 500)
+
+plot(nnetTune)
+# Predict 
+predicted <- predict(nnetTune, newData = testXnnet)
+
+```
+
+### 7.5.2 Multivariate Adaptive Regression Splines (MARS)
+
+```{r}
+marsFit <- earth::earth(solTrainXtrans, solTrainY)
+
+marsFit
+
+# summary 
+summary(marsFit)
+
+# plot
+plotmo::plotmo(marsFit)
+
+```
+
+
+```{r}
+# Define the candidate models to test
+marsGrid <- expand.grid(.degree = 1:2, 
+                        .nprune = 2:38)
+
+# MARS model
+set.seed(100)
+marsTuned <- train(solTrainXtrans, 
+                   solTrainY,
+                   method = "earth", 
+                   # Explicitly declare the candidate models to test
+                   tuneGrid = marsGrid, 
+                   trControl = trainControl(method = "cv", number = 10))
+
+# predict
+head(predict(marsTuned, solTestXtrans))
+
+# Estimate the importance of each predictor in the MARS model (*evimp*) or varImp
+varImp(marsTuned)
+```
+
+### 7.5.3 Support Vector Machines
+
+```{r}
+# using the ksvm function in the kernlab package
+# install.packages("kernlab")
+library(kernlab)
+svmFit <- ksvm(x = solTrainXtrans, 
+               y = solTrainY,
+               kernel = "rbfdot", 
+               kpar = "automatic", 
+               C = 1, 
+               epsilon = 0.1)
+```
+
+
+```{r}
+# use the "train" function
+svmRTuned <- train(x = solTrainXtrans, 
+                   y = solTrainY, 
+                   mmethod = "svmRadial", 
+                   preProcess = c("center", "scale"), 
+                   tuneLength = 14, 
+                   trControl = trainControl(method = "cv"))
+```
+
+### 7.5.4 K-Nearest Neighbors
+
+The *knnreg* function in the caret package fits the KNN regression model; *train* tunes the model over K: 
+
+```{r}
+# remove a few sparse and unbalanced fingerprints first
+knnDescr <- solTrainXtrans[, -nearZeroVar(solTrainXtrans)]
+
+# KNN regression
+knnTune <- train(knnDescr, 
+                 solTrainY, 
+                 method = "knn", 
+                 # center adn scaling
+                 preProcess = c("center", "scale"), 
+                 tuneGrid = data.frame(.k = 1:20), 
+                 trControl = trainControl(method = "cv"))
+
+knnTune
+
+# predict
+predicted <- predict(knnTune, newdata = solTestXtrans)
+
+# plot
+plot(solTestY, predicted)
+
+# summary
+# collect the observed and predicted vaues into a data frame
+knn_values1 <- data.frame(obs = solTestY, pred = predicted)
+
+defaultSummary(knn_values1)
+```
+
+
+# 8. Regression Trees and Rule-Based Models
+## 8.1 Basic Regression Trees 
 
