@@ -1,0 +1,207 @@
+---
+title: "Monte Carlo Package in R "
+author: "Jeff Li"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+---
+
+"A happy life is one spent in learning, earning, and yearning". - Lillian Gish
+
+
+https://cran.r-project.org/web/packages/MonteCarlo/vignettes/MonteCarlo-Vignette.html
+
+
+
+# (I) Load required libraries
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(rattle)
+library(gmodels)
+library(MVN)
+
+library(MonteCarlo)
+```
+
+
+There are only two main functions in the package:
+
+* MonteCarlo() runs a simulation study for a user defined parameter grid. It handles the generation of loops over these parameter grid and parallelizes the computation on a user specified number of CPUs.
+
+* MakeTable() creates LaTeX tables from the output of MonteCarlo(). It stacks high dimensional output arrays into tables with a user specified ordering of rows and columns.
+
+
+# 1. A First Example
+
+```{r}
+# A standard t-test : t = x-hat / sigma-hat
+
+# define function that generate data and applies the method of interest
+ttest <- function(n, loc, scale) {
+   # generate sample
+   sample <- rnorm(n, loc, scale)
+   # calculate test statistic
+   stat <- mean(sample)/(sd(sample)/sqrt(n))
+   # get test decision: 
+   decision <- abs(stat) > 1.96
+   # return result
+   return(list("decision" = decision))
+   
+}
+
+
+# define parameter grid:
+n_grid <- c(50, 100, 250, 500)
+loc_grid <- seq(0, 1, 0.2)
+scale_grid <- c(1, 2)
+
+# collect parameter grids in list:
+param_list <- list("n" = n_grid, "loc" = loc_grid, "scale" = scale_grid)
+
+# Run simulation:
+MC_result <- MonteCarlo(func = ttest, nrep = 1000, param_list = param_list)
+
+# summary 
+summary(MC_result)
+
+# generate table
+MakeTable(output = MC_result, rows = "n", cols = c("loc", "scale"), digits = 2, include_meta = FALSE)
+
+```
+
+# 2. MakeFrame
+
+```{r}
+# define function that generate data and applies the method of interest
+ttest <- function(n, loc, scale) {
+   # generate sample
+   sample <- rnorm(n = n, mean = loc, sd = scale)
+   # calculate test statistic
+   stat <- sqrt(n) * mean(sample)/sd(sample)
+   # return result
+   return(list("stat" = stat))
+   
+}
+
+
+# define parameter grid:
+n_grid <- c(50, 100, 250, 500)  # 4 levels
+loc_grid <- seq(0, 1, 0.2)      # 6 levels
+scale_grid <- c(1, 2)           # 2 levels
+
+# collect parameter grids in list:
+param_list <- list("n" = n_grid, "loc" = loc_grid, "scale" = scale_grid)
+
+# Run simulation:
+MC_result <- MonteCarlo(func = ttest, nrep = 1000, param_list = param_list)
+
+# Make a dataframe
+df <- MakeFrame(MC_result) %>% as_tibble()
+head(df)
+
+dim(df)   
+
+# plot
+df %>%
+   filter(loc == 0.2 & scale == 1) %>%
+   ggplot(aes(x = stat, col = factor(n))) +
+   geom_density() 
+
+```
+
+
+
+# 3. EPA Cellulose Conversion
+
+```{r}
+# define function that generate data and applies the method of interest
+ccf <- function(n) {
+   # generate sample
+   comp1 <- rnorm(n = n, mean = 76, sd = 1.52)
+   comp2 <- rnorm(n = n, mean = 70, sd = 1.4)
+   comp3 <- rnorm(n = n, mean = 13, sd = 1.3)
+   comp4 <- rnorm(n = n, mean = 9, sd = 0.9)
+   
+   # calculate test statistic
+   stat <- mean( (comp1 - comp2) - (comp3 - comp4) )
+   # return result
+   return(list("stat" = stat))
+   
+}
+
+# define parameter grid:
+n_grid <- c(1, 10, 20, 50, 100)  # 4 levels
+
+
+
+# collect parameter grids in list:
+param_list <- list("n" = n_grid)
+
+# Run simulation:
+ccf_result <- MonteCarlo(func = ccf, nrep = 1000000, param_list = param_list)
+
+# Make a dataframe
+df <- MakeFrame(ccf_result) %>% as_tibble()
+head(df)
+
+dim(df)   
+
+
+# Density plot 
+ggplot(data = df, aes(x = stat)) +
+  geom_density(adjust = 2) + 
+  facet_wrap(~ n, nrow = 1) +
+  geom_vline(xintercept = c(0,2, 6), linetype = "dotted", col = "red") +
+  scale_x_continuous(limits = c(-5, 10))
+
+
+# plot
+df %>%
+  mutate(n= as.factor(n)) %>%
+   ggplot(aes(x = stat, fill = n)) +
+   geom_histogram()  +
+  facet_wrap(~ n, nrow = 1, scales = "free_x") +
+  geom_vline(xintercept = c(0,2, 6), linetype = "dotted", col = "red", size = 0.8) 
+  
+
+df %>%
+   filter(n == 10) %>%
+   ggplot(aes(x = stat)) +
+   geom_histogram() 
+
+df %>%
+   filter(n == 20) %>%
+   ggplot(aes(x = stat)) +
+   geom_histogram() 
+
+df %>%
+   filter(n == 100) %>%
+   ggplot(aes(x = stat)) +
+   geom_histogram() 
+
+
+# boxplot
+df %>%
+   ggplot(aes(x = factor(n), y = stat)) + 
+   #geom_boxplot() + 
+   geom_violin() + 
+   geom_hline(yintercept = c(1, 2, 3), linetype = "dotted", col = "red")
+
+df %>%
+   filter(n == 100) %>%
+   mutate(out_of_range = between(stat, 1.6, 2.4)) %>%
+   summarize(mean = mean(out_of_range))
+
+
+min(df$stat)
+max(df$stat)
+```
+

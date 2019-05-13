@@ -1,0 +1,79 @@
+---
+title: "Modules in R"
+author: "Prepared by: Jeff Li"
+date:  "`r Sys.Date()`"
+output:
+  html_document: 
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    fig.cap: true
+    fig_width: 7
+    fig_height: 6
+fontsize: 11pt
+fontfamily: mathpazo
+---
+
+ref: https://www.inwt-statistics.com/read-blog/using-modules-in-r.html
+
+# 1. Introluction 
+
+Modules can be used as an organizational unit for source code. They are more regorous than source codes when dependencies and local search paths are defined. Modlules can be used as a sub within packages or in scripts. 
+
+Module is more than a funcito, and less than a package. 
+
+* Modules can be created anywhere, including inside another module
+
+* Modules can be passed to functions,
+
+* Modules can be returned from functions.
+
+
+In addition Modules provide:
+
+* local namespace features by declaring imports and exports
+
+* encapsulation by introducing a local scope,
+
+* code reuse by various modes of composition,
+
+* interchangeability with other modules implementing the same interface.
+
+# 2. Example 
+
+```{r}
+# install the package
+# install.packages("modules")
+
+library(modules)
+
+# Define a module
+graphics <- modules::module({
+  # fine control the names avialable 
+  modules::import("ggplot2", "aes", "geom_bar", "ggplot", "labs")
+  # define exports
+  modules::export("barplot")
+  ## Define a barplot function inside the module
+  barplot <- function(df) {
+      ggplot(df, aes(group, count)) +
+      geom_bar(stat = "identity") +
+      labs(x = "Group Variable", y = "Absolute frequency")
+  }
+})
+
+# check the class
+class(graphics)
+graphics
+
+# Create an example df
+df <- data.frame(group = sample(LETTERS, 5), 
+                 count = round(runif(5, max = 100)))
+
+# Use the defined module
+graphics$barplot(df)
+```
+
+
+
+
+

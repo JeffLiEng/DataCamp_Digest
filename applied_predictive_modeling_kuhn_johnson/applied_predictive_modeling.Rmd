@@ -1309,3 +1309,174 @@ defaultSummary(knn_values1)
 # 8. Regression Trees and Rule-Based Models
 ## 8.1 Basic Regression Trees 
 
+Basic regression trees partition the data into smaller groups that are more homogenous with respect to the response. To achieve outcome homogeneity, regression trees determine: 
+
+* The predictor to split on and value of the split
+
+* The depth or complexity of the tree
+
+* The prediction equation in the terminal nodes
+
+$$SSE = \sum_{i\epsilon{S_1}}(y_i -\hat{y}_1)^2 + \sum_{i\epsilon{S_2}}(y_i - \hat{y_2})^2$$
+
+```{r}
+df <- data.frame(x = c(1,1, 1, 2, 2, 2), 
+                 y = c(1.5, 1.6, 1.7, 2.1, 2.2, 2.3))
+
+df %>%
+  mutate(overall_mean = mean(y), 
+         overall_diff2 = (y - overall_mean)^2) %>%
+  group_by(x) %>%
+  mutate(grouped_mean = mean(y), 
+         group_diff2 = (y - grouped_mean)^2) %>%
+  ungroup() %>%
+  summarize(SSE = sum(overall_diff2), 
+            SSE_tree1 = sum(group_diff2))
+        
+```
+
+
+The full tree needs to be pruned back to avoid over-fitting. 
+
+$$SSE_cp = SSE + c_p (#TerminalNodes)$$
+
+
+## 8.2 Regression Model Trees 
+
+* The splitting criterion is different
+
+* The terminal nodes predict the outcome using a linear model (as opposed to the simple average)
+
+* When a sample is predicted, it is oftern a combination of the predictions from different models along the sample path through the tree. 
+
+
+
+## 8.3 Rule-Based Models
+
+## 8.4 Bagged Trees
+
+In the 1990s, ensemble techniques (methods that combine many models' predictions) began to appear. 
+
+Bagging-bootstrap aggregation. Each model in the ensemble is used t generate a predition for a new sample and these *m* predictions are averaged to give the bagged model's prediction. 
+
+## 8.5 Random Forests
+
+Reducing correlation among trees, known as de-correlating trees, is a way to improve the performance of bagging. 
+Adding randomness can reduce correlation. 
+
+Dietterich (2000) developed the idea of random split selection, where trees are built using a random subset of the top k predictors at each split in the tree. 
+
+Another approach was to build entire trees based on random subset of descriptors. 
+
+*Algoorithm: Basic Random Forests*
+1st: select the number of models to build, m
+2nd: for i = 1 to m do
+   Generate a bootstrap sample of the original data
+   Train a tree model on this sample
+   for each split do: randomly select k (< P) of the original predictors; select the best predictor among the k predictors and partition the data; 
+   end 
+ Use typical tree models stopping criterial to determine when a tree is complete (but do not prune)
+End. 
+
+## 8.6 Boosting  (page 203)
+
+## 8.7 
+
+
+## 8.8 Computing 
+
+The R packages used in this section are *caret*, *Cubist*, *gbm*, *ipred*, *party*, *partykit*, *randomForest*, *rpart*, and *RWeka*. 
+
+### 8.8.1 Single Trees
+
+Two popular pakcages: *rpart* and *party*.  
+
+The *rpart* package makes splits based on the *CART* methodology using the *rpart* function.  The *rpart* function has several control parameters that can be accessed through the *rpart.control* argument. Two commonly used: the compplexity parameter(*cp*) adn maximum node depth (*maxdepth*). 
+
+To tune an *CART* tree over the ocmplexity parameter, the method option in the *train* function should be set to *method="rpart"*. 
+To tune over maximum depth, the method option should be set to *method="rpart2"*: 
+
+```{r}
+set.seed(100)
+rpartTune <- train(x = solTrainXtrans, 
+                   y = solTrainY, 
+                   method = "rpart2", 
+                   tuneLength = 10, 
+                   trControl = trainControl(method = "cv"))
+
+rpartTune
+
+# predict on the training data
+rpart_predict <- predict(object = rpartTune)
+plot(solTrainY, rpart_predict)
+
+# To produce plots for rpart trees
+library(partykit)
+rpartTree2 <- as.party(rpartTree)
+
+
+```
+
+
+The *party* package makes splits based on the conditional inference framework using the *ctree* funciton. 
+The party package has several control parameters that can be
+accessed through the *ctree_control* argument. Two of these parameters are
+commonly used in training: *mincriterion* and *maxdepth*. *mincriterion* defines
+the statistical criterion that must be met in order to continue splitting;
+*maxdepth* is the maximum depth of the tree. To tune a conditional inference
+tree over *mincriterion*, the method option in the train function should be
+set to *method = "ctree"*. To tune over maximum depth, the method option
+should be set to *method="ctree2"*.
+
+```{r}
+set.seed(100)
+treeTune <- train(x = solTrainXtrans, 
+                   y = solTrainY, 
+                   method = "ctree2", 
+                   tuneLength = 10, 
+                   trControl = trainControl(method = "cv"))
+
+treeTune
+
+# tree diagram
+plot(treeTune)
+```
+
+
+```{r}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+## xxxxxxxxxxxxxxxxx
+
+## 14.5 Boosting 
+The boosting method was developed for classification problems, in which many weak classifiers (e.g., a classifier that predicts marginally better than random) were combined into a strong classifier.  
+
+Major boosting algorithms: AdaBoost and Stochastic Gradient Boosting 
+
+### 14.5.1 AdaBoost
+
+```{r}
+knitr::include_graphics("plots/algorithm14.2_AdaBoost_algorithm_for_two_class_problems.png")
+```
+
+### 14.5.2 Stochastic Gradient Boosting
+
+```{r}
+knitr::include_graphics("plots/algorithm14.3_simple_gradient_boosting_for_classification.png")
+```
+
+
+
+
+

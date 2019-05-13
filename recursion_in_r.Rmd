@@ -35,14 +35,14 @@ x <- 100
 sumrec(100)
 
 # test 2
-x <- 1:100
-sumrec(x)
+x <- 1:100 # test data
+sumrec(x)  # use the defined recursion function
 
 # test 3
 set.seed(123)
 (x <- round(runif(10) * 10))
-sumrec(x)
 
+sumrec(x)
 ```
 
 # 2. Factorial Function 
